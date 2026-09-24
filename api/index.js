@@ -29,19 +29,19 @@ function removeRegressionHeatmap(source) {
   return source
     .replace(
       "[['structure','structureSub','show-structure','signals'],['smart','smartSub','show-smart','performance'],['heat','heatSub','show-heatmap','weekly']]",
-      "[['structure','structureSub','show-structure','signals'],['smart','smartSub','show-smart','performance']]",
+      "[['structure','structureSub','show-structure','signals']]",
     )
     .replace(
       "indicatorForm.append(...Object.values(groups));indicatorDialog",
-      "indicatorForm.append(...Object.values(groups));const heatToggle=$('#show-heatmap');if(heatToggle){heatToggle.checked=false;groups.heat.hidden=true;$('#indicator-tab-heat').hidden=true;heatToggle.dispatchEvent(new Event('input',{bubbles:true}))}indicatorDialog",
+      "indicatorForm.append(...Object.values(groups));const smartToggle=$('#show-smart'),heatToggle=$('#show-heatmap');if(smartToggle){smartToggle.checked=false;groups.smart.hidden=true;$('#indicator-tab-smart').hidden=true}if(heatToggle){heatToggle.checked=false;groups.heat.hidden=true;$('#indicator-tab-heat').hidden=true;heatToggle.dispatchEvent(new Event('input',{bubbles:true}))}indicatorDialog",
     )
     .replace(
       "event.key==='Home'?0:event.key==='End'?2:(indicatorKeys.indexOf(selectedIndicator)+delta+3)%3",
-      "event.key==='Home'?0:event.key==='End'?1:(indicatorKeys.indexOf(selectedIndicator)+delta+2)%2",
+      "event.key==='Home'?0:event.key==='End'?0:0",
     )
     .replace(
       "['show-structure','show-smart','show-heatmap'].filter",
-      "['show-structure','show-smart'].filter",
+      "['show-structure'].filter",
     );
 }
 
@@ -52,10 +52,15 @@ async function customizeResponse(response, path) {
 
   let body = await response.text();
   if (path === "/" || path === "/index.html") {
-    body = body.replace(
-      '<input id="show-heatmap" type="checkbox" checked>',
-      '<input id="show-heatmap" type="checkbox">',
-    );
+    body = body
+      .replace(
+        '<input id="show-smart" type="checkbox" checked>',
+        '<input id="show-smart" type="checkbox">',
+      )
+      .replace(
+        '<input id="show-heatmap" type="checkbox" checked>',
+        '<input id="show-heatmap" type="checkbox">',
+      );
   } else {
     body = removeRegressionHeatmap(body);
   }

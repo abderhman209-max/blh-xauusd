@@ -1,6 +1,6 @@
 # BLH XAUUSD
 
-Code source de la plateforme BLH XAUUSD, importé depuis la version 10 publiée avec ChatGPT Sites.
+Code source de la plateforme BLH XAUUSD, importé depuis la version 10 publiée avec ChatGPT Sites et préparé pour Vercel.
 
 ## Fonctionnalités actuelles
 
@@ -12,14 +12,19 @@ Code source de la plateforme BLH XAUUSD, importé depuis la version 10 publiée 
 - Interface multilingue et espace client
 - Historique local des analyses
 
-## Source importée
+## Organisation
 
-Le serveur et les ressources du site sont conservés dans `worker/index.js`. Les manifestes Sites d'origine sont inclus pour assurer la traçabilité de la version importée.
+- `worker/index.js` : serveur et ressources de la version importée.
+- `api/index.js` : adaptateur Vercel Edge.
+- `vercel.json` : routage des pages, ressources et API.
+- `VERCEL.md` : procédure d’import dans Vercel.
 
 ## Configuration
 
-La clé `TWELVEDATA_API_KEY` doit être enregistrée dans les variables secrètes de l'hébergeur. Aucune clé secrète n'est incluse dans ce dépôt.
+La clé `TWELVEDATA_API_KEY` peut être enregistrée dans les variables secrètes de l’hébergeur. Sans cette clé, le serveur tente sa source de secours. Aucune clé secrète n’est incluse dans ce dépôt.
 
-## Migration Vercel
+## Accès actuel
 
-L'authentification de la version importée utilise actuellement ChatGPT Sites. Elle doit être adaptée avant un déploiement public sur Vercel. L'abonnement Stripe, le dashboard Admin et les animations Three.js restent à construire.
+Le déploiement Vercel expose la version importée comme démonstration publique. Une authentification serveur et une base de données devront être ajoutées avant les comptes clients et abonnements.
+
+L’abonnement Stripe, le dashboard Admin avec statistiques pays/région et les animations Three.js restent à construire.

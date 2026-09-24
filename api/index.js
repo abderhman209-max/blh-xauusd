@@ -20,8 +20,59 @@ function createWorkerRequest(request) {
   });
 }
 
+function requestedPath(request) {
+  const path = new URL(request.url).searchParams.get("__path") || "";
+  return "/" + path.replace(/^\/+/, "");
+}
+
+function removeRegressionHeatmap(source) {
+  return source
+    .replace(
+      "[['structure','structureSub','show-structure','signals'],['smart','smartSub','show-smart','performance'],['heat','heatSub','show-heatmap','weekly']]",
+      "[['structure','structureSub','show-structure','signals'],['smart','smartSub','show-smart','performance']]",
+    )
+    .replace(
+      "indicatorForm.append(...Object.values(groups));indicatorDialog",
+      "indicatorForm.append(...Object.values(groups));const heatToggle=$('#show-heatmap');if(heatToggle){heatToggle.checked=false;groups.heat.hidden=true;$('#indicator-tab-heat').hidden=true;heatToggle.dispatchEvent(new Event('input',{bubbles:true}))}indicatorDialog",
+    )
+    .replace(
+      "event.key==='Home'?0:event.key==='End'?2:(indicatorKeys.indexOf(selectedIndicator)+delta+3)%3",
+      "event.key==='Home'?0:event.key==='End'?1:(indicatorKeys.indexOf(selectedIndicator)+delta+2)%2",
+    )
+    .replace(
+      "['show-structure','show-smart','show-heatmap'].filter",
+      "['show-structure','show-smart'].filter",
+    );
+}
+
+async function customizeResponse(response, path) {
+  if (path !== "/" && path !== "/index.html" && path !== "/portal.js") {
+    return response;
+  }
+
+  let body = await response.text();
+  if (path === "/" || path === "/index.html") {
+    body = body.replace(
+      '<input id="show-heatmap" type="checkbox" checked>',
+      '<input id="show-heatmap" type="checkbox">',
+    );
+  } else {
+    body = removeRegressionHeatmap(body);
+  }
+
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  headers.delete("etag");
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default async function handler(request) {
-  return worker.fetch(createWorkerRequest(request), {
+  const response = await worker.fetch(createWorkerRequest(request), {
     TWELVEDATA_API_KEY: process.env.TWELVEDATA_API_KEY,
   });
+  return customizeResponse(response, requestedPath(request));
 }

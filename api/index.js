@@ -27,8 +27,10 @@ function requestedPath(request) {
 
 const plannerEngine = String.raw`// Web port of Signal Trade Planner Strategy by abderhman209.
 const SmartEngine={analyze(bars,{atrLength=14,zone=1.5,rr=[.5,1,1.5]}={}){
- const fastLength=21,slowLength=50,rsiLength=14,rsiThreshold=52,atrMultiplier=1.5,minSeparation=.05,minBody=.10;
- const result={sides:[],signals:[],fast:[],slow:[]};if(bars.length<slowLength+2)return result;
+ const val=(id,fallback)=>{const n=Number(document.querySelector(id)?.value);return Number.isFinite(n)?n:fallback},checked=(id,fallback=true)=>document.querySelector(id)?.checked??fallback;
+ const fastLength=val('#planner-fast',21),slowLength=val('#planner-slow',50),rsiLength=val('#planner-rsi-length',14),rsiThreshold=val('#planner-rsi-threshold',52),minSeparation=val('#planner-separation',.05),minBody=val('#planner-body',.10),cooldown=val('#planner-cooldown',3),swingLookback=val('#planner-swing',7),trailingMultiplier=val('#planner-trailing-atr',1.5);
+ const mode=document.querySelector('#planner-mode')?.value||'Hybrid',stopMode=document.querySelector('#planner-stop-mode')?.value||'ATR',directionMode=document.querySelector('#planner-direction')?.value||'Both',priority=document.querySelector('#planner-priority')?.value||'Stop first',trailing=checked('#planner-trailing',true);
+ const result={sides:[],signals:[],fast:[],slow:[],stats:{signals:0,closed:0,wins:0,tp1:0,tp2:0,tp3:0,stops:0,netR:0},active:null};if(bars.length<slowLength+2)return result;
  const ema=(length,out)=>{const k=2/(length+1);let value=bars[0].close;for(let i=0;i<bars.length;i++){value=i?bars[i].close*k+value*(1-k):value;out[i]=value}};
  ema(fastLength,result.fast);ema(slowLength,result.slow);
  let atr=null,atrSum=0,avgGain=null,avgLoss=null,gainSum=0,lossSum=0;const atrs=[],rsis=[];
@@ -37,20 +39,23 @@ const SmartEngine={analyze(bars,{atrLength=14,zone=1.5,rr=[.5,1,1.5]}={}){
   atrSum+=tr;if(i===atrLength-1)atr=atrSum/atrLength;else if(i>=atrLength)atr=(atr*(atrLength-1)+tr)/atrLength;atrs[i]=atr;
   if(i){const change=b.close-p.close,gain=Math.max(change,0),loss=Math.max(-change,0);if(i<=rsiLength){gainSum+=gain;lossSum+=loss;if(i===rsiLength){avgGain=gainSum/rsiLength;avgLoss=lossSum/rsiLength}}else{avgGain=(avgGain*(rsiLength-1)+gain)/rsiLength;avgLoss=(avgLoss*(rsiLength-1)+loss)/rsiLength}if(avgGain!==null)rsis[i]=avgLoss===0?100:100-100/(1+avgGain/avgLoss)}
  }
- const latest={};let lastSignal=-100;
+ let active=null,lastPlan=null,lastExit=-100;
  for(let i=slowLength+1;i<bars.length;i++){
-  const b=bars[i],p=bars[i-1],a=atrs[i],rsi=rsis[i];if(!a||!Number.isFinite(rsi)||i-lastSignal<=3)continue;
+  const b=bars[i],p=bars[i-1],a=atrs[i],rsi=rsis[i];if(!a||!Number.isFinite(rsi))continue;
+  if(active&&i>active.index){const stopHit=active.direction===1?b.low<=active.stop:b.high>=active.stop,hits=active.tps.map(t=>active.direction===1?b.high>=t:b.low<=t);if(stopHit&&priority==='Stop first'){result.stats.stops++;result.stats.closed++;result.stats.netR+=active.tp1Reached?0:-1;active=null;lastExit=i}else{for(let t=0;t<3;t++)if(hits[t]&&!active?.reached[t]){active.reached[t]=true;result.stats['tp'+(t+1)]++;if(t===0){active.tp1Reached=true;result.stats.wins++}if(t===2){result.stats.closed++;result.stats.netR+=rr[2];active=null;lastExit=i;break}}if(active&&stopHit){result.stats.stops++;result.stats.closed++;result.stats.netR+=active.tp1Reached?rr[0]:-1;active=null;lastExit=i}if(active&&trailing&&active.tp1Reached){active.best=active.direction===1?Math.max(active.best,b.high):Math.min(active.best,b.low);const candidate=active.direction===1?active.best-a*trailingMultiplier:active.best+a*trailingMultiplier;active.stop=active.direction===1?Math.max(active.entry,candidate,active.stop):Math.min(active.entry,candidate,active.stop);active.plan.stop=active.stop}}}
+  if(active||i-lastExit<=cooldown)continue;
   const crossLong=result.fast[i]>result.slow[i]&&result.fast[i-1]<=result.slow[i-1],crossShort=result.fast[i]<result.slow[i]&&result.fast[i-1]>=result.slow[i-1];
   const pullLong=result.fast[i]>result.slow[i]&&b.close>result.fast[i]&&p.close<=result.fast[i-1]&&rsi>rsiThreshold;
   const pullShort=result.fast[i]<result.slow[i]&&b.close<result.fast[i]&&p.close>=result.fast[i-1]&&rsi<100-rsiThreshold;
   const separation=Math.abs(result.fast[i]-result.slow[i])/a,body=Math.abs(b.close-b.open)/a;
-  const longSignal=crossLong||(pullLong&&separation>=minSeparation&&b.close>b.open&&body>=minBody);
-  const shortSignal=crossShort||(pullShort&&separation>=minSeparation&&b.close<b.open&&body>=minBody);
-  if(!longSignal&&!shortSignal)continue;const direction=longSignal?1:-1,entry=b.close,risk=a*Math.max(.1,zone),stop=entry-direction*risk;
+  const qualityLong=separation>=minSeparation&&b.close>b.open&&body>=minBody,qualityShort=separation>=minSeparation&&b.close<b.open&&body>=minBody;
+  const longSignal=(mode==='EMA crossover'?crossLong:mode==='Pullback continuation'?pullLong&&qualityLong:crossLong||pullLong&&qualityLong)&&directionMode!=='Short only';
+  const shortSignal=(mode==='EMA crossover'?crossShort:mode==='Pullback continuation'?pullShort&&qualityShort:crossShort||pullShort&&qualityShort)&&directionMode!=='Long only';
+  if(!longSignal&&!shortSignal)continue;const direction=longSignal?1:-1,entry=b.close,atrRisk=a*Math.max(.1,zone),recent=bars.slice(Math.max(0,i-swingLookback+1),i+1),swingStop=direction===1?Math.min(...recent.map(v=>v.low))-.01:Math.max(...recent.map(v=>v.high))+.01,selectedStop=stopMode==='Recent swing'?swingStop:entry-direction*atrRisk,risk=Math.max(Math.abs(entry-selectedStop),a*.1),stop=entry-direction*risk;
   const plan={direction,index:i,top:entry+a*.04,bottom:entry-a*.04,secondTop:entry+a*.04,secondBottom:entry-a*.04,entry,stop,tps:rr.map(v=>entry+direction*risk*v),trend:{a:{index:Math.max(0,i-20),price:result.slow[Math.max(0,i-20)]},b:{index:i+25,price:result.slow[i]}}};
-  latest[direction]=plan;result.signals.push({index:i,direction,price:direction===1?b.low:b.high});lastSignal=i;
+  lastPlan=plan;active={...plan,plan,reached:[false,false,false],tp1Reached:false,best:entry};result.signals.push({index:i,direction,price:direction===1?b.low:b.high});result.stats.signals++;
  }
- result.sides=Object.values(latest);return result;
+ result.active=active;result.sides=lastPlan?[lastPlan]:[];return result;
 }};
 if(typeof module!=='undefined')module.exports=SmartEngine;
 function renderSmart(model,x,y,width,height,layer='all'){
@@ -63,6 +68,7 @@ function renderSmart(model,x,y,width,height,layer='all'){
   labels+='<text x="'+Math.max(4,left+3)+'" y="'+(y(z.entry)-7)+'" fill="#69a8ff" font-size="11">ENTRY '+z.entry.toFixed(2)+'</text><text x="'+Math.max(4,right-52)+'" y="'+(y(z.stop)-5)+'" fill="#f23645" font-size="11">SL '+z.stop.toFixed(2)+'</text>';
  }
  if(enabled('#smart-signals'))for(const signal of model.signals){const xx=x(signal.index);if(xx<0||xx>width)continue;const up=signal.direction===1,yy=y(signal.price),color=up?'#089981':'#f23645',name=up?'BUY':'SELL';labels+='<g><path d="M '+(xx-6)+' '+(yy+(up?10:-10))+' L '+xx+' '+yy+' L '+(xx+6)+' '+(yy+(up?10:-10))+'" fill="'+color+'"/><rect x="'+(xx-20)+'" y="'+(yy+(up?10:-34))+'" width="40" height="22" rx="4" fill="'+color+'"/><text x="'+xx+'" y="'+(yy+(up?25:-19))+'" text-anchor="middle" fill="white" font-size="10">'+name+'</text></g>'}
+ if(enabled('#planner-dashboard')&&model.stats){const q=model.stats,rate=q.closed?Math.round(q.wins/q.closed*100):0,status=model.active?(model.active.direction===1?'LONG ACTIVE':'SHORT ACTIVE'):'WAITING',bx=Math.max(8,width-250);labels+='<g><rect x="'+bx+'" y="12" width="238" height="116" rx="8" fill="#071a14" fill-opacity=".94" stroke="#089981"/><text x="'+(bx+12)+'" y="32" fill="white" font-size="12" font-weight="700">SIGNAL TRADE PLANNER</text><text x="'+(bx+12)+'" y="52" fill="#aeb2ba" font-size="10">'+status+' · WIN '+rate+'%</text><text x="'+(bx+12)+'" y="72" fill="#69d4bb" font-size="10">SIGNALS '+q.signals+'   CLOSED '+q.closed+'   TP1 '+q.tp1+'</text><text x="'+(bx+12)+'" y="91" fill="#c4a7ff" font-size="10">TP2 '+q.tp2+'   TP3 '+q.tp3+'   SL '+q.stops+'</text><text x="'+(bx+12)+'" y="111" fill="'+(q.netR>=0?'#69d4bb':'#ff6b78')+'" font-size="11">NET '+q.netR.toFixed(2)+'R</text></g>'}
  return layer==='labels'?labels+'</g>':shapes+'</g>';
 }`;
 
@@ -104,7 +110,11 @@ async function customizeResponse(response, path) {
         '<label><input id="show-smart" type="checkbox" checked> Smart Buy & Sell Zones + TP Engine V2</label>',
         '<label><input id="show-smart" type="checkbox" checked> Signal Trade Planner Strategy</label>',
       )
-      .replace('Swing Length<input id="smart-swing" type="number" min="2" max="100" value="5">', 'Signal mode<input value="Hybrid" disabled><input id="smart-swing" type="hidden" value="5">')
+      .replace(
+        '<label><input id="show-smart" type="checkbox" checked> Signal Trade Planner Strategy</label>',
+        '<label><input id="show-smart" type="checkbox" checked> Signal Trade Planner Strategy</label><label>Signal mode<select id="planner-mode"><option>Hybrid</option><option>EMA crossover</option><option>Pullback continuation</option></select></label><label>Fast EMA<input id="planner-fast" type="number" min="1" value="21"></label><label>Slow EMA<input id="planner-slow" type="number" min="2" value="50"></label><label>RSI length<input id="planner-rsi-length" type="number" min="2" value="14"></label><label>RSI threshold<input id="planner-rsi-threshold" type="number" min="50" max="70" value="52"></label><label>Minimum EMA separation (ATR)<input id="planner-separation" type="number" min="0" step="0.05" value="0.05"></label><label>Minimum candle body (ATR)<input id="planner-body" type="number" min="0" step="0.05" value="0.10"></label><label>Cooldown bars<input id="planner-cooldown" type="number" min="0" value="3"></label><label>Stop mode<select id="planner-stop-mode"><option>ATR</option><option>Recent swing</option></select></label><label>Swing lookback<input id="planner-swing" type="number" min="2" value="7"></label><label>Same-bar priority<select id="planner-priority"><option>Stop first</option><option>Targets first</option></select></label><label>Trade direction<select id="planner-direction"><option>Both</option><option>Long only</option><option>Short only</option></select></label><label><input id="planner-trailing" type="checkbox" checked> Trailing stop after TP1</label><label>Trailing ATR multiplier<input id="planner-trailing-atr" type="number" min="0.1" step="0.1" value="1.5"></label><label><input id="planner-dashboard" type="checkbox" checked> Show backtest dashboard</label>',
+      )
+      .replace('<label>Swing Length<input id="smart-swing" type="number" min="2" max="100" value="5"></label>', '<input id="smart-swing" type="hidden" value="5">')
       .replace('ATR Length<input id="smart-atr" type="number" min="1" max="100" value="14">', 'ATR Length<input id="smart-atr" type="number" min="1" max="100" value="14">')
       .replace('Zone Size ATR<input id="smart-zone" type="number" min="0.1" step="0.1" value="0.5">', 'Stop ATR multiplier<input id="smart-zone" type="number" min="0.1" step="0.1" value="1.5">')
       .replace('TP1 RR<input id="smart-tp1" type="number" min="0.1" step="0.1" value="1">', 'TP1 R<input id="smart-tp1" type="number" min="0.1" step="0.1" value="0.5">')

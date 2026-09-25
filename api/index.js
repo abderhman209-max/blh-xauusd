@@ -140,7 +140,8 @@ async function customizeResponse(response, path) {
       .replace('Smart: vorläufige Signale bis zum Kerzenschluss', 'Trade Planner: Signale nach Kerzenschluss')
       .replace("'Smart: '+smart.signals.length+' Signale · offene Kerze: vorläufiges Signal'", "'Trade Planner: '+smart.signals.length+' bestätigte Signale'")
       .replace("'● Smart Buy / Sell · TP Engine V2'", "'● Signal Trade Planner · EMA 21/50 · RSI'")
-      .replace('step=(pw-(smartOn?135:0))/(count+space)', 'step=(pw-34)/(count+Math.min(space,3))')
+      .replace('step=(pw-(smartOn?135:0))/(count+space)', 'step=pw/Math.max(1,count)')
+      .replace('minBars=Math.min(35,total)', 'minBars=Math.min(12,total)')
       .replace('right=82,top=20,bottom=30,pw=W-right', 'right=82,top=20,bottom=48,pw=W-right')
       .replace(
         'const tickCount=Math.max(2,Math.min(6,Math.floor(pw/120)+1));for(let j=0;j<tickCount;j++){const i=start+Math.floor(j*(count-1)/(tickCount-1)),tx=j===0?4:j===tickCount-1?pw-4:x(i),anchor=j===0?"start":j===tickCount-1?"end":"middle";s+=`<text x="${tx}" y="${H-8}" text-anchor="${anchor}" fill="#999" font-size="12">${new Date(sourceBars[i].time).toISOString().slice(5,16).replace(\'T\',\' \')}</text>`}',

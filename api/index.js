@@ -140,7 +140,7 @@ async function customizeResponse(response, path) {
       .replace('Smart: vorläufige Signale bis zum Kerzenschluss', 'Trade Planner: Signale nach Kerzenschluss')
       .replace("'Smart: '+smart.signals.length+' Signale · offene Kerze: vorläufiges Signal'", "'Trade Planner: '+smart.signals.length+' bestätigte Signale'")
       .replace("'● Smart Buy / Sell · TP Engine V2'", "'● Signal Trade Planner · EMA 21/50 · RSI'")
-      .replace('step=(pw-(smartOn?135:0))/(count+space)', 'step=pw/Math.max(1,count)')
+      .replace('step=(pw-(smartOn?135:0))/(count+space)', 'step=pw/(Math.max(1,count)+4)')
       .replace('minBars=Math.min(35,total)', 'minBars=Math.min(12,total)')
       .replace('viewOffset=Math.max(0,Math.min(Math.max(0,total-viewCount),Math.round(viewOffset)||0))', 'viewOffset=Math.max(-Math.min(30,Math.ceil(viewCount*.4)),Math.min(Math.max(0,total-viewCount),Math.round(viewOffset)||0))')
       .replace('Math.max(c.start,Math.min(c.end-1,Math.floor(xx/c.step+c.start)))', 'Math.max(c.start,Math.min(sourceBars.length-1,c.end-1,Math.floor(xx/c.step+c.start)))')

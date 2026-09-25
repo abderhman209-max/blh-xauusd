@@ -158,9 +158,60 @@ async function customizeResponse(response, path) {
   });
 }
 
+async function yahooGoldFallback(request) {
+  const interval = new URL(request.url).searchParams.get("interval") || "15min";
+  const yahooInterval = interval === "1h" ? "60m" : interval;
+  const allowed = new Set(["1min", "5min", "15min", "30min", "1h"]);
+  if (!allowed.has(interval)) return null;
+
+  const url = "https://query2.finance.yahoo.com/v8/finance/chart/GC%3DF?interval=" + yahooInterval + "&range=" + (interval === "1h" ? "1mo" : "5d");
+  const upstream = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "Mozilla/5.0 (compatible; BLH-XAUUSD/1.0)",
+    },
+  });
+  if (!upstream.ok) throw new Error("Yahoo fallback unavailable");
+  const payload = await upstream.json();
+  const result = payload.chart?.result?.[0];
+  const quote = result?.indicators?.quote?.[0];
+  if (!result?.timestamp || !quote) throw new Error("Yahoo fallback returned no candles");
+
+  const duration = { "1min": 60000, "5min": 300000, "15min": 900000, "30min": 1800000, "1h": 3600000 }[interval];
+  const now = Date.now();
+  const bars = result.timestamp.map((time, index) => ({
+    time: Number(time) * 1000,
+    open: Number(quote.open?.[index]),
+    high: Number(quote.high?.[index]),
+    low: Number(quote.low?.[index]),
+    close: Number(quote.close?.[index]),
+    volume: Number(quote.volume?.[index] || 0),
+    closed: Number(time) * 1000 + duration <= now,
+  })).filter(bar => [bar.time, bar.open, bar.high, bar.low, bar.close].every(Number.isFinite));
+  if (bars.length < 41) throw new Error("Yahoo fallback returned insufficient candles");
+
+  return Response.json({
+    symbol: "XAU/USD",
+    interval,
+    source: "Yahoo Finance · Gold Futures",
+    volumeMode: "provider",
+    fetchedAt: now,
+    bars: bars.slice(-1000),
+  }, { headers: { "cache-control": "public, s-maxage=30, stale-while-revalidate=300" } });
+}
+
 export default async function handler(request) {
+  const path = requestedPath(request);
   const response = await worker.fetch(createWorkerRequest(request), {
     TWELVEDATA_API_KEY: process.env.TWELVEDATA_API_KEY,
   });
-  return customizeResponse(response, requestedPath(request));
+  if (path === "/api/gold" && response.status === 503) {
+    try {
+      const fallback = await yahooGoldFallback(request);
+      if (fallback) return fallback;
+    } catch (error) {
+      console.error("[gold-fallback]", String(error));
+    }
+  }
+  return customizeResponse(response, path);
 }

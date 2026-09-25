@@ -160,40 +160,32 @@ async function customizeResponse(response, path) {
 
 async function yahooGoldFallback(request) {
   const interval = new URL(request.url).searchParams.get("interval") || "15min";
-  const yahooInterval = interval === "1h" ? "60m" : interval;
-  const allowed = new Set(["1min", "5min", "15min", "30min", "1h"]);
-  if (!allowed.has(interval)) return null;
+  const binanceInterval = { "1min": "1m", "5min": "5m", "15min": "15m", "30min": "30m", "1h": "1h" }[interval];
+  if (!binanceInterval) return null;
 
-  const url = "https://query2.finance.yahoo.com/v8/finance/chart/GC%3DF?interval=" + yahooInterval + "&range=" + (interval === "1h" ? "1mo" : "5d");
-  const upstream = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "Mozilla/5.0 (compatible; BLH-XAUUSD/1.0)",
-    },
-  });
-  if (!upstream.ok) throw new Error("Yahoo fallback unavailable");
-  const payload = await upstream.json();
-  const result = payload.chart?.result?.[0];
-  const quote = result?.indicators?.quote?.[0];
-  if (!result?.timestamp || !quote) throw new Error("Yahoo fallback returned no candles");
+  const url = "https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=" + binanceInterval + "&limit=1000";
+  const upstream = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!upstream.ok) throw new Error("Binance gold fallback unavailable");
+  const rows = await upstream.json();
+  if (!Array.isArray(rows)) throw new Error("Binance gold fallback returned no candles");
 
   const duration = { "1min": 60000, "5min": 300000, "15min": 900000, "30min": 1800000, "1h": 3600000 }[interval];
   const now = Date.now();
-  const bars = result.timestamp.map((time, index) => ({
-    time: Number(time) * 1000,
-    open: Number(quote.open?.[index]),
-    high: Number(quote.high?.[index]),
-    low: Number(quote.low?.[index]),
-    close: Number(quote.close?.[index]),
-    volume: Number(quote.volume?.[index] || 0),
-    closed: Number(time) * 1000 + duration <= now,
+  const bars = rows.map(row => ({
+    time: Number(row[0]),
+    open: Number(row[1]),
+    high: Number(row[2]),
+    low: Number(row[3]),
+    close: Number(row[4]),
+    volume: Number(row[5] || 0),
+    closed: Number(row[0]) + duration <= now,
   })).filter(bar => [bar.time, bar.open, bar.high, bar.low, bar.close].every(Number.isFinite));
-  if (bars.length < 41) throw new Error("Yahoo fallback returned insufficient candles");
+  if (bars.length < 41) throw new Error("Binance gold fallback returned insufficient candles");
 
   return Response.json({
     symbol: "XAU/USD",
     interval,
-    source: "Yahoo Finance · Gold Futures",
+    source: "Binance · PAXG/USDT fallback",
     volumeMode: "provider",
     fetchedAt: now,
     bars: bars.slice(-1000),
@@ -211,7 +203,7 @@ export default async function handler(request) {
       if (fallback) return fallback;
     } catch (error) {
       console.error("[gold-fallback]", String(error));
-      return Response.json({ error: "market data unavailable", fallbackError: String(error) }, { status: 503 });
+      return Response.json({ error: "market data unavailable" }, { status: 503 });
     }
   }
   return customizeResponse(response, path);

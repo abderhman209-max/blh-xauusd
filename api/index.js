@@ -96,8 +96,24 @@ function configureIndicators(source) {
     .replace("smartSub:['Swing zones · TP1 / TP2 / TP3','Swing-Zonen · TP1 / TP2 / TP3','Zones swing · TP1 / TP2 / TP3','Zonas swing · TP1 / TP2 / TP3','مناطق السوينغ · أهداف 1 / 2 / 3','مناطق السوينغ · أهداف 1 / 2 / 3']", "smartSub:['EMA 21/50 · RSI · Entry / SL / TP1–3','EMA 21/50 · RSI · Einstieg / SL / TP1–3','EMA 21/50 · RSI · Entrée / SL / TP1–3','EMA 21/50 · RSI · Entrada / SL / TP1–3','EMA 21/50 · RSI · دخول / وقف / أهداف','EMA 21/50 · RSI · دخول / وقف / أهداف']");
 }
 
+function applyCoolGreenBrand(source) {
+  return source
+    .replaceAll('#e5bf72', '#18c7a1')
+    .replaceAll('#ffd019', '#18c7a1')
+    .replaceAll('#ffcf19', '#18c7a1')
+    .replaceAll('#d6b11b', '#18c7a1')
+    .replaceAll('#ffe06a', '#5eead4')
+    .replaceAll('#e3ce73', '#5eead4')
+    .replaceAll('#2d281d', '#102b26')
+    .replaceAll('#4b4434', '#1d4d44')
+    .replaceAll('#18130a', '#091916')
+    .replaceAll('#17130b', '#0a1715')
+    .replaceAll('#15130b', '#0b1715')
+    .replaceAll('%23e5bf72', '%2318c7a1');
+}
+
 async function customizeResponse(response, path) {
-  if (path !== "/" && path !== "/index.html" && path !== "/portal.js" && path !== "/smart.js" && path !== "/indicator.js") {
+  if (path !== "/" && path !== "/index.html" && path !== "/portal.js" && path !== "/smart.js" && path !== "/indicator.js" && path !== "/style.css" && path !== "/portal.css") {
     return response;
   }
 
@@ -149,6 +165,10 @@ async function customizeResponse(response, path) {
         'const tickCount=Math.max(2,Math.min(6,Math.floor(pw/120)+1));for(let j=0;j<tickCount;j++){const i=start+Math.floor(j*(count-1)/(tickCount-1)),tx=j===0?4:j===tickCount-1?pw-4:x(i),anchor=j===0?"start":j===tickCount-1?"end":"middle";s+=`<text x="${tx}" y="${H-8}" text-anchor="${anchor}" fill="#999" font-size="12">${new Date(sourceBars[i].time).toISOString().slice(5,16).replace(\'T\',\' \')}</text>`}',
         `s+=\`<line x1="0" y1="\${H-bottom}" x2="\${pw}" y2="\${H-bottom}" stroke="#2b2e36"/>\`;for(let j=0;j<shown.length;j++){const i=start+j,date=new Date(sourceBars[i].time),previous=i>0?new Date(sourceBars[i-1].time):null,newDay=!previous||date.getUTCDate()!==previous.getUTCDate()||date.getUTCMonth()!==previous.getUTCMonth(),tx=x(i),time=String(date.getUTCHours()).padStart(2,'0')+':'+String(date.getUTCMinutes()).padStart(2,'0'),rotate=step<44;s+=rotate?\`<text x="\${tx}" y="\${H-7}" transform="rotate(-55 \${tx} \${H-7})" text-anchor="start" fill="#aeb2ba" font-size="9">\${time}</text>\`:\`<text x="\${tx}" y="\${H-7}" text-anchor="middle" fill="#aeb2ba" font-size="10">\${time}</text>\`;if(newDay){const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],dateText=date.getUTCDate()+' '+months[date.getUTCMonth()]+' \\''+String(date.getUTCFullYear()).slice(-2),boxWidth=74,boxX=Math.max(2,Math.min(pw-boxWidth,tx-boxWidth/2));s+=\`<line x1="\${tx}" y1="\${top}" x2="\${tx}" y2="\${H-bottom}" stroke="#343842" stroke-dasharray="2 4"/><rect x="\${boxX}" y="\${H-bottom+3}" width="\${boxWidth}" height="21" rx="5" fill="#292c33" stroke="#414550"/><text x="\${boxX+boxWidth/2}" y="\${H-bottom+17}" text-anchor="middle" fill="#f1f3f5" font-size="10" font-weight="600">\${dateText}</text>\`}}`,
       );
+  }
+
+  if (["/", "/index.html", "/style.css", "/portal.css", "/indicator.js"].includes(path)) {
+    body = applyCoolGreenBrand(body);
   }
 
   const headers = new Headers(response.headers);

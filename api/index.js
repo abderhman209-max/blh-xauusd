@@ -211,6 +211,7 @@ export default async function handler(request) {
       if (fallback) return fallback;
     } catch (error) {
       console.error("[gold-fallback]", String(error));
+      return Response.json({ error: "market data unavailable", fallbackError: String(error) }, { status: 503 });
     }
   }
   return customizeResponse(response, path);

@@ -59,7 +59,7 @@ const SmartEngine={analyze(bars,{atrLength=14,zone=1.5,rr=[.5,1,1.5]}={}){
 }};
 if(typeof module!=='undefined')module.exports=SmartEngine;
 function renderSmart(model,x,y,width,height,layer='all'){
- const enabled=id=>document.querySelector(id)?.checked!==false;let shapes='<g data-indicator="planner">',labels='<g data-indicator="planner-labels">';
+ const enabled=id=>document.querySelector(id)?.checked!==false;if(!document.querySelector('#show-smart')?.checked)return layer==='labels'?'<g data-indicator="planner-labels"></g>':'<g data-indicator="planner"></g>';model.fast=Array.isArray(model.fast)?model.fast:[];model.slow=Array.isArray(model.slow)?model.slow:[];model.sides=Array.isArray(model.sides)?model.sides:[];model.signals=Array.isArray(model.signals)?model.signals:[];let shapes='<g data-indicator="planner">',labels='<g data-indicator="planner-labels">';
  const path=(values,color)=>{let d='';for(let i=0;i<values.length;i++){if(!Number.isFinite(values[i]))continue;const xx=x(i);if(xx<0||xx>width)continue;d+=(d?' L ':'M ')+xx+' '+y(values[i])}return d?'<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="1.7" opacity=".9"/>':''};
  if(enabled('#smart-trend')){shapes+=path(model.fast,'#00d9ff')+path(model.slow,'#8b5cf6')}
  for(const z of model.sides){const color=z.direction===1?'#089981':'#f23645',name=z.direction===1?'BUY':'SELL',left=x(z.index),right=Math.min(width-4,x(z.index+25));if(right<0||left>width)continue;

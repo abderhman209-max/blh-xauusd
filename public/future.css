@@ -1,0 +1,575 @@
+:root {
+  --future-cyan: #42e8ff;
+  --future-mint: #36f6d4;
+  --future-violet: #a66cff;
+  --future-pink: #ff56a4;
+  --future-gold: #ffd21f;
+  --future-panel: rgba(8, 14, 24, 0.72);
+  --future-line: rgba(123, 214, 255, 0.15);
+  --pointer-x: 50%;
+  --pointer-y: 35%;
+}
+
+html,
+body {
+  background: #030610 !important;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+#market-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(41, 208, 255, 0.11), transparent 30%),
+    radial-gradient(circle at 84% 14%, rgba(166, 108, 255, 0.12), transparent 30%),
+    radial-gradient(circle at 12% 85%, rgba(255, 210, 31, 0.07), transparent 28%),
+    linear-gradient(145deg, #02040b, #060b16 50%, #03060d);
+}
+
+#market-atmosphere canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.9;
+  filter: saturate(1.2);
+}
+
+.market-scan {
+  position: absolute;
+  inset: -45% 0;
+  opacity: 0.16;
+  background: linear-gradient(180deg, transparent 46%, rgba(74, 230, 255, 0.32) 50%, transparent 54%);
+  animation: market-scan 10s linear infinite;
+}
+
+.market-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 28%, rgba(1, 3, 9, 0.78) 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.65'/%3E%3C/svg%3E");
+}
+
+/* Authentication */
+.auth-gate {
+  background:
+    linear-gradient(110deg, rgba(3, 6, 14, 0.68), rgba(3, 7, 16, 0.86)),
+    radial-gradient(circle at 27% 25%, rgba(54, 246, 212, 0.06), transparent 34%);
+  isolation: isolate;
+}
+
+.auth-visual {
+  background: linear-gradient(145deg, rgba(4, 8, 16, 0.32), rgba(6, 11, 19, 0.62)) !important;
+  border-inline-end: 1px solid rgba(84, 220, 255, 0.1);
+}
+
+.auth-visual::before {
+  border-color: rgba(66, 232, 255, 0.16) !important;
+  box-shadow: 0 0 100px rgba(66, 232, 255, 0.08), inset 0 0 80px rgba(166, 108, 255, 0.04);
+  animation: orbital-drift 22s linear infinite;
+}
+
+.auth-visual::after {
+  border-color: rgba(166, 108, 255, 0.15) !important;
+  box-shadow: 0 0 70px rgba(166, 108, 255, 0.08);
+  animation: orbital-drift 16s linear infinite reverse;
+}
+
+.auth-brand {
+  text-shadow: 0 0 24px rgba(255, 210, 31, 0.25);
+  animation: reveal-down 0.75s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.auth-brand img {
+  filter: drop-shadow(0 0 18px rgba(255, 210, 31, 0.24));
+  transition: transform 0.5s ease, filter 0.5s ease;
+}
+
+.auth-brand:hover img {
+  transform: rotate(-4deg) scale(1.06);
+  filter: drop-shadow(0 0 28px rgba(255, 210, 31, 0.42));
+}
+
+.auth-message {
+  animation: reveal-up 0.9s 0.08s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.auth-kicker {
+  color: var(--future-cyan) !important;
+  text-shadow: 0 0 20px rgba(66, 232, 255, 0.42);
+}
+
+.auth-message h2 {
+  background: linear-gradient(110deg, #fff 18%, #b7f6ff 54%, #d8c3ff 82%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 18px 80px rgba(66, 232, 255, 0.08);
+}
+
+.auth-trust span {
+  border-color: rgba(91, 227, 255, 0.14) !important;
+  background: rgba(10, 22, 32, 0.48) !important;
+  backdrop-filter: blur(14px);
+  box-shadow: inset 0 1px rgba(255,255,255,.05);
+  transition: transform 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+.auth-trust span:hover {
+  transform: translateY(-3px);
+  border-color: rgba(66, 232, 255, 0.42) !important;
+  color: #eaffff;
+}
+
+.auth-panel {
+  overflow: hidden;
+  background: rgba(4, 9, 17, 0.68) !important;
+  border-inline-start: 1px solid rgba(81, 224, 255, 0.13) !important;
+  backdrop-filter: blur(30px) saturate(1.35);
+  box-shadow: -40px 0 120px rgba(0, 0, 0, 0.28), inset 1px 0 rgba(255,255,255,.035);
+}
+
+.auth-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 20%, rgba(66, 232, 255, 0.055) 48%, transparent 68%),
+    repeating-linear-gradient(90deg, transparent 0 90px, rgba(66, 232, 255, .025) 91px 92px);
+  transform: translateX(-45%);
+  animation: panel-light 9s ease-in-out infinite alternate;
+}
+
+.auth-gate .auth-card {
+  position: relative;
+  z-index: 1;
+  animation: card-arrival 0.85s 0.12s cubic-bezier(.16,1,.3,1) both;
+}
+
+.auth-card-header h1 {
+  letter-spacing: -1.2px;
+}
+
+.auth-language select,
+.auth-field input,
+.auth-tabs {
+  border-color: rgba(102, 210, 235, 0.18) !important;
+  background: rgba(5, 12, 20, 0.7) !important;
+  box-shadow: inset 0 1px rgba(255,255,255,.03), 0 10px 32px rgba(0,0,0,.12);
+  backdrop-filter: blur(14px);
+}
+
+.auth-field input {
+  transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease !important;
+}
+
+.auth-field input:hover {
+  border-color: rgba(66, 232, 255, 0.34) !important;
+}
+
+.auth-field input:focus {
+  transform: translateY(-1px);
+  border-color: var(--future-cyan) !important;
+  box-shadow: 0 0 0 3px rgba(66, 232, 255, .1), 0 0 28px rgba(66, 232, 255, .1) !important;
+}
+
+.auth-gate .auth-tabs button {
+  transition: color .25s ease, background .25s ease, transform .25s ease;
+}
+
+.auth-gate .auth-tabs button:hover {
+  color: #eafcff;
+  background: rgba(66, 232, 255, .055);
+}
+
+.auth-gate .auth-tabs button[aria-selected="true"] {
+  color: #0b1217 !important;
+  background: linear-gradient(110deg, var(--future-cyan), var(--future-mint)) !important;
+  box-shadow: 0 0 24px rgba(54, 246, 212, .18) !important;
+}
+
+.auth-gate .auth-primary,
+.gold-button {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 232, 105, 0.38) !important;
+  background: linear-gradient(105deg, #ffd21f, #ffed70 48%, #d8ff75) !important;
+  box-shadow: 0 12px 36px rgba(255, 210, 31, .14), inset 0 1px rgba(255,255,255,.6);
+  transition: transform .25s ease, box-shadow .25s ease, filter .25s ease !important;
+}
+
+.auth-gate .auth-primary::after,
+.gold-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 15%, rgba(255,255,255,.65) 48%, transparent 72%);
+  transform: translateX(-130%);
+  transition: transform .7s ease;
+}
+
+.auth-gate .auth-primary:hover,
+.gold-button:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.08);
+  box-shadow: 0 18px 44px rgba(255, 210, 31, .23), 0 0 28px rgba(216, 255, 117, .11);
+}
+
+.auth-gate .auth-primary:hover::after,
+.gold-button:hover::after {
+  transform: translateX(130%);
+}
+
+.auth-password-toggle {
+  border: 1px solid rgba(104, 217, 240, .11) !important;
+}
+
+.auth-security-note svg {
+  filter: drop-shadow(0 0 8px rgba(255,210,31,.35));
+}
+
+/* Application shell */
+.portal-header {
+  z-index: 20;
+  background: rgba(4, 9, 16, 0.72) !important;
+  border-bottom-color: rgba(96, 216, 245, 0.13) !important;
+  backdrop-filter: blur(24px) saturate(1.35) !important;
+  box-shadow: 0 14px 44px rgba(0,0,0,.18);
+}
+
+.portal-brand img {
+  filter: drop-shadow(0 0 14px rgba(255,210,31,.24));
+  transition: transform .45s cubic-bezier(.16,1,.3,1);
+}
+
+.portal-brand:hover img {
+  transform: scale(1.08) rotate(-3deg);
+}
+
+.portal-sidebar {
+  background: linear-gradient(180deg, rgba(4, 9, 17, .84), rgba(3, 7, 13, .76)) !important;
+  border-inline-end-color: rgba(92, 213, 241, 0.13) !important;
+  backdrop-filter: blur(24px) saturate(1.3);
+  box-shadow: 24px 0 70px rgba(0,0,0,.18);
+}
+
+.portal-sidebar nav a {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid transparent;
+  transition: transform .24s ease, color .24s ease, background .24s ease, border-color .24s ease !important;
+}
+
+.portal-sidebar nav a::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent, rgba(66,232,255,.08), transparent);
+  transform: translateX(-120%);
+  transition: transform .65s ease;
+}
+
+.portal-sidebar nav a:hover {
+  transform: translateX(4px);
+  border-color: rgba(66, 232, 255, .13);
+}
+
+.rtl .portal-sidebar nav a:hover {
+  transform: translateX(-4px);
+}
+
+.portal-sidebar nav a:hover::before {
+  transform: translateX(120%);
+}
+
+.portal-sidebar nav a.selected {
+  color: #8ff6ff !important;
+  background: linear-gradient(110deg, rgba(66,232,255,.12), rgba(166,108,255,.07)) !important;
+  border-color: rgba(66, 232, 255, .2);
+  box-shadow: inset 3px 0 var(--future-cyan), 0 0 26px rgba(66,232,255,.05);
+}
+
+.portal-content {
+  z-index: 2;
+}
+
+.portal-view:not([hidden]) {
+  animation: view-enter .5s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.portal-intro h1,
+.page-title h1 {
+  background: linear-gradient(100deg, #fff, #bcefff 62%, #d8c6ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.portal-chart-card,
+.surface,
+.toolkit-card-row,
+.snapshot-action,
+.portal-popover {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, rgba(12, 21, 31, .78), rgba(5, 10, 17, .72)) !important;
+  border-color: rgba(104, 216, 241, .14) !important;
+  backdrop-filter: blur(20px) saturate(1.25);
+  box-shadow: 0 24px 70px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.035);
+}
+
+.portal-chart-card::before,
+.surface::before,
+.toolkit-card-row::before,
+.snapshot-action::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(66,232,255,.07), transparent 32%);
+  opacity: .75;
+}
+
+.portal-chart-card {
+  border-radius: 22px !important;
+  box-shadow: 0 30px 90px rgba(0,0,0,.25), 0 0 0 1px rgba(66,232,255,.025), 0 0 70px rgba(66,232,255,.035);
+  animation: chart-arrival .7s .08s cubic-bezier(.16,1,.3,1) both;
+}
+
+.chart-top {
+  background: linear-gradient(180deg, rgba(11,22,29,.94), rgba(5,11,17,.86)) !important;
+  border-bottom-color: rgba(91, 216, 241, .12) !important;
+}
+
+.chart-top .symbol-switcher,
+.frames {
+  border-color: rgba(94, 221, 248, .18) !important;
+  background: rgba(3, 10, 16, .66) !important;
+  box-shadow: inset 0 1px rgba(255,255,255,.035);
+}
+
+.symbol-switcher button,
+.frames button {
+  transition: transform .22s ease, background .22s ease, color .22s ease, box-shadow .22s ease;
+}
+
+.symbol-switcher button:hover,
+.frames button:hover {
+  color: #c7f9ff;
+  transform: translateY(-1px);
+}
+
+.symbol-switcher button.active,
+.frames button.active {
+  color: #071319 !important;
+  background: linear-gradient(110deg, var(--future-cyan), var(--future-mint)) !important;
+  box-shadow: 0 0 22px rgba(54,246,212,.18) !important;
+}
+
+.chart-stage {
+  background: linear-gradient(180deg, rgba(3, 8, 14, .66), rgba(3, 7, 13, .86));
+}
+
+.drawing-tools {
+  background: rgba(5, 12, 19, .66);
+  border-right-color: rgba(95, 215, 241, .12) !important;
+}
+
+.drawing-tools button {
+  transition: transform .22s ease, color .22s ease, background .22s ease, box-shadow .22s ease;
+}
+
+.drawing-tools button:hover,
+.drawing-tools button.active {
+  color: var(--future-cyan);
+  transform: scale(1.08);
+  background: rgba(66,232,255,.09);
+  box-shadow: 0 0 18px rgba(66,232,255,.08);
+}
+
+.toolkit-card-row,
+.surface,
+.snapshot-action {
+  transition: transform .3s cubic-bezier(.16,1,.3,1), border-color .3s ease, box-shadow .3s ease;
+}
+
+.toolkit-card-row:hover,
+.surface:hover,
+.snapshot-action:hover {
+  transform: translateY(-4px);
+  border-color: rgba(66,232,255,.28) !important;
+  box-shadow: 0 30px 80px rgba(0,0,0,.27), 0 0 34px rgba(66,232,255,.055);
+}
+
+.toolkit-icon {
+  color: var(--future-cyan) !important;
+  filter: drop-shadow(0 0 10px rgba(66,232,255,.22));
+}
+
+.switch-track {
+  border-color: rgba(109, 213, 235, .18) !important;
+  background: rgba(4, 10, 16, .8) !important;
+}
+
+.toolkit-card.enabled .switch-track {
+  background: linear-gradient(100deg, var(--future-cyan), var(--future-mint)) !important;
+  box-shadow: 0 0 18px rgba(54,246,212,.18);
+}
+
+.icon-button,
+.profile-toggle,
+.indicator-edit {
+  transition: transform .22s ease, color .22s ease, background .22s ease, border-color .22s ease;
+}
+
+.icon-button:hover,
+.profile-toggle:hover,
+.indicator-edit:hover {
+  transform: translateY(-2px);
+  color: var(--future-cyan) !important;
+}
+
+.avatar {
+  border: 1px solid rgba(66,232,255,.16);
+  background: linear-gradient(145deg, rgba(66,232,255,.12), rgba(166,108,255,.12)) !important;
+  box-shadow: 0 0 20px rgba(66,232,255,.07);
+}
+
+.portal-popover {
+  animation: popover-in .25s cubic-bezier(.16,1,.3,1) both;
+}
+
+.portal-bottom {
+  background: rgba(4, 10, 17, .82) !important;
+  border-color: rgba(85, 222, 250, .18) !important;
+  backdrop-filter: blur(22px) saturate(1.4) !important;
+  box-shadow: 0 18px 55px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.045) !important;
+}
+
+.portal-bottom a {
+  transition: transform .24s ease, color .24s ease, background .24s ease;
+}
+
+.portal-bottom a.selected {
+  color: var(--future-cyan) !important;
+  background: rgba(66,232,255,.065);
+  transform: translateY(-2px);
+}
+
+.indicator-dialog {
+  background: rgba(5, 12, 19, .93) !important;
+  border-color: rgba(83, 219, 248, .24) !important;
+  backdrop-filter: blur(28px) saturate(1.35);
+  box-shadow: 0 35px 130px rgba(0,0,0,.7), 0 0 60px rgba(66,232,255,.08) !important;
+}
+
+.indicator-dialog[open] {
+  animation: dialog-in .35s cubic-bezier(.16,1,.3,1) both;
+}
+
+.indicator-tabs button[aria-selected="true"] {
+  background: linear-gradient(105deg, var(--future-cyan), var(--future-mint)) !important;
+  box-shadow: 0 0 24px rgba(54,246,212,.18);
+}
+
+@keyframes market-scan {
+  from { transform: translateY(-28%); }
+  to { transform: translateY(28%); }
+}
+
+@keyframes orbital-drift {
+  from { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.06); }
+  to { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes panel-light {
+  from { transform: translateX(-52%); }
+  to { transform: translateX(45%); }
+}
+
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(28px); filter: blur(8px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes reveal-down {
+  from { opacity: 0; transform: translateY(-18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes card-arrival {
+  from { opacity: 0; transform: translateX(34px) scale(.985); filter: blur(10px); }
+  to { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
+}
+
+@keyframes view-enter {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes chart-arrival {
+  from { opacity: 0; transform: translateY(18px) scale(.992); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes popover-in {
+  from { opacity: 0; transform: translateY(-8px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(16px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 900px) {
+  #market-atmosphere canvas { opacity: .7; }
+  .auth-visual {
+    background: linear-gradient(180deg, rgba(4, 9, 17, .3), rgba(4, 9, 17, .65)) !important;
+    border-inline-end: 0;
+    border-bottom: 1px solid rgba(66,232,255,.1);
+  }
+  .auth-panel {
+    background: rgba(3, 8, 15, .79) !important;
+  }
+  .portal-sidebar {
+    background: rgba(3, 8, 15, .95) !important;
+  }
+  .toolkit-card-row:hover,
+  .surface:hover,
+  .snapshot-action:hover { transform: none; }
+}
+
+@media (max-width: 520px) {
+  .auth-message h2 { font-size: 2.15rem !important; }
+  .auth-panel { padding-inline: 18px !important; }
+  .auth-gate .auth-card { width: 100%; }
+  .portal-chart-card { border-radius: 18px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+  .market-scan { display: none; }
+}

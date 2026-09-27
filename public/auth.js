@@ -25,6 +25,21 @@
     if (!meta) { meta = document.createElement("meta"); meta.name = name; document.head.append(meta); }
     meta.content = content;
   });
+  const themeMedia = window.matchMedia?.("(prefers-color-scheme: light)");
+  let siteTheme;
+  try { siteTheme = localStorage.getItem("pipvoria-theme"); } catch {}
+  if (!['dark','light'].includes(siteTheme)) siteTheme = themeMedia?.matches ? 'light' : 'dark';
+  function applyTheme(next, persist=true) {
+    siteTheme = next === 'light' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = siteTheme;
+    document.documentElement.style.colorScheme = siteTheme;
+    const themeMeta = document.head.querySelector('meta[name="theme-color"]');
+    if (themeMeta) themeMeta.content = siteTheme === 'light' ? '#f4f8fc' : '#06152f';
+    if (persist) try { localStorage.setItem("pipvoria-theme", siteTheme); } catch {}
+    document.dispatchEvent(new CustomEvent('pipvoria-theme-change', { detail:{ theme:siteTheme } }));
+  }
+  window.PIPVORIA_THEME = { get:()=>siteTheme, set:applyTheme, toggle:()=>applyTheme(siteTheme === 'dark' ? 'light' : 'dark') };
+  applyTheme(siteTheme, false);
   if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
   const originalLogo = document.querySelector(".logo");
   if (originalLogo) {
@@ -57,6 +72,13 @@
     ar: { kicker:"مساحة تداول خاصة", hero:"حلّل السوق برؤية أوضح.", heroSub:"رسوم الذهب وبيتكوين وبنية السوق والمؤشرات في مساحة واحدة آمنة.", protected:"جلسة آمنة", private:"بيانات خاصة", realtime:"أسواق مباشرة", welcome:"مرحباً بعودتك", welcomeSub:"سجّل الدخول للوصول إلى مساحة BLH.", create:"أنشئ حسابك", createSub:"سجّل لفتح مساحة التحليل الخاصة بك.", signin:"تسجيل الدخول", signup:"إنشاء حساب", name:"الاسم الكامل", namePh:"اسمك", email:"البريد الإلكتروني", emailPh:"you@example.com", password:"كلمة المرور", confirm:"تأكيد كلمة المرور", passwordPh:"12 حرفاً على الأقل", passwordHint:"12 حرفاً مع حرف كبير وصغير ورقم ورمز.", forgot:"نسيت كلمة المرور؟", signinAction:"تسجيل الدخول", signupAction:"إنشاء الحساب", security:"تقوم Supabase بتشفير كلمة المرور ولا تخزنها BLH أبداً.", invalid:"البريد الإلكتروني أو كلمة المرور غير صحيحة.", invalidSignup:"تحقق من المعلومات المدخلة.", mismatch:"كلمتا المرور غير متطابقتين.", weak:"استخدم 12 حرفاً على الأقل مع حرف كبير وصغير ورقم ورمز.", confirmation:"تم إنشاء الحساب. تحقق من بريدك لتأكيد التسجيل.", recoverTitle:"إعادة تعيين كلمة المرور", recoverSub:"أدخل بريدك لتلقي رابط آمن.", send:"إرسال الرابط", back:"العودة لتسجيل الدخول", sent:"إذا كان الحساب موجوداً، فقد تم إرسال رابط إعادة التعيين.", resetTitle:"اختر كلمة مرور جديدة", resetSub:"أدخل كلمة مرور جديدة وآمنة.", update:"تحديث كلمة المرور", updated:"تم تحديث كلمة المرور. يمكنك المتابعة.", service:"لم تتم تهيئة المصادقة بعد.", loading:"جارٍ التحقق من الجلسة…", logout:"تسجيل الخروج", show:"إظهار كلمة المرور" }
   };
   Object.values(copy).forEach(group => Object.keys(group).forEach(key => { group[key] = group[key].replaceAll("BLH", "PIPVORIA"); }));
+  const extraCopy = {
+    fr: { invalidEmail:"Cette adresse e-mail n’est pas valide.", emailRate:"Trop de demandes d’e-mail. Patientez une minute avant de réessayer.", requestRate:"Trop de tentatives. Patientez quelques minutes avant de réessayer.", accountExists:"Un compte existe déjà avec cette adresse. Essayez de vous connecter.", signupDisabled:"Les nouvelles inscriptions sont momentanément désactivées.", emailProvider:"L’envoi des e-mails d’inscription est indisponible. Réessayez plus tard.", emailUnauthorized:"Cette adresse ne peut pas recevoir l’e-mail de confirmation.", lightMode:"Activer le mode clair", darkMode:"Activer le mode sombre" },
+    en: { invalidEmail:"This email address is not valid.", emailRate:"Too many email requests. Wait one minute before trying again.", requestRate:"Too many attempts. Wait a few minutes before trying again.", accountExists:"An account already exists with this address. Try signing in.", signupDisabled:"New registrations are temporarily disabled.", emailProvider:"Registration emails are unavailable. Try again later.", emailUnauthorized:"This address cannot receive the confirmation email.", lightMode:"Switch to light mode", darkMode:"Switch to dark mode" },
+    es: { invalidEmail:"Esta dirección de correo no es válida.", emailRate:"Demasiadas solicitudes de correo. Espera un minuto antes de reintentarlo.", requestRate:"Demasiados intentos. Espera unos minutos antes de reintentarlo.", accountExists:"Ya existe una cuenta con esta dirección. Intenta iniciar sesión.", signupDisabled:"Los nuevos registros están desactivados temporalmente.", emailProvider:"Los correos de registro no están disponibles. Inténtalo más tarde.", emailUnauthorized:"Esta dirección no puede recibir el correo de confirmación.", lightMode:"Activar modo claro", darkMode:"Activar modo oscuro" },
+    ar: { invalidEmail:"عنوان البريد الإلكتروني غير صالح.", emailRate:"تم طلب رسائل كثيرة. انتظر دقيقة قبل المحاولة مجدداً.", requestRate:"محاولات كثيرة جداً. انتظر بضع دقائق قبل المحاولة مجدداً.", accountExists:"يوجد حساب بهذا البريد. جرّب تسجيل الدخول.", signupDisabled:"إنشاء الحسابات الجديدة متوقف مؤقتاً.", emailProvider:"إرسال رسائل التسجيل غير متاح حالياً. حاول لاحقاً.", emailUnauthorized:"لا يمكن لهذا العنوان استلام رسالة التأكيد.", lightMode:"تفعيل الوضع الفاتح", darkMode:"تفعيل الوضع الداكن" }
+  };
+  Object.keys(copy).forEach(code => Object.assign(copy[code], extraCopy[code]));
   let language = "fr";
   try { language = localStorage.getItem("blh-language") || "fr"; } catch {}
   if (!languages[language]) language = "fr";
@@ -72,6 +94,10 @@
   authBrand.setAttribute("aria-label", "PIPVORIA");
   authBrand.innerHTML = '<img src="pipvoria-logo.png" alt="PIPVORIA">';
   document.body.append(gate);
+  const authThemeButton = document.createElement('button');
+  authThemeButton.type = 'button';
+  authThemeButton.className = 'auth-theme-toggle';
+  gate.querySelector('.auth-language').before(authThemeButton);
   const status = gate.querySelector("#auth-status");
   const header = gate.querySelector(".auth-card-header");
   const tabs = gate.querySelector(".auth-tabs");
@@ -79,6 +105,8 @@
   const languageSelect = gate.querySelector(".auth-language select");
   const signupPassword = forms.signup.elements.password;
   const signupConfirm = forms.signup.elements.confirm;
+  const signupButton = forms.signup.querySelector('[type="submit"]');
+  let signupCooldownTimer = 0;
   forms.signup.noValidate = true;
   const passwordRules = document.createElement("ul");
   passwordRules.className = "auth-password-rules";
@@ -104,8 +132,30 @@
     gate.querySelectorAll("[data-password-toggle]").forEach(node => node.setAttribute("aria-label", tr("show")));
     passwordRules.querySelectorAll("li b").forEach((node, index) => { node.textContent = passwordRuleCopy[language][index]; });
     confirmError.textContent = tr("mismatch");
+    renderThemeButton();
     renderMode();
     updateSignupValidation();
+  }
+  function renderThemeButton(){
+    const light = siteTheme === 'light';
+    authThemeButton.innerHTML = light
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M19 5l-1.5 1.5m-11 11L5 19"/></svg>';
+    authThemeButton.setAttribute('aria-label', tr(light ? 'darkMode' : 'lightMode'));
+    authThemeButton.title = authThemeButton.getAttribute('aria-label');
+  }
+  function startSignupCooldown(seconds=60){
+    clearInterval(signupCooldownTimer);
+    const until = Date.now() + seconds * 1000;
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((until-Date.now())/1000));
+      signupButton.disabled = left > 0;
+      if (!left) { clearInterval(signupCooldownTimer); signupCooldownTimer=0; }
+    };
+    tick(); signupCooldownTimer = setInterval(tick, 1000);
+  }
+  function signupErrorMessage(code){
+    return tr({ weak_password:'weak', invalid_email:'invalidEmail', email_rate_limit:'emailRate', request_rate_limit:'requestRate', account_exists:'accountExists', signup_disabled:'signupDisabled', email_provider_disabled:'emailProvider', email_not_authorized:'emailUnauthorized', service_not_configured:'service' }[code] || 'invalidSignup');
   }
   function setStatus(message, success=false){ status.textContent = message; status.classList.toggle("success", success); }
   function setBusy(form, busy){ form.querySelectorAll("button,input").forEach(node => node.disabled = busy); }
@@ -172,6 +222,8 @@
     if (appSelect && appSelect.value !== language){ appSelect.value=language; appSelect.dispatchEvent(new Event("change",{bubbles:true})); }
   });
   document.addEventListener("blh-language-change",()=>{ const next=document.documentElement.lang; if(languages[next]&&next!==language){ language=next; languageSelect.value=next; applyLanguage(); } });
+  authThemeButton.addEventListener('click', () => window.PIPVORIA_THEME.toggle());
+  document.addEventListener('pipvoria-theme-change', event => { siteTheme=event.detail.theme; renderThemeButton(); });
   gate.querySelectorAll("[data-mode]").forEach(button=>button.onclick=()=>{mode=button.dataset.mode;renderMode();updateSignupValidation()});
   gate.querySelector("#forgot-password").onclick=()=>{mode="recovery";renderMode()};
   gate.querySelector("[data-back]").onclick=()=>{mode="signin";renderMode()};
@@ -193,7 +245,7 @@
     const strong=updateSignupValidation(true);
     if(!strong){setStatus(tr("weak"));return}
     setBusy(forms.signup,true); setStatus(tr("loading"));
-    try{const {response,result}=await request("auth/sign-up",{method:"POST",body:JSON.stringify({name:data.name,email:data.email,password:data.password})});if(!response.ok){setStatus(result.error==="weak_password"?tr("weak"):result.error==="service_not_configured"?tr("service"):tr("invalidSignup"));return}if(result.confirmationRequired){const email=data.email;forms.signup.reset();updateSignupValidation();mode="signin";renderMode();forms.signin.elements.email.value=email;setStatus(tr("confirmation"),true);forms.signin.elements.password.focus();return}unlock(result.user)}catch{setStatus(tr("invalidSignup"))}finally{setBusy(forms.signup,false)}
+    try{const {response,result}=await request("auth/sign-up",{method:"POST",body:JSON.stringify({name:data.name,email:data.email,password:data.password})});if(!response.ok){setStatus(signupErrorMessage(result.error));if(result.error==='email_rate_limit')startSignupCooldown(result.retryAfter||60);return}if(result.confirmationRequired){const email=data.email;forms.signup.reset();updateSignupValidation();mode="signin";renderMode();forms.signin.elements.email.value=email;setStatus(tr("confirmation"),true);forms.signin.elements.password.focus();return}unlock(result.user)}catch{setStatus(tr("invalidSignup"))}finally{setBusy(forms.signup,false);if(signupCooldownTimer)signupButton.disabled=true}
   });
   forms.recovery.addEventListener("submit",async event=>{event.preventDefault();setBusy(forms.recovery,true);try{await request("auth/recover",{method:"POST",body:JSON.stringify(Object.fromEntries(new FormData(forms.recovery)))});setStatus(tr("sent"),true)}catch{setStatus(tr("sent"),true)}finally{setBusy(forms.recovery,false)}});
   forms.reset.addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(forms.reset));setBusy(forms.reset,true);try{const {response}=await request("auth/update-password",{method:"POST",body:JSON.stringify(data)});if(!response.ok){setStatus(tr("weak"));return}setStatus(tr("updated"),true);setTimeout(()=>unlock(user),900)}finally{setBusy(forms.reset,false)}});

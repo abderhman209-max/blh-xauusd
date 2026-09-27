@@ -137,7 +137,22 @@ async function signUp(request) {
     body: JSON.stringify({ email: data.email.trim().toLowerCase(), password: data.password, data: { full_name: name } }),
   });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) return json({ error: result.code === "weak_password" ? "weak_password" : "signup_failed" }, 400);
+  if (!response.ok) {
+    const safeErrors = {
+      weak_password: "weak_password",
+      invalid_email: "invalid_email",
+      email_address_invalid: "invalid_email",
+      email_address_not_authorized: "email_not_authorized",
+      over_email_send_rate_limit: "email_rate_limit",
+      over_request_rate_limit: "request_rate_limit",
+      signup_disabled: "signup_disabled",
+      email_provider_disabled: "email_provider_disabled",
+      user_already_exists: "account_exists",
+      email_exists: "account_exists",
+    };
+    const error = safeErrors[result.code] || "signup_failed";
+    return json({ error, ...(error === "email_rate_limit" ? { retryAfter: 60 } : {}) }, response.status === 429 ? 429 : 400);
+  }
   if (!result.access_token) return json({ confirmationRequired: true }, 202);
   return new Response(JSON.stringify({ user: publicUser(result.user) }), { status: 201, headers: sessionHeaders(result) });
 }

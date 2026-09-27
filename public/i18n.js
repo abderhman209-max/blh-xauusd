@@ -1,7 +1,7 @@
 (function(){
 const languages={fr:'Français',en:'English',es:'Español',ar:'العربية'};
 const rtl=new Set(['ar']);
-const titles={fr:'BLH XAUUSD — Le marché, en perspective',en:'BLH XAUUSD — The market in perspective',es:'BLH XAUUSD — El mercado en perspectiva',ar:'BLH XAUUSD — السوق برؤية أوضح'};
+const titles={fr:'PIPVORIA — Le marché, en perspective',en:'PIPVORIA — The market in perspective',es:'PIPVORIA — El mercado en perspectiva',ar:'PIPVORIA — السوق برؤية أوضح'};
 const translations={
 '⚙ Indikatoren':{en:'⚙ Indicators',fr:'⚙ Indicateurs',es:'⚙ Indicadores',ar:'⚙ المؤشرات',ary:'⚙ المؤشرات'},
 'Markt auswählen':{en:'Choose market',fr:'Choisir le marché',es:'Elegir mercado',ar:'اختر السوق',ary:'اختار السوق'},

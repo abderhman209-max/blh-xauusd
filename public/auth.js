@@ -1,5 +1,36 @@
 (function () {
   "use strict";
+  document.title = "PIPVORIA — Le marché, en perspective";
+  const brandLinks = [
+    ["manifest", "/manifest.webmanifest", ""],
+    ["icon", "/pipvoria-app-icon.jpeg", "image/jpeg"],
+    ["apple-touch-icon", "/pipvoria-app-icon.jpeg", "image/jpeg"]
+  ];
+  brandLinks.forEach(([rel, href, type]) => {
+    const link = document.createElement("link");
+    link.rel = rel;
+    link.href = href;
+    if (type) link.type = type;
+    document.head.append(link);
+  });
+  const brandMeta = {
+    "theme-color": "#06152f",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "apple-mobile-web-app-title": "PIPVORIA",
+    "application-name": "PIPVORIA"
+  };
+  Object.entries(brandMeta).forEach(([name, content]) => {
+    let meta = document.head.querySelector(`meta[name="${name}"]`);
+    if (!meta) { meta = document.createElement("meta"); meta.name = name; document.head.append(meta); }
+    meta.content = content;
+  });
+  if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+  const originalLogo = document.querySelector(".logo");
+  if (originalLogo) {
+    originalLogo.setAttribute("aria-label", "PIPVORIA");
+    originalLogo.innerHTML = '<img src="pipvoria-logo.png" alt="PIPVORIA">';
+  }
   const authStyles = document.createElement("link");
   authStyles.rel = "stylesheet";
   authStyles.href = "auth-overrides.css";
@@ -25,6 +56,7 @@
     es: { kicker:"ESPACIO PRIVADO DE TRADING", hero:"Analiza el mercado con claridad.", heroSub:"Gráficos de oro y Bitcoin, estructura de mercado e indicadores en un espacio seguro.", protected:"Sesión segura", private:"Datos privados", realtime:"Mercados en vivo", welcome:"Bienvenido de nuevo", welcomeSub:"Inicia sesión para acceder a tu espacio BLH.", create:"Crea tu cuenta", createSub:"Regístrate para abrir tu espacio de análisis.", signin:"Iniciar sesión", signup:"Registrarse", name:"Nombre completo", namePh:"Tu nombre", email:"Correo electrónico", emailPh:"tu@ejemplo.com", password:"Contraseña", confirm:"Confirmar contraseña", passwordPh:"Mínimo 12 caracteres", passwordHint:"12 caracteres con mayúscula, minúscula, número y símbolo.", forgot:"¿Olvidaste tu contraseña?", signinAction:"Iniciar sesión", signupAction:"Crear cuenta", security:"Supabase cifra tu contraseña y BLH nunca la almacena.", invalid:"Correo o contraseña incorrectos.", invalidSignup:"Revisa la información introducida.", mismatch:"Las contraseñas no coinciden.", weak:"Usa al menos 12 caracteres con mayúscula, minúscula, número y símbolo.", confirmation:"Cuenta creada. Revisa tu correo para confirmar el registro.", recoverTitle:"Restablecer contraseña", recoverSub:"Introduce tu correo para recibir un enlace seguro.", send:"Enviar enlace", back:"Volver al inicio", sent:"Si la cuenta existe, se ha enviado un enlace de restablecimiento.", resetTitle:"Elige una nueva contraseña", resetSub:"Introduce una contraseña nueva y segura.", update:"Actualizar contraseña", updated:"Contraseña actualizada. Ya puedes continuar.", service:"La autenticación aún no está configurada.", loading:"Comprobando la sesión…", logout:"Cerrar sesión", show:"Mostrar contraseña" },
     ar: { kicker:"مساحة تداول خاصة", hero:"حلّل السوق برؤية أوضح.", heroSub:"رسوم الذهب وبيتكوين وبنية السوق والمؤشرات في مساحة واحدة آمنة.", protected:"جلسة آمنة", private:"بيانات خاصة", realtime:"أسواق مباشرة", welcome:"مرحباً بعودتك", welcomeSub:"سجّل الدخول للوصول إلى مساحة BLH.", create:"أنشئ حسابك", createSub:"سجّل لفتح مساحة التحليل الخاصة بك.", signin:"تسجيل الدخول", signup:"إنشاء حساب", name:"الاسم الكامل", namePh:"اسمك", email:"البريد الإلكتروني", emailPh:"you@example.com", password:"كلمة المرور", confirm:"تأكيد كلمة المرور", passwordPh:"12 حرفاً على الأقل", passwordHint:"12 حرفاً مع حرف كبير وصغير ورقم ورمز.", forgot:"نسيت كلمة المرور؟", signinAction:"تسجيل الدخول", signupAction:"إنشاء الحساب", security:"تقوم Supabase بتشفير كلمة المرور ولا تخزنها BLH أبداً.", invalid:"البريد الإلكتروني أو كلمة المرور غير صحيحة.", invalidSignup:"تحقق من المعلومات المدخلة.", mismatch:"كلمتا المرور غير متطابقتين.", weak:"استخدم 12 حرفاً على الأقل مع حرف كبير وصغير ورقم ورمز.", confirmation:"تم إنشاء الحساب. تحقق من بريدك لتأكيد التسجيل.", recoverTitle:"إعادة تعيين كلمة المرور", recoverSub:"أدخل بريدك لتلقي رابط آمن.", send:"إرسال الرابط", back:"العودة لتسجيل الدخول", sent:"إذا كان الحساب موجوداً، فقد تم إرسال رابط إعادة التعيين.", resetTitle:"اختر كلمة مرور جديدة", resetSub:"أدخل كلمة مرور جديدة وآمنة.", update:"تحديث كلمة المرور", updated:"تم تحديث كلمة المرور. يمكنك المتابعة.", service:"لم تتم تهيئة المصادقة بعد.", loading:"جارٍ التحقق من الجلسة…", logout:"تسجيل الخروج", show:"إظهار كلمة المرور" }
   };
+  Object.values(copy).forEach(group => Object.keys(group).forEach(key => { group[key] = group[key].replaceAll("BLH", "PIPVORIA"); }));
   let language = "fr";
   try { language = localStorage.getItem("blh-language") || "fr"; } catch {}
   if (!languages[language]) language = "fr";
@@ -36,6 +68,9 @@
   gate.setAttribute("aria-modal", "true");
   gate.setAttribute("role", "dialog");
   gate.innerHTML = `<div class="auth-visual"><a class="auth-brand" href="/" aria-label="BLH XAUUSD"><img src="blh-logo.png" alt=""><span>BLH <b>XAUUSD</b></span></a><div class="auth-message"><span class="auth-kicker" data-auth="kicker"></span><h2 data-auth="hero"></h2><p data-auth="heroSub"></p></div><div class="auth-trust"><span>✓ <b data-auth="protected"></b></span><span>✓ <b data-auth="private"></b></span><span>✓ <b data-auth="realtime"></b></span></div></div><div class="auth-panel"><label class="auth-language">🌐 <select aria-label="Language">${Object.entries(languages).map(([code,name])=>`<option value="${code}">${name}</option>`).join("")}</select></label><main class="auth-card"><div class="auth-card-header"><h1 data-auth="welcome"></h1><p data-auth="welcomeSub"></p></div><div class="auth-tabs" role="tablist"><button type="button" data-mode="signin" role="tab" aria-selected="true" data-auth="signin"></button><button type="button" data-mode="signup" role="tab" aria-selected="false" data-auth="signup"></button></div><form class="auth-form" id="signin-form"><label class="auth-field"><span data-auth="email"></span><input name="email" type="email" autocomplete="email" required maxlength="254" data-auth-placeholder="emailPh"></label><label class="auth-field"><span data-auth="password"></span><span class="auth-input-wrap"><input name="password" type="password" autocomplete="current-password" required maxlength="128" data-auth-placeholder="passwordPh"><button class="auth-password-toggle" type="button" data-password-toggle aria-label=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label><button class="auth-link" type="button" id="forgot-password" data-auth="forgot"></button><button class="auth-primary" type="submit" data-auth="signinAction"></button></form><form class="auth-form" id="signup-form" hidden><label class="auth-field"><span data-auth="name"></span><input name="name" autocomplete="name" required minlength="2" maxlength="80" data-auth-placeholder="namePh"></label><label class="auth-field"><span data-auth="email"></span><input name="email" type="email" autocomplete="email" required maxlength="254" data-auth-placeholder="emailPh"></label><label class="auth-field"><span data-auth="password"></span><span class="auth-input-wrap"><input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128" data-auth-placeholder="passwordPh"><button class="auth-password-toggle" type="button" data-password-toggle aria-label=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label><label class="auth-field"><span data-auth="confirm"></span><span class="auth-input-wrap"><input name="confirm" type="password" autocomplete="new-password" required minlength="12" maxlength="128" data-auth-placeholder="passwordPh"><button class="auth-password-toggle" type="button" data-password-toggle aria-label=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label><p class="auth-password-hint" data-auth="passwordHint"></p><button class="auth-primary" type="submit" data-auth="signupAction"></button></form><form class="auth-form auth-recovery" id="recovery-form" hidden><label class="auth-field"><span data-auth="email"></span><input name="email" type="email" autocomplete="email" required maxlength="254" data-auth-placeholder="emailPh"></label><button class="auth-primary" type="submit" data-auth="send"></button><button class="auth-link" type="button" data-back data-auth="back"></button></form><form class="auth-form auth-recovery" id="reset-form" hidden><label class="auth-field"><span data-auth="password"></span><span class="auth-input-wrap"><input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128" data-auth-placeholder="passwordPh"><button class="auth-password-toggle" type="button" data-password-toggle aria-label=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label><p class="auth-password-hint" data-auth="passwordHint"></p><button class="auth-primary" type="submit" data-auth="update"></button></form><p class="auth-status" id="auth-status" role="status" aria-live="polite"></p><p class="auth-security-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span data-auth="security"></span></p></main></div>`;
+  const authBrand = gate.querySelector(".auth-brand");
+  authBrand.setAttribute("aria-label", "PIPVORIA");
+  authBrand.innerHTML = '<img src="pipvoria-logo.png" alt="PIPVORIA">';
   document.body.append(gate);
   const status = gate.querySelector("#auth-status");
   const header = gate.querySelector(".auth-card-header");

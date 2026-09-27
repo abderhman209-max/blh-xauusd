@@ -1,0 +1,20 @@
+{
+  "name": "PIPVORIA",
+  "short_name": "PIPVORIA",
+  "description": "Analyse des marchés Or et Bitcoin.",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#020815",
+  "theme_color": "#06152f",
+  "icons": [
+    {
+      "src": "/pipvoria-app-icon.jpeg",
+      "sizes": "1254x1254",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

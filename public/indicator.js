@@ -1,5 +1,5 @@
 let sourceBars=[],selectedInterval='15min',selectedSymbol='XAU/USD';const intervalLabels={'1min':'1 min','5min':'5 min','15min':'15 min','30min':'30 min','1h':'1 h'},marketLabels={'XAU/USD':'Gold / US-Dollar','BTC/USD':'Bitcoin / US-Dollar'},marketSources={'XAU/USD':'Twelve Data','BTC/USD':'Coinbase'};
-document.documentElement.lang='de';document.title='Blh XAUUSD — Goldmarkt im Blick';
+document.documentElement.lang='de';document.title='PIPVORIA — Goldmarkt im Blick';
 function germanUI(){
  const structureLabel=document.querySelector('#term')?.closest('label');const structureText=structureLabel&&[...structureLabel.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());if(structureText)structureText.textContent='Struktur';
  const text=(selector,value)=>{const node=document.querySelector(selector);if(node)node.textContent=value},label=(id,value)=>{const node=document.querySelector(id)?.closest('label');const child=node&&[...node.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());if(child)child.textContent=(node.firstElementChild?.id===id?' ':'')+value},tool=(id,title)=>{const node=document.querySelector(id);if(node){node.title=title;node.setAttribute('aria-label',title)}};

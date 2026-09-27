@@ -816,3 +816,140 @@ html[data-theme="light"] .logo img {
   html[data-theme="light"] .auth-panel { background: rgba(248,252,255,.92) !important; }
   html[data-theme="light"] .portal-sidebar { background: rgba(247,252,255,.98) !important; }
 }
+
+/* Reliable account and market-status menus */
+.portal-popover {
+  z-index: 60;
+  overflow: visible;
+  border-color: rgba(91, 220, 247, .22) !important;
+  background: rgba(5, 12, 20, .96) !important;
+  backdrop-filter: blur(28px) saturate(1.35);
+}
+.popover-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.popover-heading h3 { margin: 4px 0 0; font-size: 1rem; }
+.popover-kicker { color: var(--future-cyan); font-size: .72rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.popover-close { width: 34px; height: 34px; padding: 8px; border: 1px solid rgba(96,216,245,.16); }
+.profile-intro { padding: 4px 0 18px; }
+.profile-intro > svg { flex: 0 0 44px; }
+#portal-email { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.popover-actions { display: grid; gap: 7px; }
+.profile-settings,
+#portal-logout { min-height: 44px; border-radius: 12px; }
+.feed-state { display: flex; align-items: flex-start; gap: 12px; padding: 15px; border: 1px solid rgba(91,220,247,.14); border-radius: 16px; background: rgba(66,232,255,.045); }
+.feed-state > div { min-width: 0; }
+.feed-state strong { display: block; color: #eafcff; font-size: .86rem; line-height: 1.45; overflow-wrap: anywhere; }
+.feed-state p { margin: 7px 0 0; color: #91a8b3; font-size: .78rem; line-height: 1.55; }
+.feed-live-dot { width: 9px; height: 9px; flex: 0 0 9px; margin-top: 5px; border-radius: 50%; background: var(--future-mint); box-shadow: 0 0 12px rgba(54,246,212,.7); }
+.feed-offline .feed-live-dot { background: #ff6b78; box-shadow: 0 0 12px rgba(255,107,120,.55); }
+html[data-theme="light"] .portal-popover { background: rgba(251,253,255,.97) !important; }
+html[data-theme="light"] .feed-state { background: rgba(0,137,169,.055); }
+html[data-theme="light"] .feed-state strong { color: #102037; }
+html[data-theme="light"] .feed-state p { color: #566f82; }
+
+/* Compact, phone-first layout */
+@media (max-width: 600px) {
+  .portal-header {
+    height: 62px !important;
+    padding: 0 10px !important;
+    gap: 7px !important;
+  }
+  .menu-toggle { width: 34px !important; height: 34px; padding: 7px !important; flex: 0 0 34px; }
+  .portal-header > .portal-brand { flex: 0 1 116px; min-width: 88px; }
+  .portal-header > .portal-brand img { width: min(116px, 30vw) !important; height: 36px !important; }
+  .header-actions { gap: 4px !important; }
+  .header-actions .icon-button { width: 34px; height: 34px; padding: 7px; }
+  .profile-toggle { width: 34px; height: 34px; padding: 0 !important; }
+  .avatar { width: 34px !important; height: 34px !important; }
+  .avatar svg { width: 25px !important; height: 25px !important; }
+  .chevron { display: none; }
+  .portal-content { padding: 10px 9px calc(88px + env(safe-area-inset-bottom)) !important; }
+  .portal-chart-card { border-radius: 14px !important; }
+  .chart-top { gap: 7px !important; padding: 9px 8px !important; }
+  .chart-top .symbol-switcher button { padding: 7px 6px !important; font-size: 11px !important; }
+  .chart-top .settings summary { min-height: 34px; padding: 7px 8px; font-size: 11px; }
+  .chart-top #full-screen { width: 34px; height: 34px; font-size: 18px; }
+  .chart-top .frames button { min-width: 0 !important; min-height: 34px; padding: 7px 3px !important; font-size: 11px !important; }
+  .chart-top #feed-status { padding-top: 7px; font-size: 10px !important; }
+  .chart-workspace { height: 360px !important; min-height: 320px !important; }
+  .drawing-tools { width: 30px !important; }
+  .drawing-tools button { width: 27px !important; height: 30px !important; font-size: 17px !important; }
+  .chart-heading { padding: 8px 7px 3px !important; font-size: 10px !important; }
+  .indicator-legend { padding: 2px 7px 4px !important; font-size: 10px !important; }
+  .chart-bottom { padding: 6px 7px !important; font-size: 10px !important; }
+  .terminal-footer { padding: 7px 8px !important; font-size: 10px !important; }
+  .portal-toolkit { padding-top: 16px !important; }
+  .section-title { margin-bottom: 11px; }
+  .section-title h2,
+  .surface h2 { font-size: 17px !important; }
+  .section-title p,
+  .surface p,
+  .snapshot-action p { font-size: 13px !important; line-height: 1.55 !important; }
+  .toolkit-grid { gap: 8px !important; }
+  .toolkit-card-row { border-radius: 13px; }
+  .toolkit-card-row .toolkit-card { min-height: 64px; padding: 11px 10px !important; }
+  .toolkit-copy strong { font-size: 13px !important; margin-bottom: 4px; }
+  .toolkit-copy small,
+  .indicator-state { font-size: 11px !important; }
+  .indicator-edit { width: 42px !important; padding: 8px; }
+  .snapshot-action,
+  .surface { padding: 15px !important; border-radius: 16px !important; }
+  .snapshot-action { gap: 13px !important; margin-top: 10px; }
+  .snapshot-action h3 { font-size: 16px !important; }
+  .gold-button { min-height: 42px; padding: 10px 13px !important; border-radius: 12px !important; font-size: 13px !important; }
+  .portal-bottom {
+    left: 9px !important;
+    right: 9px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+    min-height: 56px !important;
+    padding: 5px !important;
+  }
+  .portal-bottom a { min-height: 44px !important; gap: 3px !important; padding: 4px 2px !important; font-size: 10px !important; }
+  .portal-bottom svg { width: 19px !important; height: 19px !important; }
+  .portal-popover {
+    top: 69px !important;
+    left: 9px;
+    right: 9px;
+    width: auto;
+    padding: 15px;
+    border-radius: 17px;
+    max-height: calc(100dvh - 86px);
+    overflow-y: auto;
+  }
+  .popover-heading { margin-bottom: 11px; }
+  .profile-intro { padding-bottom: 13px; }
+  .profile-intro > svg { width: 38px; height: 38px; flex-basis: 38px; }
+  .profile-intro strong { font-size: 15px !important; }
+  #portal-email { max-width: calc(100vw - 105px); font-size: 12px; }
+  .feed-state { padding: 12px; border-radius: 13px; }
+  .feed-state strong { font-size: 13px; }
+  .feed-state p { font-size: 12px; }
+  .auth-visual { min-height: 188px !important; padding: 20px !important; }
+  .auth-brand img { width: 156px !important; height: 50px !important; }
+  .auth-message { margin: 22px 0 0 !important; }
+  .auth-message h2 { margin: 8px 0 !important; font-size: 26px !important; line-height: 1.08; }
+  .auth-panel { min-height: 560px !important; padding: 66px 16px 28px !important; }
+  .auth-card h1 { font-size: 24px !important; }
+  .auth-card-header { margin-bottom: 19px !important; }
+  .auth-tabs { margin-bottom: 18px !important; }
+  .auth-gate .auth-tabs button { min-height: 40px; padding: 8px !important; font-size: 13px; }
+  .auth-form { gap: 13px !important; }
+  .auth-field input { height: 46px !important; font-size: 16px; }
+  .auth-gate .auth-primary { height: 46px !important; }
+  .auth-language { top: 17px !important; inset-inline-end: 16px !important; }
+  .auth-theme-toggle { top: 16px !important; inset-inline-start: 16px !important; width: 38px; height: 38px; padding: 9px; }
+}
+
+@media (max-width: 360px) {
+  .portal-header > .portal-brand { flex-basis: 96px; }
+  .portal-header > .portal-brand img { width: 96px !important; }
+  .header-actions .icon-button,
+  .profile-toggle,
+  .avatar { width: 31px !important; height: 31px !important; }
+  .header-actions { gap: 2px !important; }
+}

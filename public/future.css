@@ -306,6 +306,7 @@ body::before {
 }
 
 .portal-content {
+  position: relative;
   z-index: 2;
 }
 
@@ -579,12 +580,23 @@ body::before {
 .portal-brand,
 .logo {
   width: fit-content;
-  padding: 0 10px;
-  overflow: hidden;
-  border: 1px solid rgba(116, 225, 255, 0.2);
-  border-radius: 15px;
-  background: linear-gradient(120deg, rgba(247, 252, 255, 0.96), rgba(224, 248, 255, 0.9));
-  box-shadow: 0 10px 32px rgba(0, 10, 24, 0.28), 0 0 24px rgba(57, 221, 255, 0.08);
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.auth-brand img,
+.portal-brand img,
+.logo img {
+  filter:
+    drop-shadow(1px 0 rgba(221, 250, 255, .9))
+    drop-shadow(-1px 0 rgba(221, 250, 255, .9))
+    drop-shadow(0 1px rgba(221, 250, 255, .9))
+    drop-shadow(0 -1px rgba(221, 250, 255, .9))
+    drop-shadow(0 0 13px rgba(46, 222, 255, .24));
 }
 
 .auth-brand img {
@@ -608,7 +620,199 @@ body::before {
 }
 
 @media (max-width: 700px) {
-  .auth-brand, .portal-brand, .logo { padding-inline: 7px; border-radius: 12px; }
   .auth-brand img { width: 190px !important; height: 65px !important; }
   .portal-brand img, .logo img { width: 136px !important; height: 46px !important; }
+}
+
+/* Stable layer order: the animated market canvas always stays behind the app. */
+.portal-header,
+.portal-sidebar,
+.portal-bottom,
+.portal-popover,
+.indicator-dialog { isolation: isolate; }
+
+/* Theme controls */
+.auth-theme-toggle,
+.theme-toggle {
+  color: var(--future-cyan);
+  border: 1px solid rgba(102, 210, 235, .2);
+  background: rgba(5, 12, 20, .7);
+  box-shadow: 0 8px 28px rgba(0,0,0,.14);
+}
+
+.auth-theme-toggle {
+  position: absolute;
+  z-index: 3;
+  top: 25px;
+  inset-inline-start: 28px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  border-radius: 50%;
+}
+
+.auth-theme-toggle svg { width: 21px; height: 21px; }
+.theme-toggle:hover,
+.auth-theme-toggle:hover { color: #fff; border-color: rgba(66,232,255,.55); }
+
+/* Inputs must stay readable in both themes. */
+.auth-field input {
+  color: #f4fbff !important;
+  caret-color: var(--future-cyan);
+}
+.auth-field input:-webkit-autofill {
+  -webkit-text-fill-color: #f4fbff;
+  box-shadow: 0 0 0 1000px #08111b inset !important;
+}
+
+/* Light theme — cool neutral surfaces preserve the cyan/mint brand contrast. */
+html[data-theme="light"],
+html[data-theme="light"] body {
+  background: #edf4fa !important;
+  color: #102037;
+}
+
+html[data-theme="light"] body {
+  --canvas: #edf4fa;
+  --surface: rgba(255,255,255,.88);
+  --line: #cbd9e5;
+  --muted: #5e7083;
+  --future-panel: rgba(255,255,255,.78);
+  --future-line: rgba(24,92,122,.18);
+}
+
+html[data-theme="light"] #market-atmosphere {
+  background:
+    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(0, 180, 225, .13), transparent 31%),
+    radial-gradient(circle at 84% 14%, rgba(119, 75, 220, .1), transparent 30%),
+    radial-gradient(circle at 12% 85%, rgba(0, 205, 162, .09), transparent 28%),
+    linear-gradient(145deg, #f8fbfe, #eaf3f9 52%, #f4f8fc);
+}
+html[data-theme="light"] #market-atmosphere canvas { opacity: .36; filter: saturate(.9) contrast(.9); }
+html[data-theme="light"] .market-vignette { background: radial-gradient(ellipse at center, transparent 38%, rgba(129, 158, 183, .17) 100%); }
+html[data-theme="light"] body::before { opacity: .018; }
+
+html[data-theme="light"] .portal-header {
+  background: rgba(248,252,255,.84) !important;
+  border-bottom-color: rgba(42,103,134,.18) !important;
+  box-shadow: 0 14px 42px rgba(29,69,96,.09);
+}
+html[data-theme="light"] .portal-sidebar {
+  background: linear-gradient(180deg, rgba(250,253,255,.94), rgba(235,245,251,.91)) !important;
+  border-inline-end-color: rgba(42,103,134,.17) !important;
+  box-shadow: 20px 0 60px rgba(29,69,96,.08);
+}
+html[data-theme="light"] .portal-sidebar nav a,
+html[data-theme="light"] .quiet-link,
+html[data-theme="light"] .profile-label,
+html[data-theme="light"] .chevron { color: #53687d; }
+html[data-theme="light"] .portal-sidebar nav a:hover { color: #102037; background: rgba(0,147,177,.08); }
+html[data-theme="light"] .portal-sidebar nav a.selected { color: #006f86 !important; }
+html[data-theme="light"] .avatar { color: #40566c; background: #dce8f1; }
+
+html[data-theme="light"] .portal-intro h1,
+html[data-theme="light"] .page-title h1,
+html[data-theme="light"] .auth-message h2 {
+  background: linear-gradient(100deg, #071a35, #075e79 62%, #542c91);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+html[data-theme="light"] .portal-chart-card,
+html[data-theme="light"] .surface,
+html[data-theme="light"] .toolkit-card-row,
+html[data-theme="light"] .snapshot-action,
+html[data-theme="light"] .portal-popover,
+html[data-theme="light"] .indicator-dialog {
+  color: #102037;
+  background: rgba(255,255,255,.9) !important;
+  border-color: rgba(64,111,139,.2) !important;
+  box-shadow: 0 16px 42px rgba(37,73,98,.1) !important;
+}
+html[data-theme="light"] .chart-top,
+html[data-theme="light"] .chart-workspace,
+html[data-theme="light"] .terminal-footer,
+html[data-theme="light"] .toolkit-card,
+html[data-theme="light"] .indicator-dialog-footer,
+html[data-theme="light"] .settings form {
+  color: #102037;
+  background: rgba(247,251,254,.96) !important;
+  border-color: #d4e0e9 !important;
+}
+html[data-theme="light"] .chart-top .symbol-switcher,
+html[data-theme="light"] .frames,
+html[data-theme="light"] .indicator-tabs,
+html[data-theme="light"] .indicator-dialog input,
+html[data-theme="light"] .indicator-dialog select,
+html[data-theme="light"] .language-picker select,
+html[data-theme="light"] .period-buttons button {
+  color: #183047;
+  background: #e7f0f6 !important;
+  border-color: #c6d6e2 !important;
+}
+html[data-theme="light"] .portal-bottom {
+  background: rgba(249,252,255,.94) !important;
+  border-color: rgba(37,112,143,.24) !important;
+  box-shadow: 0 12px 38px rgba(29,69,96,.17);
+}
+html[data-theme="light"] .portal-bottom a { color: #65788b; }
+html[data-theme="light"] .portal-bottom a.selected { color: #007f94; background: rgba(1,171,196,.08); }
+html[data-theme="light"] .stat-card>strong,
+html[data-theme="light"] .history-values strong { color: #102037; }
+html[data-theme="light"] .help-item,
+html[data-theme="light"] .access-card { background: rgba(255,255,255,.9) !important; }
+
+html[data-theme="light"] .auth-gate {
+  color: #102037;
+  background: linear-gradient(110deg, rgba(237,246,252,.74), rgba(248,251,254,.94));
+}
+html[data-theme="light"] .auth-visual {
+  background: linear-gradient(145deg, rgba(229,243,250,.72), rgba(245,250,253,.88)) !important;
+  border-color: rgba(42,103,134,.15) !important;
+}
+html[data-theme="light"] .auth-panel {
+  color: #102037;
+  background: rgba(248,252,255,.83) !important;
+  border-color: rgba(42,103,134,.16) !important;
+  box-shadow: -30px 0 90px rgba(60,91,112,.1);
+}
+html[data-theme="light"] .auth-gate .auth-card,
+html[data-theme="light"] .auth-field,
+html[data-theme="light"] .auth-security-note { color: #243c52; }
+html[data-theme="light"] .auth-card-header p,
+html[data-theme="light"] .auth-message p { color: #526a7d; }
+html[data-theme="light"] .auth-language select,
+html[data-theme="light"] .auth-field input,
+html[data-theme="light"] .auth-tabs,
+html[data-theme="light"] .auth-password-toggle,
+html[data-theme="light"] .auth-theme-toggle,
+html[data-theme="light"] .theme-toggle {
+  color: #102037 !important;
+  background: rgba(255,255,255,.88) !important;
+  border-color: #bfd2df !important;
+  box-shadow: 0 8px 24px rgba(42,81,108,.09);
+}
+html[data-theme="light"] .auth-field input { color: #102037 !important; caret-color: #008da7; }
+html[data-theme="light"] .auth-field input::placeholder { color: #758797; }
+html[data-theme="light"] .auth-field input:-webkit-autofill {
+  -webkit-text-fill-color: #102037;
+  box-shadow: 0 0 0 1000px #fff inset !important;
+}
+html[data-theme="light"] .auth-gate .auth-tabs button { color: #52687a; }
+html[data-theme="light"] .auth-gate .auth-tabs button:hover { color: #0d273d; }
+html[data-theme="light"] .auth-trust span { color: #415b70; background: rgba(255,255,255,.64) !important; }
+html[data-theme="light"] .auth-brand img,
+html[data-theme="light"] .portal-brand img,
+html[data-theme="light"] .logo img {
+  filter: drop-shadow(0 0 10px rgba(0,71,112,.18));
+}
+
+@media (max-width: 900px) {
+  .auth-theme-toggle { top: 24px; inset-inline-start: 22px; }
+  html[data-theme="light"] .auth-visual { background: linear-gradient(180deg, rgba(235,247,252,.82), rgba(246,251,254,.94)) !important; }
+  html[data-theme="light"] .auth-panel { background: rgba(248,252,255,.92) !important; }
+  html[data-theme="light"] .portal-sidebar { background: rgba(247,252,255,.98) !important; }
 }

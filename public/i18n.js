@@ -8,6 +8,8 @@ const translations={
 'Chart-Zeitrahmen':{en:'Chart timeframe',fr:'Période du graphique',es:'Temporalidad',ar:'الإطار الزمني',ary:'المدة ديال الشارت'},
 'Chart-Werkzeuge':{en:'Chart tools',fr:'Outils du graphique',es:'Herramientas del gráfico',ar:'أدوات الرسم',ary:'أدوات الشارت'},
 'Vollbild':{en:'Fullscreen',fr:'Plein écran',es:'Pantalla completa',ar:'ملء الشاشة',ary:'الشاشة كاملة'},
+'Plein écran':{en:'Fullscreen',fr:'Plein écran',es:'Pantalla completa',ar:'ملء الشاشة'},
+'Quitter le plein écran':{en:'Exit fullscreen',fr:'Quitter le plein écran',es:'Salir de pantalla completa',ar:'الخروج من ملء الشاشة'},
 'Paysage':{en:'Landscape',fr:'Paysage',es:'Horizontal',ar:'أفقي',ary:'بالعرض'},
 'Cursor / Verschieben':{en:'Cursor / Pan',fr:'Curseur / déplacer',es:'Cursor / mover',ar:'المؤشر / التحريك',ary:'المؤشر / حرّك'},
 'Horizontale Linie hinzufügen':{en:'Add horizontal line',fr:'Ajouter une ligne horizontale',es:'Añadir línea horizontal',ar:'إضافة خط أفقي',ary:'زيد خط أفقي'},

@@ -106,12 +106,33 @@ function zoom(f){viewCount*=f;clampZoomState();priceView=null;renderIndicator()}
 function setMode(on){trendMode=false;trendStart=null;document.querySelector("#trend-tool").classList.remove("active");lineMode=on;document.querySelector('#line-tool').classList.toggle('active',on);document.querySelector('#cursor-tool').classList.toggle('active',!on);document.querySelector('#tool-status').textContent=on?'In den Chart klicken, um die orange Linie zu platzieren.':'Mausrad: Zoom · Ziehen: Verschieben · ━: horizontale Linie setzen'}
 document.querySelector('#zoom-in').onclick=()=>zoom(.75);document.querySelector('#zoom-out').onclick=()=>zoom(1.3);document.querySelector('#reset-view').onclick=()=>{viewCount=80;viewOffset=0;priceView=null;renderIndicator()};document.querySelector('#line-tool').onclick=()=>setMode(!lineMode);document.querySelector('#cursor-tool').onclick=()=>setMode(false);document.querySelector('#delete-line').onclick=()=>{if(trendMode)trendLines[drawingKey()]?.pop();else manualLevels[drawingKey()]?.pop();saveDrawings();renderIndicator()};
 const fullScreenButton=document.querySelector('#full-screen');
+const chartWorkspace=document.querySelector('#workspace');
+const chartExitButton=document.querySelector('#exit-chart-fullscreen');
+let chartHome=null,closingChartFullscreen=false;
 function setFullScreenButton(active){fullScreenButton.classList.toggle('active',active);fullScreenButton.setAttribute('aria-pressed',String(active));fullScreenButton.querySelector('.fullscreen-icon').textContent=active?'×':'⛶'}
-async function exitChartLandscape(){document.body.classList.remove('chart-focus','chart-landscape','chart-landscape-rotate');setFullScreenButton(false);try{screen.orientation?.unlock()}catch{}if(document.fullscreenElement)try{await document.exitFullscreen()}catch{}requestAnimationFrame(renderIndicator)}
-async function enterChartLandscape(){document.body.classList.add('chart-focus','chart-landscape');setFullScreenButton(true);const card=document.querySelector('.portal-chart-card');try{if(card?.requestFullscreen&&!document.fullscreenElement)await card.requestFullscreen()}catch{}let locked=false;try{if(screen.orientation?.lock){await screen.orientation.lock('landscape');locked=true}}catch{}if(!locked&&matchMedia('(orientation: portrait) and (max-width: 900px)').matches)document.body.classList.add('chart-landscape-rotate');requestAnimationFrame(renderIndicator)}
+function syncChartRotation(){document.body.classList.toggle('chart-landscape-rotate',document.body.classList.contains('chart-landscape')&&matchMedia('(orientation: portrait) and (max-width: 900px)').matches);requestAnimationFrame(renderIndicator)}
+async function exitChartLandscape(){
+ if(closingChartFullscreen||!document.body.classList.contains('chart-landscape'))return;
+ closingChartFullscreen=true;
+ document.body.classList.remove('chart-landscape','chart-landscape-rotate');setFullScreenButton(false);
+ try{screen.orientation?.unlock()}catch{}
+ if(document.fullscreenElement===chartWorkspace)try{await document.exitFullscreen()}catch{}
+ if(chartHome?.parentNode)chartHome.replaceWith(chartWorkspace);
+ chartHome=null;closingChartFullscreen=false;requestAnimationFrame(renderIndicator);
+}
+async function enterChartLandscape(){
+ if(document.body.classList.contains('chart-landscape'))return;
+ chartHome=document.createComment('chart workspace home');chartWorkspace.replaceWith(chartHome);document.body.append(chartWorkspace);
+ document.body.classList.add('chart-landscape');setFullScreenButton(true);syncChartRotation();
+ // Fullscreen must be requested synchronously from the tap; iOS Safari uses the fixed, rotated fallback.
+ try{if(chartWorkspace.requestFullscreen&&!document.fullscreenElement)await chartWorkspace.requestFullscreen()}catch{}
+ try{await screen.orientation?.lock?.('landscape')}catch{}
+ if(document.body.classList.contains('chart-landscape'))syncChartRotation();
+}
 fullScreenButton.onclick=()=>document.body.classList.contains('chart-landscape')?exitChartLandscape():enterChartLandscape();
-document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&document.body.classList.contains('chart-landscape')&&!document.body.classList.contains('chart-landscape-rotate')){document.body.classList.remove('chart-focus','chart-landscape');setFullScreenButton(false)}requestAnimationFrame(renderIndicator)});
-window.addEventListener('orientationchange',()=>{if(document.body.classList.contains('chart-landscape')){document.body.classList.toggle('chart-landscape-rotate',matchMedia('(orientation: portrait) and (max-width: 900px)').matches);requestAnimationFrame(renderIndicator)}});
+chartExitButton.onclick=exitChartLandscape;
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&document.body.classList.contains('chart-landscape')&&!closingChartFullscreen)exitChartLandscape();requestAnimationFrame(renderIndicator)});
+window.addEventListener('orientationchange',()=>{if(document.body.classList.contains('chart-landscape'))syncChartRotation()});
 svgNode.addEventListener('wheel',e=>{e.preventDefault();if(!chartScale)return;const c=chartScale,r=svgNode.getBoundingClientRect(),xx=e.clientX-r.left;if(xx>c.pw){const center=(c.min+c.max)/2,half=(c.max-c.min)/2*(e.deltaY>0?1.12:.88);priceView=safePriceView(center-half,center+half);renderIndicator();}else{const anchor=c.start+Math.max(0,Math.min(c.pw,xx))/c.step,oldCount=viewCount,ratio=Math.max(0,Math.min(1,(anchor-c.start)/Math.max(1,oldCount)));viewCount*=e.deltaY>0?1.12:.88;clampZoomState();const newStart=anchor-ratio*viewCount;viewOffset=sourceBars.length-(newStart+viewCount);clampZoomState();priceView=null;renderIndicator()}},{passive:false});
 for(const name of ['gesturestart','gesturechange','gestureend'])svgNode.addEventListener(name,event=>{event.preventDefault();event.stopPropagation()},{passive:false});
 svgNode.addEventListener('touchmove',event=>{if(event.touches.length>1)event.preventDefault()},{passive:false});

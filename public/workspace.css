@@ -7,19 +7,16 @@ html[data-theme="light"] .signal-cockpit .surface,html[data-theme="light"] .trad
 @media(max-width:420px){body .chart-workspace{height:clamp(510px,68dvh,700px)!important}.signal-head h2{font-size:18px}.signal-status{padding:6px 8px}.risk-results{grid-template-columns:1fr 1fr}.risk-results>div:last-child{grid-column:1/-1}.performance-periods{overflow-x:auto}.performance-periods button{min-width:74px}.trade-card header{align-items:center}.trade-card select{max-width:116px}.quiet-hours>span{width:100%}.quiet-hours label{flex:1}.quiet-hours input{width:100%}}
 @media(prefers-reduced-motion:reduce){.signal-pulse{animation:none}}
 
-/* Dedicated chart workspace: native landscape where supported, rotated fallback on iPhone. */
+/* Fullscreen contains the chart alone; the iPhone fallback rotates only that chart. */
 #full-screen{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:92px;border:1px solid rgba(73,221,242,.2);background:rgba(44,205,226,.07);color:#69e8f7}
 #full-screen .fullscreen-icon{font-size:20px;line-height:1}
 #full-screen .fullscreen-label{font-size:11px;font-weight:650}
 body.chart-landscape{overflow:hidden;overscroll-behavior:none}
-body.chart-landscape .portal-chart-card{position:fixed;inset:0;z-index:1100;width:100vw;height:100dvh;max-width:none;border:0;border-radius:0;background:#05090f}
-body.chart-landscape .chart-top{min-height:58px}
-body.chart-landscape .chart-workspace{height:calc(100dvh - 104px)!important;min-height:0!important}
-body.chart-landscape .terminal-footer{display:none}
-body.chart-landscape .portal-bottom{display:none!important}
-body.chart-landscape #full-screen{color:#07151a;background:linear-gradient(110deg,#55e9fb,#58edc6)}
-body.chart-landscape .chart-heading{padding-block:7px 4px}
-body.chart-landscape .indicator-legend{padding-bottom:3px}
-@media(max-width:900px){#full-screen{min-width:82px;padding-inline:8px}.chart-top #full-screen{width:auto!important;height:38px!important}.fullscreen-label{display:inline}.portal-content,.portal-view,.portal-chart-card,.chart-top,.chart-workspace,.chart-stage,.structure-scroll{min-width:0;max-width:100%}.chart-top>*{min-width:0}body.chart-landscape .chart-top{display:grid;grid-template-columns:minmax(120px,auto) auto auto;gap:7px;padding:7px 9px}body.chart-landscape .chart-top .frames{grid-column:1/-1}body.chart-landscape .chart-top #feed-status{display:none}body.chart-landscape .chart-workspace{height:calc(100dvh - 112px)!important}body.chart-landscape .chart-heading{font-size:10px}body.chart-landscape .indicator-legend{font-size:9px}}
-@media(max-width:900px) and (orientation:portrait){body.chart-landscape-rotate .portal-chart-card{inset:auto;top:50%;left:50%;width:100dvh;height:100vw;transform:translate(-50%,-50%) rotate(90deg);transform-origin:center}body.chart-landscape-rotate .chart-workspace{height:calc(100vw - 112px)!important}body.chart-landscape-rotate .chart-top{grid-template-columns:minmax(120px,auto) auto auto}body.chart-landscape-rotate .chart-top .frames{grid-column:1/-1}}
+#exit-chart-fullscreen{display:none}
+body.chart-landscape #workspace,body.chart-landscape #workspace:fullscreen{position:fixed!important;inset:0;z-index:2147483647;width:100vw!important;max-width:none!important;height:100dvh!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:#05090f;overflow:hidden;display:flex}
+body.chart-landscape #workspace .drawing-tools,body.chart-landscape #workspace .chart-heading,body.chart-landscape #workspace .indicator-legend,body.chart-landscape #workspace .chart-bottom{display:none!important}
+body.chart-landscape #workspace .chart-stage,body.chart-landscape #workspace .structure-scroll{flex:1;min-width:0;min-height:0;width:100%;height:100%}
+body.chart-landscape #workspace #exit-chart-fullscreen{display:grid;place-items:center;position:absolute;z-index:3;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));width:42px;height:42px;padding:0;border:1px solid #72c9dc88;border-radius:50%;background:#071720d9;color:#eaffff;font-size:23px;line-height:1;box-shadow:0 3px 14px #0008}
+@media(max-width:900px){#full-screen{min-width:82px;padding-inline:8px}.chart-top #full-screen{width:auto!important;height:38px!important}.fullscreen-label{display:inline}.portal-content,.portal-view,.portal-chart-card,.chart-top,.chart-workspace,.chart-stage,.structure-scroll{min-width:0;max-width:100%}.chart-top>*{min-width:0}}
+@media(max-width:900px) and (orientation:portrait){body.chart-landscape-rotate #workspace,body.chart-landscape-rotate #workspace:fullscreen{inset:auto!important;top:50%;left:50%;width:100dvh!important;height:100vw!important;transform:translate(-50%,-50%) rotate(90deg);transform-origin:center}body.chart-landscape-rotate #workspace #exit-chart-fullscreen{top:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-top))}}
 @media(max-width:420px){#full-screen{min-width:74px}.fullscreen-label{font-size:10px}}

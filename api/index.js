@@ -22,6 +22,13 @@ function env() {
   return { url, key };
 }
 
+function adminEnv() {
+  const { url } = env();
+  const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) throw new Error("Supabase admin is not configured");
+  return { url, secret };
+}
+
 function cookies(request) {
   return Object.fromEntries(
     (request.headers.get("cookie") || "")
@@ -82,6 +89,24 @@ async function supabaseData(path, accessToken, init = {}) {
   return fetch(`${url}/rest/v1/${path}`, { ...init, headers });
 }
 
+async function supabaseAdmin(path, init = {}) {
+  const { url, secret } = adminEnv();
+  const headers = new Headers(init.headers);
+  headers.set("apikey", secret);
+  headers.set("authorization", `Bearer ${secret}`);
+  headers.set("content-type", "application/json");
+  return fetch(`${url}/auth/v1${path}`, { ...init, headers });
+}
+
+async function supabaseAdminData(path, init = {}) {
+  const { url, secret } = adminEnv();
+  const headers = new Headers(init.headers);
+  headers.set("apikey", secret);
+  headers.set("authorization", `Bearer ${secret}`);
+  headers.set("content-type", "application/json");
+  return fetch(`${url}/rest/v1/${path}`, { ...init, headers });
+}
+
 async function userForToken(token) {
   if (!token) return null;
   const response = await supabase("/user", { headers: { authorization: `Bearer ${token}` } });
@@ -112,7 +137,87 @@ function publicUser(user) {
     id: user.id,
     email: user.email,
     name: user.user_metadata?.full_name || user.email?.split("@")[0] || "BLH",
+    isAdmin: user.app_metadata?.role === "super_admin",
   };
+}
+
+async function requireSuperAdmin(request) {
+  const session = await currentSession(request);
+  if (!session) return { error: json({ error: "authentication_required" }, 401) };
+  if (session.user.app_metadata?.role !== "super_admin") return { error: json({ error: "admin_required" }, 403) };
+  return { session };
+}
+
+function adminUser(user) {
+  return {
+    id: user.id,
+    email: user.email || "",
+    name: user.user_metadata?.full_name || user.email?.split("@")[0] || "Utilisateur",
+    createdAt: user.created_at || null,
+    updatedAt: user.updated_at || null,
+    lastSignInAt: user.last_sign_in_at || null,
+    emailConfirmedAt: user.email_confirmed_at || user.confirmed_at || null,
+    bannedUntil: user.banned_until || null,
+    provider: user.app_metadata?.provider || user.identities?.[0]?.provider || "email",
+    isAdmin: user.app_metadata?.role === "super_admin",
+  };
+}
+
+async function auditAdminAction(session, target, action, details = {}) {
+  await supabaseAdminData("admin_audit_logs", {
+    method: "POST",
+    headers: { prefer: "return=minimal" },
+    body: JSON.stringify({
+      admin_user_id: session.user.id,
+      target_user_id: target?.id || null,
+      target_email: target?.email || null,
+      action,
+      details,
+    }),
+  }).catch(() => {});
+}
+
+async function listAdminUsers(request) {
+  const authorization = await requireSuperAdmin(request);
+  if (authorization.error) return authorization.error;
+  const response = await supabaseAdmin("/admin/users?page=1&per_page=1000");
+  if (!response.ok) return json({ error: "admin_users_unavailable" }, 503);
+  const result = await response.json();
+  const users = (result.users || []).map(adminUser);
+  const auditResponse = await supabaseAdminData("admin_audit_logs?select=id,created_at,action,target_email,details&order=created_at.desc&limit=30");
+  const audit = auditResponse.ok ? await auditResponse.json() : [];
+  return sessionJson({ users, audit, total: result.total ?? users.length }, 200, authorization.session);
+}
+
+async function adminUserAction(request) {
+  const authorization = await requireSuperAdmin(request);
+  if (authorization.error) return authorization.error;
+  const data = await body(request);
+  const action = cleanText(data.action, 30);
+  if (!uuid(data.userId) || !["ban", "unban", "recovery", "delete"].includes(action)) return json({ error: "invalid_admin_action" }, 400);
+
+  const lookup = await supabaseAdmin(`/admin/users/${encodeURIComponent(data.userId)}`);
+  if (!lookup.ok) return json({ error: "user_not_found" }, 404);
+  const target = await lookup.json();
+  if (target.app_metadata?.role === "super_admin" && action !== "recovery") return json({ error: "protected_super_admin" }, 409);
+
+  let response;
+  if (action === "recovery") {
+    response = await supabase(`/recover?redirect_to=${encodeURIComponent(`${new URL(request.url).origin}/`)}`, {
+      method: "POST",
+      body: JSON.stringify({ email: target.email }),
+    });
+  } else if (action === "delete") {
+    response = await supabaseAdmin(`/admin/users/${encodeURIComponent(target.id)}?should_soft_delete=true`, { method: "DELETE" });
+  } else {
+    response = await supabaseAdmin(`/admin/users/${encodeURIComponent(target.id)}`, {
+      method: "PUT",
+      body: JSON.stringify({ ban_duration: action === "ban" ? "876000h" : "none" }),
+    });
+  }
+  if (!response.ok) return json({ error: `admin_${action}_failed` }, 400);
+  await auditAdminAction(authorization.session, target, action, { softDelete: action === "delete" });
+  return sessionJson({ ok: true, action }, 200, authorization.session);
 }
 
 function sessionJson(data, status, session) {
@@ -451,6 +556,7 @@ export default async function handler(request) {
   try {
     if (route === "gold" && request.method === "GET") return marketData(request, url);
     if (route === "workspace" && request.method === "GET") return workspaceData(request);
+    if (route === "admin/users" && request.method === "GET" && sameOrigin(request)) return listAdminUsers(request);
     if (route === "auth/session" && request.method === "GET") {
       const session = await currentSession(request);
       if (!session) return json({ user: null }, 401);
@@ -469,10 +575,12 @@ export default async function handler(request) {
     if (route === "preferences") return savePreferences(request);
     if (route === "notifications/create") return createNotification(request);
     if (route === "notifications/read") return readNotifications(request);
+    if (route === "admin/user-action") return adminUserAction(request);
     return json({ error: "not_found" }, 404);
   } catch (error) {
     if (error?.message === "invalid_content_type" || error?.message === "invalid_body") return json({ error: "invalid_request" }, 400);
     if (error?.message === "Supabase is not configured") return json({ error: "service_not_configured" }, 503);
+    if (error?.message === "Supabase admin is not configured") return json({ error: "admin_not_configured" }, 503);
     return json({ error: "server_error" }, 500);
   }
 }

@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="portal.css">
 <link rel="stylesheet" href="workspace.css">
+<link rel="stylesheet" href="admin.css">
 <link rel="stylesheet" href="auth.css">
 </head>
 <body class="chart-app auth-locked">
@@ -149,7 +150,7 @@
 </form>
 </details>
 <span id="feed-status">Connexion…</span>
-<button id="full-screen" title="Plein écran" aria-label="Plein écran">⛶</button>
+<button id="full-screen" title="Plein écran" aria-label="Plein écran"><span class="fullscreen-icon" aria-hidden="true">⛶</span><span class="fullscreen-label">Paysage</span></button>
 </header>
 <main id="workspace" class="chart-workspace">
 <div class="drawing-tools" aria-label="Outils du graphique">
@@ -217,6 +218,8 @@
 <script src="portal.js">
 </script>
 <script src="workspace.js">
+</script>
+<script src="admin.js">
 </script>
 </body>
 </html>

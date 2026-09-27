@@ -1,0 +1,20 @@
+{
+  "name": "PIPVORIA Admin",
+  "short_name": "PIP Admin",
+  "description": "Administration sécurisée de la plateforme PIPVORIA.",
+  "lang": "fr",
+  "start_url": "/?view=admin",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#edfaff",
+  "theme_color": "#d9f7ff",
+  "icons": [
+    {
+      "src": "/pipvoria-admin-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

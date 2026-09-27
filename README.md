@@ -14,17 +14,20 @@ Code source de la plateforme BLH XAUUSD, importé depuis la version 10 publiée 
 
 ## Organisation
 
-- `worker/index.js` : serveur et ressources de la version importée.
-- `api/index.js` : adaptateur Vercel Edge.
-- `vercel.json` : routage des pages, ressources et API.
+- `public/` : site statique, écran de connexion et traductions.
+- `api/index.js` : API Vercel Edge, authentification Supabase et données de marché protégées.
+- `worker/index.js` : archive de la version importée, non utilisée au déploiement.
+- `vercel.json` : en-têtes de sécurité.
 - `VERCEL.md` : procédure d’import dans Vercel.
 
 ## Configuration
 
-La clé `TWELVEDATA_API_KEY` peut être enregistrée dans les variables secrètes de l’hébergeur. Sans cette clé, le serveur tente sa source de secours. Aucune clé secrète n’est incluse dans ce dépôt.
+Le déploiement requiert `SUPABASE_URL` et `SUPABASE_PUBLISHABLE_KEY`. La clé publique/publishable est utilisée uniquement par l’API serveur du site ; aucune clé `service_role` n’est nécessaire.
 
-## Accès actuel
+La variable `TWELVEDATA_API_KEY` est facultative. Sans elle, le serveur tente sa source de secours. Aucune clé n’est incluse dans ce dépôt.
 
-Le déploiement Vercel expose la version importée comme démonstration publique. Une authentification serveur et une base de données devront être ajoutées avant les comptes clients et abonnements.
+## Accès
 
-L’abonnement Stripe, le dashboard Admin avec statistiques pays/région et les animations Three.js restent à construire.
+L’accès utilise Supabase Auth avec e-mail et mot de passe. Les sessions sont conservées dans des cookies `HttpOnly`, `Secure` et `SameSite=Lax`. La connexion, l’inscription, la confirmation d’e-mail et la réinitialisation de mot de passe sont séparées. L’interface est disponible en français, anglais, espagnol et arabe (RTL).
+
+Les données de marché sont refusées sans session valide. Aucune table applicative Supabase n’est requise pour ce flux d’authentification.

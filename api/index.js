@@ -1,236 +1,290 @@
-import worker from "../worker/index.js";
-
 export const config = { runtime: "edge" };
 
-function createWorkerRequest(request) {
-  const url = new URL(request.url);
-  const path = url.searchParams.get("__path") || "";
-  url.searchParams.delete("__path");
-  url.pathname = "/" + path.replace(/^\/+/, "");
+const ACCESS_COOKIE = "blh_access";
+const REFRESH_COOKIE = "blh_refresh";
+const JSON_HEADERS = {
+  "content-type": "application/json; charset=utf-8",
+  "cache-control": "no-store",
+  "x-content-type-options": "nosniff",
+};
 
-  const headers = new Headers(request.headers);
-  headers.set("oai-authenticated-user-id", "vercel-public-visitor");
-  headers.set("oai-authenticated-user-email", "visitor@blh-xauusd.local");
-
-  return new Request(url, {
-    method: request.method,
-    headers,
-    body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
-    redirect: "manual",
+function json(data, status = 200, headers = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...JSON_HEADERS, ...headers },
   });
 }
 
-function requestedPath(request) {
-  const path = new URL(request.url).searchParams.get("__path") || "";
-  return "/" + path.replace(/^\/+/, "");
+function env() {
+  const url = process.env.SUPABASE_URL?.replace(/\/$/, "");
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error("Supabase is not configured");
+  return { url, key };
 }
 
-const plannerEngine = String.raw`// Web port of Signal Trade Planner Strategy by abderhman209.
-const SmartEngine={analyze(bars,{atrLength=14,zone=1.5,rr=[.5,1,1.5]}={}){
- const val=(id,fallback)=>{const n=Number(document.querySelector(id)?.value);return Number.isFinite(n)?n:fallback},checked=(id,fallback=true)=>document.querySelector(id)?.checked??fallback;
- const fastLength=val('#planner-fast',21),slowLength=val('#planner-slow',50),rsiLength=val('#planner-rsi-length',14),rsiThreshold=val('#planner-rsi-threshold',52),minSeparation=val('#planner-separation',.05),minBody=val('#planner-body',.10),cooldown=val('#planner-cooldown',3),swingLookback=val('#planner-swing',7),trailingMultiplier=val('#planner-trailing-atr',1.5);
- const mode=document.querySelector('#planner-mode')?.value||'Hybrid',stopMode=document.querySelector('#planner-stop-mode')?.value||'ATR',directionMode=document.querySelector('#planner-direction')?.value||'Both',priority=document.querySelector('#planner-priority')?.value||'Stop first',trailing=checked('#planner-trailing',true);
- const result={sides:[],signals:[],fast:[],slow:[],stats:{signals:0,closed:0,wins:0,tp1:0,tp2:0,tp3:0,stops:0,netR:0},active:null};if(bars.length<slowLength+2)return result;
- const ema=(length,out)=>{const k=2/(length+1);let value=bars[0].close;for(let i=0;i<bars.length;i++){value=i?bars[i].close*k+value*(1-k):value;out[i]=value}};
- ema(fastLength,result.fast);ema(slowLength,result.slow);
- let atr=null,atrSum=0,avgGain=null,avgLoss=null,gainSum=0,lossSum=0;const atrs=[],rsis=[];
- for(let i=0;i<bars.length;i++){
-  const b=bars[i],p=bars[i-1],tr=p?Math.max(b.high-b.low,Math.abs(b.high-p.close),Math.abs(b.low-p.close)):b.high-b.low;
-  atrSum+=tr;if(i===atrLength-1)atr=atrSum/atrLength;else if(i>=atrLength)atr=(atr*(atrLength-1)+tr)/atrLength;atrs[i]=atr;
-  if(i){const change=b.close-p.close,gain=Math.max(change,0),loss=Math.max(-change,0);if(i<=rsiLength){gainSum+=gain;lossSum+=loss;if(i===rsiLength){avgGain=gainSum/rsiLength;avgLoss=lossSum/rsiLength}}else{avgGain=(avgGain*(rsiLength-1)+gain)/rsiLength;avgLoss=(avgLoss*(rsiLength-1)+loss)/rsiLength}if(avgGain!==null)rsis[i]=avgLoss===0?100:100-100/(1+avgGain/avgLoss)}
- }
- let active=null,lastPlan=null,lastExit=-100;
- for(let i=slowLength+1;i<bars.length;i++){
-  const b=bars[i],p=bars[i-1],a=atrs[i],rsi=rsis[i];if(!a||!Number.isFinite(rsi))continue;
-  if(active&&i>active.index){const stopHit=active.direction===1?b.low<=active.stop:b.high>=active.stop,hits=active.tps.map(t=>active.direction===1?b.high>=t:b.low<=t);if(stopHit&&priority==='Stop first'){result.stats.stops++;result.stats.closed++;result.stats.netR+=active.tp1Reached?0:-1;active=null;lastExit=i}else{for(let t=0;t<3;t++)if(hits[t]&&!active?.reached[t]){active.reached[t]=true;result.stats['tp'+(t+1)]++;if(t===0){active.tp1Reached=true;result.stats.wins++}if(t===2){result.stats.closed++;result.stats.netR+=rr[2];active=null;lastExit=i;break}}if(active&&stopHit){result.stats.stops++;result.stats.closed++;result.stats.netR+=active.tp1Reached?rr[0]:-1;active=null;lastExit=i}if(active&&trailing&&active.tp1Reached){active.best=active.direction===1?Math.max(active.best,b.high):Math.min(active.best,b.low);const candidate=active.direction===1?active.best-a*trailingMultiplier:active.best+a*trailingMultiplier;active.stop=active.direction===1?Math.max(active.entry,candidate,active.stop):Math.min(active.entry,candidate,active.stop);active.plan.stop=active.stop}}}
-  if(active||i-lastExit<=cooldown)continue;
-  const crossLong=result.fast[i]>result.slow[i]&&result.fast[i-1]<=result.slow[i-1],crossShort=result.fast[i]<result.slow[i]&&result.fast[i-1]>=result.slow[i-1];
-  const pullLong=result.fast[i]>result.slow[i]&&b.close>result.fast[i]&&p.close<=result.fast[i-1]&&rsi>rsiThreshold;
-  const pullShort=result.fast[i]<result.slow[i]&&b.close<result.fast[i]&&p.close>=result.fast[i-1]&&rsi<100-rsiThreshold;
-  const separation=Math.abs(result.fast[i]-result.slow[i])/a,body=Math.abs(b.close-b.open)/a;
-  const qualityLong=separation>=minSeparation&&b.close>b.open&&body>=minBody,qualityShort=separation>=minSeparation&&b.close<b.open&&body>=minBody;
-  const longSignal=(mode==='EMA crossover'?crossLong:mode==='Pullback continuation'?pullLong&&qualityLong:crossLong||pullLong&&qualityLong)&&directionMode!=='Short only';
-  const shortSignal=(mode==='EMA crossover'?crossShort:mode==='Pullback continuation'?pullShort&&qualityShort:crossShort||pullShort&&qualityShort)&&directionMode!=='Long only';
-  if(!longSignal&&!shortSignal)continue;const direction=longSignal?1:-1,entry=b.close,atrRisk=a*Math.max(.1,zone),recent=bars.slice(Math.max(0,i-swingLookback+1),i+1),swingStop=direction===1?Math.min(...recent.map(v=>v.low))-.01:Math.max(...recent.map(v=>v.high))+.01,selectedStop=stopMode==='Recent swing'?swingStop:entry-direction*atrRisk,risk=Math.max(Math.abs(entry-selectedStop),a*.1),stop=entry-direction*risk;
-  const plan={direction,index:i,top:entry+a*.04,bottom:entry-a*.04,secondTop:entry+a*.04,secondBottom:entry-a*.04,entry,stop,tps:rr.map(v=>entry+direction*risk*v),trend:{a:{index:Math.max(0,i-20),price:result.slow[Math.max(0,i-20)]},b:{index:i+25,price:result.slow[i]}}};
-  lastPlan=plan;active={...plan,plan,reached:[false,false,false],tp1Reached:false,best:entry};result.signals.push({index:i,direction,price:direction===1?b.low:b.high,time:b.time});result.stats.signals++;
- }
- result.active=active;result.sides=lastPlan?[lastPlan]:[];return result;
-}};
-if(typeof module!=='undefined')module.exports=SmartEngine;
-function showPlannerMessage(model,layer){
- if(layer!=='shapes'||!Array.isArray(model.signals)||!model.signals.length)return;const signal=model.signals.at(-1),length=Array.isArray(model.fast)?model.fast.length:0;if(signal.index<length-2)return;const symbol=typeof selectedSymbol==='string'?selectedSymbol:'XAU/USD',interval=typeof selectedInterval==='string'?selectedInterval:'15min',key=symbol+'|'+interval+'|'+(signal.time||signal.index)+'|'+signal.direction;try{if(localStorage.getItem('blh-last-planner-alert')===key)return;localStorage.setItem('blh-last-planner-alert',key)}catch{}document.querySelector('#planner-signal-toast')?.remove();const buy=signal.direction===1,toast=document.createElement('div');toast.id='planner-signal-toast';toast.setAttribute('role','status');toast.setAttribute('aria-live','assertive');toast.style.cssText='position:fixed;z-index:9999;top:18px;right:18px;width:min(360px,calc(100vw - 36px));padding:16px 44px 16px 17px;border-radius:12px;background:#0b1715;color:#f5fffc;border:1px solid '+(buy?'#18c7a1':'#f23645')+';box-shadow:0 16px 48px #000b;font:14px Arial,sans-serif';toast.innerHTML='<button type="button" aria-label="Close" style="position:absolute;right:10px;top:8px;border:0;background:transparent;color:#fff;font-size:20px;cursor:pointer">×</button><strong style="display:block;color:'+(buy?'#5eead4':'#ff7b85')+';font-size:18px;margin-bottom:6px">'+(buy?'BUY SIGNAL':'SELL SIGNAL')+'</strong><span style="display:block;color:#d7e5e1">'+symbol+' · '+interval+' · '+Number(signal.price).toFixed(2)+'</span>';toast.querySelector('button').onclick=()=>toast.remove();document.body.append(toast);setTimeout(()=>toast.remove(),9000)
-}
-function renderSmart(model,x,y,width,height,layer='all'){
- const enabled=id=>document.querySelector(id)?.checked!==false;if(!document.querySelector('#show-smart')?.checked)return layer==='labels'?'<g data-indicator="planner-labels"></g>':'<g data-indicator="planner"></g>';model.fast=Array.isArray(model.fast)?model.fast:[];model.slow=Array.isArray(model.slow)?model.slow:[];model.sides=Array.isArray(model.sides)?model.sides:[];model.signals=Array.isArray(model.signals)?model.signals:[];showPlannerMessage(model,layer);let shapes='<g data-indicator="planner">',labels='<g data-indicator="planner-labels">';
- const path=(values,color)=>{let d='';for(let i=0;i<values.length;i++){if(!Number.isFinite(values[i]))continue;const xx=x(i);if(xx<0||xx>width)continue;d+=(d?' L ':'M ')+xx+' '+y(values[i])}return d?'<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="1.7" opacity=".9"/>':''};
- if(enabled('#smart-trend')){shapes+=path(model.fast,'#00d9ff')+path(model.slow,'#8b5cf6')}
- for(const z of model.sides){const color=z.direction===1?'#089981':'#f23645',name=z.direction===1?'BUY':'SELL',left=x(z.index),right=Math.min(width-4,x(z.index+25));if(right<0||left>width)continue;
-  const x1=Math.max(0,left),x2=Math.max(x1+34,right),w=x2-x1,rewardTop=y(Math.max(z.entry,z.tps[2])),rewardBottom=y(Math.min(z.entry,z.tps[2])),riskTop=y(Math.max(z.entry,z.stop)),riskBottom=y(Math.min(z.entry,z.stop));
-  shapes+='<rect x="'+x1+'" y="'+rewardTop+'" width="'+w+'" height="'+Math.max(1,rewardBottom-rewardTop)+'" fill="#7c3aed" fill-opacity=".18" stroke="#9b6cff" stroke-width="1.2"/><rect x="'+x1+'" y="'+riskTop+'" width="'+w+'" height="'+Math.max(1,riskBottom-riskTop)+'" fill="#7f1d1d" fill-opacity=".28" stroke="#f23645" stroke-width="1.2"/><line x1="'+x1+'" y1="'+y(z.entry)+'" x2="'+x2+'" y2="'+y(z.entry)+'" stroke="#5b9cf6" stroke-width="2"/><line x1="'+x1+'" y1="'+y(z.stop)+'" x2="'+x2+'" y2="'+y(z.stop)+'" stroke="#f23645" stroke-dasharray="8 5" stroke-width="2"/>';
-  const badge=(price,title,fill)=>{const yy=y(price),bx=Math.min(width-58,x2+4);labels+='<g><rect x="'+bx+'" y="'+(yy-13)+'" width="56" height="26" rx="5" fill="'+fill+'"/><text x="'+(bx+28)+'" y="'+(yy-2)+'" text-anchor="middle" fill="white" font-size="9" font-weight="700">'+title+'</text><text x="'+(bx+28)+'" y="'+(yy+9)+'" text-anchor="middle" fill="white" font-size="8">'+price.toFixed(2)+'</text></g>'};
-  if(enabled('#smart-tps'))z.tps.forEach((price,i)=>{shapes+='<line x1="'+x1+'" y1="'+y(price)+'" x2="'+x2+'" y2="'+y(price)+'" stroke="#a78bfa" stroke-dasharray="7 6" stroke-width="1.2"/>';badge(price,'TP'+(i+1),'#7551c7')});
-  badge(z.entry,'ENTRY','#3b82c4');badge(z.stop,model.active?.tp1Reached?'TRAIL':'SL','#ef3340');
- }
- if(enabled('#smart-signals'))for(const signal of model.signals){const xx=x(signal.index);if(xx<0||xx>width)continue;const up=signal.direction===1,yy=y(signal.price),color=up?'#089981':'#f23645',name=up?'BUY':'SELL';labels+='<g><path d="M '+(xx-6)+' '+(yy+(up?10:-10))+' L '+xx+' '+yy+' L '+(xx+6)+' '+(yy+(up?10:-10))+'" fill="'+color+'"/><rect x="'+(xx-20)+'" y="'+(yy+(up?10:-34))+'" width="40" height="22" rx="4" fill="'+color+'"/><text x="'+xx+'" y="'+(yy+(up?25:-19))+'" text-anchor="middle" fill="white" font-size="10">'+name+'</text></g>'}
- if(enabled('#planner-dashboard')&&model.stats){const q=model.stats,rate=q.closed?Math.round(q.wins/q.closed*100):0,status=model.active?(model.active.direction===1?'LONG ACTIVE':'SHORT ACTIVE'):'WAITING',bx=Math.max(8,width-250);labels+='<g><rect x="'+bx+'" y="12" width="238" height="116" rx="8" fill="#071a14" fill-opacity=".94" stroke="#089981"/><text x="'+(bx+12)+'" y="32" fill="white" font-size="12" font-weight="700">SIGNAL TRADE PLANNER</text><text x="'+(bx+12)+'" y="52" fill="#aeb2ba" font-size="10">'+status+' · WIN '+rate+'%</text><text x="'+(bx+12)+'" y="72" fill="#69d4bb" font-size="10">SIGNALS '+q.signals+'   CLOSED '+q.closed+'   TP1 '+q.tp1+'</text><text x="'+(bx+12)+'" y="91" fill="#c4a7ff" font-size="10">TP2 '+q.tp2+'   TP3 '+q.tp3+'   SL '+q.stops+'</text><text x="'+(bx+12)+'" y="111" fill="'+(q.netR>=0?'#69d4bb':'#ff6b78')+'" font-size="11">NET '+q.netR.toFixed(2)+'R</text></g>'}
- return layer==='labels'?labels+'</g>':shapes+'</g>';
-}`;
-
-function configureIndicators(source) {
-  return source
-    .replace(
-      "[['structure','structureSub','show-structure','signals'],['smart','smartSub','show-smart','performance'],['heat','heatSub','show-heatmap','weekly']]",
-      "[['structure','structureSub','show-structure','signals'],['smart','smartSub','show-smart','performance']]",
-    )
-    .replace(
-      "indicatorForm.append(...Object.values(groups));indicatorDialog",
-      "indicatorForm.append(...Object.values(groups));const heatToggle=$('#show-heatmap');if(heatToggle){heatToggle.checked=false;groups.heat.hidden=true;$('#indicator-tab-heat').hidden=true;heatToggle.dispatchEvent(new Event('input',{bubbles:true}))}indicatorDialog",
-    )
-    .replace(
-      "event.key==='Home'?0:event.key==='End'?2:(indicatorKeys.indexOf(selectedIndicator)+delta+3)%3",
-      "event.key==='Home'?0:event.key==='End'?1:(indicatorKeys.indexOf(selectedIndicator)+delta+2)%2",
-    )
-    .replace(
-      "['show-structure','show-smart','show-heatmap'].filter",
-      "['show-structure','show-smart'].filter",
-    )
-    .replace("smart:['Buy & Sell zones','Kauf- & Verkaufszonen','Zones d’achat et de vente','Zonas de compra y venta','مناطق الشراء والبيع','مناطق الشراء والبيع']", "smart:['Signal Trade Planner','Signal Trade Planner','Signal Trade Planner','Signal Trade Planner','مخطط إشارات التداول','مخطط إشارات التداول']")
-    .replace("smartSub:['Swing zones · TP1 / TP2 / TP3','Swing-Zonen · TP1 / TP2 / TP3','Zones swing · TP1 / TP2 / TP3','Zonas swing · TP1 / TP2 / TP3','مناطق السوينغ · أهداف 1 / 2 / 3','مناطق السوينغ · أهداف 1 / 2 / 3']", "smartSub:['EMA 21/50 · RSI · Entry / SL / TP1–3','EMA 21/50 · RSI · Einstieg / SL / TP1–3','EMA 21/50 · RSI · Entrée / SL / TP1–3','EMA 21/50 · RSI · Entrada / SL / TP1–3','EMA 21/50 · RSI · دخول / وقف / أهداف','EMA 21/50 · RSI · دخول / وقف / أهداف']");
+function cookies(request) {
+  return Object.fromEntries(
+    (request.headers.get("cookie") || "")
+      .split(";")
+      .map((part) => part.trim().split(/=(.*)/s).slice(0, 2))
+      .filter(([name]) => name),
+  );
 }
 
-function applyCoolGreenBrand(source) {
-  return source
-    .replaceAll('#e5bf72', '#18c7a1')
-    .replaceAll('#ffd019', '#18c7a1')
-    .replaceAll('#ffcf19', '#18c7a1')
-    .replaceAll('#d6b11b', '#18c7a1')
-    .replaceAll('#ffe06a', '#5eead4')
-    .replaceAll('#e3ce73', '#5eead4')
-    .replaceAll('#2d281d', '#102b26')
-    .replaceAll('#4b4434', '#1d4d44')
-    .replaceAll('#18130a', '#091916')
-    .replaceAll('#17130b', '#0a1715')
-    .replaceAll('#15130b', '#0b1715')
-    .replaceAll('%23e5bf72', '%2318c7a1');
+function cookie(name, value, maxAge) {
+  return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 }
 
-async function customizeResponse(response, path) {
-  if (path !== "/" && path !== "/index.html" && path !== "/portal.js" && path !== "/smart.js" && path !== "/indicator.js" && path !== "/style.css" && path !== "/portal.css") {
-    return response;
+function sessionHeaders(session) {
+  const headers = new Headers(JSON_HEADERS);
+  headers.append("set-cookie", cookie(ACCESS_COOKIE, session.access_token, Math.max(60, session.expires_in || 3600)));
+  headers.append("set-cookie", cookie(REFRESH_COOKIE, session.refresh_token, 60 * 60 * 24 * 30));
+  return headers;
+}
+
+function clearSessionHeaders() {
+  const headers = new Headers(JSON_HEADERS);
+  headers.append("set-cookie", cookie(ACCESS_COOKIE, "", 0));
+  headers.append("set-cookie", cookie(REFRESH_COOKIE, "", 0));
+  return headers;
+}
+
+function sameOrigin(request) {
+  const site = request.headers.get("sec-fetch-site");
+  if (site === "cross-site") return false;
+  const origin = request.headers.get("origin");
+  return !origin || origin === new URL(request.url).origin;
+}
+
+async function body(request) {
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+    throw new Error("invalid_content_type");
   }
+  const parsed = await request.json();
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("invalid_body");
+  return parsed;
+}
 
-  let body = await response.text();
-  if (path === "/" || path === "/index.html") {
-    body = body
-      .replace(
-        '<label><input id="show-smart" type="checkbox"> Smart Buy & Sell Zones + TP Engine V2</label>',
-        '<label><input id="show-smart" type="checkbox" checked> Signal Trade Planner Strategy</label>',
-      )
-      .replace(
-        '<label><input id="show-smart" type="checkbox" checked> Smart Buy & Sell Zones + TP Engine V2</label>',
-        '<label><input id="show-smart" type="checkbox" checked> Signal Trade Planner Strategy</label>',
-      )
-      .replace(
-        '<label><input id="show-smart" type="checkbox" checked> Signal Trade Planner Strategy</label>',
-        '<label><input id="show-smart" type="checkbox" checked> Signal Trade Planner Strategy</label><label>Signal mode<select id="planner-mode"><option>Hybrid</option><option>EMA crossover</option><option>Pullback continuation</option></select></label><label>Fast EMA<input id="planner-fast" type="number" min="1" value="21"></label><label>Slow EMA<input id="planner-slow" type="number" min="2" value="50"></label><label>RSI length<input id="planner-rsi-length" type="number" min="2" value="14"></label><label>RSI threshold<input id="planner-rsi-threshold" type="number" min="50" max="70" value="52"></label><label>Minimum EMA separation (ATR)<input id="planner-separation" type="number" min="0" step="0.05" value="0.05"></label><label>Minimum candle body (ATR)<input id="planner-body" type="number" min="0" step="0.05" value="0.10"></label><label>Cooldown bars<input id="planner-cooldown" type="number" min="0" value="3"></label><label>Stop mode<select id="planner-stop-mode"><option>ATR</option><option>Recent swing</option></select></label><label>Swing lookback<input id="planner-swing" type="number" min="2" value="7"></label><label>Same-bar priority<select id="planner-priority"><option>Stop first</option><option>Targets first</option></select></label><label>Trade direction<select id="planner-direction"><option>Both</option><option>Long only</option><option>Short only</option></select></label><label><input id="planner-trailing" type="checkbox" checked> Trailing stop after TP1</label><label>Trailing ATR multiplier<input id="planner-trailing-atr" type="number" min="0.1" step="0.1" value="1.5"></label><label><input id="planner-dashboard" type="checkbox" checked> Show backtest dashboard</label>',
-      )
-      .replace('<label>Swing Length<input id="smart-swing" type="number" min="2" max="100" value="5"></label>', '<input id="smart-swing" type="hidden" value="5">')
-      .replace('ATR Length<input id="smart-atr" type="number" min="1" max="100" value="14">', 'ATR Length<input id="smart-atr" type="number" min="1" max="100" value="14">')
-      .replace('Zone Size ATR<input id="smart-zone" type="number" min="0.1" step="0.1" value="0.5">', 'Stop ATR multiplier<input id="smart-zone" type="number" min="0.1" step="0.1" value="1.5">')
-      .replace('TP1 RR<input id="smart-tp1" type="number" min="0.1" step="0.1" value="1">', 'TP1 R<input id="smart-tp1" type="number" min="0.1" step="0.1" value="0.5">')
-      .replace('TP2 RR', 'TP2 R')
-      .replace('TP3 RR', 'TP3 R')
-      .replace('id="smart-tp2" type="number" min="0.1" step="0.1" value="2"', 'id="smart-tp2" type="number" min="0.1" step="0.1" value="1"')
-      .replace('id="smart-tp3" type="number" min="0.1" step="0.1" value="3"', 'id="smart-tp3" type="number" min="0.1" step="0.1" value="1.5"')
-      .replace('<label><input id="smart-zones" type="checkbox" checked> Zones BUY / SELL</label>', '<label hidden><input id="smart-zones" type="checkbox"> Zones BUY / SELL</label>')
-      .replace('Lignes de tendance', 'EMA 21 / EMA 50')
-      .replace(
-        '<input id="show-heatmap" type="checkbox" checked>',
-        '<input id="show-heatmap" type="checkbox">',
-      );
-  } else if (path === "/portal.js") {
-    body = configureIndicators(body);
-  } else if (path === "/smart.js") {
-    body = plannerEngine;
-  } else if (path === "/indicator.js") {
-    body = body
-      .replace('Intelligente BUY- & SELL-Zonen + TP Engine V2', 'Signal Trade Planner Strategy')
-      .replace('Smart: vorläufige Signale bis zum Kerzenschluss', 'Trade Planner: Signale nach Kerzenschluss')
-      .replace("'Smart: '+smart.signals.length+' Signale · offene Kerze: vorläufiges Signal'", "'Trade Planner: '+smart.signals.length+' bestätigte Signale'")
-      .replace("'● Smart Buy / Sell · TP Engine V2'", "'● Signal Trade Planner · EMA 21/50 · RSI'")
-      .replace('step=(pw-(smartOn?135:0))/(count+space)', 'step=pw/(Math.max(1,count)+4)')
-      .replace('minBars=Math.min(35,total)', 'minBars=Math.min(12,total)')
-      .replace('viewOffset=Math.max(0,Math.min(Math.max(0,total-viewCount),Math.round(viewOffset)||0))', 'viewOffset=Math.max(-Math.min(30,Math.ceil(viewCount*.4)),Math.min(Math.max(0,total-viewCount),Math.round(viewOffset)||0))')
-      .replace('Math.max(c.start,Math.min(c.end-1,Math.floor(xx/c.step+c.start)))', 'Math.max(c.start,Math.min(sourceBars.length-1,c.end-1,Math.floor(xx/c.step+c.start)))')
-      .replace('right=82,top=20,bottom=30,pw=W-right', 'right=82,top=20,bottom=48,pw=W-right')
-      .replace(
-        'const tickCount=Math.max(2,Math.min(6,Math.floor(pw/120)+1));for(let j=0;j<tickCount;j++){const i=start+Math.floor(j*(count-1)/(tickCount-1)),tx=j===0?4:j===tickCount-1?pw-4:x(i),anchor=j===0?"start":j===tickCount-1?"end":"middle";s+=`<text x="${tx}" y="${H-8}" text-anchor="${anchor}" fill="#999" font-size="12">${new Date(sourceBars[i].time).toISOString().slice(5,16).replace(\'T\',\' \')}</text>`}',
-        `s+=\`<line x1="0" y1="\${H-bottom}" x2="\${pw}" y2="\${H-bottom}" stroke="#2b2e36"/>\`;for(let j=0;j<shown.length;j++){const i=start+j,date=new Date(sourceBars[i].time),previous=i>0?new Date(sourceBars[i-1].time):null,newDay=!previous||date.getUTCDate()!==previous.getUTCDate()||date.getUTCMonth()!==previous.getUTCMonth(),tx=x(i),time=String(date.getUTCHours()).padStart(2,'0')+':'+String(date.getUTCMinutes()).padStart(2,'0'),rotate=step<44;s+=rotate?\`<text x="\${tx}" y="\${H-7}" transform="rotate(-55 \${tx} \${H-7})" text-anchor="start" fill="#aeb2ba" font-size="9">\${time}</text>\`:\`<text x="\${tx}" y="\${H-7}" text-anchor="middle" fill="#aeb2ba" font-size="10">\${time}</text>\`;if(newDay){const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],dateText=date.getUTCDate()+' '+months[date.getUTCMonth()]+' \\''+String(date.getUTCFullYear()).slice(-2),boxWidth=74,boxX=Math.max(2,Math.min(pw-boxWidth,tx-boxWidth/2));s+=\`<line x1="\${tx}" y1="\${top}" x2="\${tx}" y2="\${H-bottom}" stroke="#343842" stroke-dasharray="2 4"/><rect x="\${boxX}" y="\${H-bottom+3}" width="\${boxWidth}" height="21" rx="5" fill="#292c33" stroke="#414550"/><text x="\${boxX+boxWidth/2}" y="\${H-bottom+17}" text-anchor="middle" fill="#f1f3f5" font-size="10" font-weight="600">\${dateText}</text>\`}}`,
-      );
-  }
+async function supabase(path, init = {}) {
+  const { url, key } = env();
+  const headers = new Headers(init.headers);
+  headers.set("apikey", key);
+  headers.set("content-type", "application/json");
+  return fetch(`${url}/auth/v1${path}`, { ...init, headers });
+}
 
-  if (["/", "/index.html", "/style.css", "/portal.css", "/indicator.js"].includes(path)) {
-    body = applyCoolGreenBrand(body);
-  }
+async function userForToken(token) {
+  if (!token) return null;
+  const response = await supabase("/user", { headers: { authorization: `Bearer ${token}` } });
+  if (!response.ok) return null;
+  return response.json();
+}
 
-  const headers = new Headers(response.headers);
-  headers.delete("content-length");
-  headers.delete("etag");
-  return new Response(body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
+async function currentSession(request) {
+  const values = cookies(request);
+  const accessToken = decodeURIComponent(values[ACCESS_COOKIE] || "");
+  const refreshToken = decodeURIComponent(values[REFRESH_COOKIE] || "");
+  let user = await userForToken(accessToken);
+  if (user) return { user, accessToken, refreshed: null };
+  if (!refreshToken) return null;
+
+  const response = await supabase("/token?grant_type=refresh_token", {
+    method: "POST",
+    body: JSON.stringify({ refresh_token: refreshToken }),
   });
+  if (!response.ok) return null;
+  const session = await response.json();
+  user = session.user || (await userForToken(session.access_token));
+  return user ? { user, accessToken: session.access_token, refreshed: session } : null;
 }
 
-async function yahooGoldFallback(request) {
-  const interval = new URL(request.url).searchParams.get("interval") || "15min";
-  const binanceInterval = { "1min": "1m", "5min": "5m", "15min": "15m", "30min": "30m", "1h": "1h" }[interval];
-  if (!binanceInterval) return null;
+function publicUser(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.user_metadata?.full_name || user.email?.split("@")[0] || "BLH",
+  };
+}
 
-  const url = "https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=" + binanceInterval + "&limit=1000";
-  const upstream = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!upstream.ok) throw new Error("Binance gold fallback unavailable");
-  const rows = await upstream.json();
-  if (!Array.isArray(rows)) throw new Error("Binance gold fallback returned no candles");
+function validEmail(value) {
+  return typeof value === "string" && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
 
-  const duration = { "1min": 60000, "5min": 300000, "15min": 900000, "30min": 1800000, "1h": 3600000 }[interval];
+function strongPassword(value) {
+  return typeof value === "string" && value.length >= 12 && value.length <= 128 && /[a-z]/.test(value) && /[A-Z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value);
+}
+
+async function signIn(request) {
+  const data = await body(request);
+  if (!validEmail(data.email) || typeof data.password !== "string") return json({ error: "invalid_credentials" }, 400);
+  const response = await supabase("/token?grant_type=password", {
+    method: "POST",
+    body: JSON.stringify({ email: data.email.trim().toLowerCase(), password: data.password }),
+  });
+  if (!response.ok) return json({ error: "invalid_credentials" }, 401);
+  const session = await response.json();
+  return new Response(JSON.stringify({ user: publicUser(session.user) }), { status: 200, headers: sessionHeaders(session) });
+}
+
+async function signUp(request) {
+  const data = await body(request);
+  const name = typeof data.name === "string" ? data.name.trim().replace(/\s+/g, " ") : "";
+  if (name.length < 2 || name.length > 80 || !validEmail(data.email)) return json({ error: "invalid_signup" }, 400);
+  if (!strongPassword(data.password)) return json({ error: "weak_password" }, 400);
+  const redirectTo = `${new URL(request.url).origin}/`;
+  const response = await supabase(`/signup?redirect_to=${encodeURIComponent(redirectTo)}`, {
+    method: "POST",
+    body: JSON.stringify({ email: data.email.trim().toLowerCase(), password: data.password, data: { full_name: name } }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) return json({ error: result.code === "weak_password" ? "weak_password" : "signup_failed" }, 400);
+  if (!result.access_token) return json({ confirmationRequired: true }, 202);
+  return new Response(JSON.stringify({ user: publicUser(result.user) }), { status: 201, headers: sessionHeaders(result) });
+}
+
+async function recover(request) {
+  const data = await body(request);
+  if (!validEmail(data.email)) return json({ error: "invalid_email" }, 400);
+  const redirectTo = `${new URL(request.url).origin}/`;
+  await supabase(`/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
+    method: "POST",
+    body: JSON.stringify({ email: data.email.trim().toLowerCase() }),
+  });
+  return json({ sent: true });
+}
+
+async function importSession(request) {
+  const data = await body(request);
+  const user = await userForToken(data.accessToken);
+  if (!user || typeof data.refreshToken !== "string" || !data.refreshToken) return json({ error: "invalid_session" }, 401);
+  const response = await supabase("/token?grant_type=refresh_token", {
+    method: "POST",
+    body: JSON.stringify({ refresh_token: data.refreshToken }),
+  });
+  if (!response.ok) return json({ error: "invalid_session" }, 401);
+  const session = await response.json();
+  if (!session.user || session.user.id !== user.id) return json({ error: "invalid_session" }, 401);
+  return new Response(JSON.stringify({ user: publicUser(session.user) }), { status: 200, headers: sessionHeaders(session) });
+}
+
+async function updatePassword(request) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: "authentication_required" }, 401);
+  const data = await body(request);
+  if (!strongPassword(data.password)) return json({ error: "weak_password" }, 400);
+  const response = await supabase("/user", {
+    method: "PUT",
+    headers: { authorization: `Bearer ${session.accessToken}` },
+    body: JSON.stringify({ password: data.password }),
+  });
+  if (!response.ok) return json({ error: "password_update_failed" }, 400);
+  return json({ updated: true });
+}
+
+async function signOut(request) {
+  const values = cookies(request);
+  const token = decodeURIComponent(values[ACCESS_COOKIE] || "");
+  if (token) await supabase("/logout", { method: "POST", headers: { authorization: `Bearer ${token}` } }).catch(() => {});
+  return new Response(JSON.stringify({ signedOut: true }), { status: 200, headers: clearSessionHeaders() });
+}
+
+const durations = { "1min": 60000, "5min": 300000, "15min": 900000, "30min": 1800000, "1h": 3600000 };
+const marketCache = new Map();
+
+function activityVolume(bar, previous) {
+  const range = Math.max(bar.high - bar.low, Math.abs(bar.high - (previous?.close ?? bar.open)), Math.abs(bar.low - (previous?.close ?? bar.open)), 0.001);
+  const efficiency = 0.65 + 0.35 * Math.min(1, Math.abs(bar.close - bar.open) / range);
+  return Math.max(1, Math.round(range * 100 * efficiency));
+}
+
+function normalizeGold(interval, values, source) {
   const now = Date.now();
-  const bars = rows.map(row => ({
-    time: Number(row[0]),
-    open: Number(row[1]),
-    high: Number(row[2]),
-    low: Number(row[3]),
-    close: Number(row[4]),
-    volume: Number(row[5] || 0),
-    closed: Number(row[0]) + duration <= now,
-  })).filter(bar => [bar.time, bar.open, bar.high, bar.low, bar.close].every(Number.isFinite));
-  if (bars.length < 41) throw new Error("Binance gold fallback returned insufficient candles");
+  const bars = values
+    .map((bar) => ({ time: bar.time, open: Number(bar.open), high: Number(bar.high), low: Number(bar.low), close: Number(bar.close), volume: bar.volume == null ? null : Number(bar.volume) }))
+    .filter((bar) => [bar.time, bar.open, bar.high, bar.low, bar.close].every(Number.isFinite))
+    .sort((a, b) => a.time - b.time);
+  const providerVolume = bars.every((bar) => Number.isFinite(bar.volume));
+  bars.forEach((bar, index) => {
+    if (!Number.isFinite(bar.volume)) bar.volume = activityVolume(bar, bars[index - 1]);
+    bar.closed = bar.time + durations[interval] <= now;
+  });
+  return { symbol: "XAU/USD", interval, source, volumeMode: providerVolume ? "provider" : "activity-proxy-plus-live-ticks", fetchedAt: now, bars };
+}
 
-  return Response.json({
-    symbol: "XAU/USD",
-    interval,
-    source: "Binance · PAXG/USDT fallback",
-    volumeMode: "provider",
-    fetchedAt: now,
-    bars: bars.slice(-1000),
-  }, { headers: { "cache-control": "public, s-maxage=30, stale-while-revalidate=300" } });
+async function goldFromYahoo(interval) {
+  const yahooInterval = interval === "1h" ? "60m" : interval;
+  const range = ["1min", "5min", "15min", "30min"].includes(interval) ? "5d" : "1mo";
+  const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD=X?interval=${yahooInterval}&range=${range}`);
+  const data = await response.json();
+  const result = data.chart?.result?.[0];
+  const quote = result?.indicators?.quote?.[0];
+  if (!result || !quote || !Array.isArray(result.timestamp)) throw new Error("fallback unavailable");
+  return normalizeGold(interval, result.timestamp.map((time, index) => ({ time: time * 1000, open: quote.open?.[index], high: quote.high?.[index], low: quote.low?.[index], close: quote.close?.[index], volume: quote.volume?.[index] })), "Yahoo Finance");
+}
+
+async function goldFromBinance(interval) {
+  const binanceInterval = { "1min": "1m", "5min": "5m", "15min": "15m", "30min": "30m", "1h": "1h" }[interval];
+  const response = await fetch(`https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=${binanceInterval}&limit=1000`, { headers: { accept: "application/json" } });
+  if (!response.ok) throw new Error("secondary fallback unavailable");
+  const rows = await response.json();
+  if (!Array.isArray(rows) || rows.length < 41) throw new Error("secondary fallback unavailable");
+  return normalizeGold(interval, rows.map((row) => ({ time: Number(row[0]), open: row[1], high: row[2], low: row[3], close: row[4], volume: row[5] })), "Binance · PAXG/USDT fallback");
+}
+
+async function gold(interval) {
+  const cached = marketCache.get(interval);
+  if (cached && Date.now() - cached.fetchedAt < 12000) return cached;
+  let result;
+  try {
+    if (process.env.TWELVEDATA_API_KEY) {
+      const response = await fetch(`https://api.twelvedata.com/time_series?symbol=XAU%2FUSD&interval=${interval}&outputsize=1000&timezone=UTC`, { headers: { authorization: `apikey ${process.env.TWELVEDATA_API_KEY}` } });
+      const data = await response.json();
+      if (data.status === "ok" && Array.isArray(data.values)) result = normalizeGold(interval, data.values.map((bar) => ({ time: Date.parse(`${bar.datetime.replace(" ", "T")}Z`), ...bar })), "Twelve Data");
+    }
+  } catch {}
+  if (!result) {
+    try { result = await goldFromYahoo(interval); } catch {}
+  }
+  if (!result) result = await goldFromBinance(interval);
+  marketCache.set(interval, result);
+  return result;
+}
+
+async function marketData(request, url) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: "authentication_required" }, 401);
+  const interval = url.searchParams.get("interval") || "15min";
+  if (!Object.hasOwn(durations, interval)) return json({ error: "invalid_interval" }, 400);
+  try {
+    const headers = session.refreshed ? sessionHeaders(session.refreshed) : JSON_HEADERS;
+    return new Response(JSON.stringify(await gold(interval)), { status: 200, headers });
+  } catch {
+    return json({ error: "market_data_unavailable" }, 503);
+  }
 }
 
 export default async function handler(request) {
-  const path = requestedPath(request);
-  const response = await worker.fetch(createWorkerRequest(request), {
-    TWELVEDATA_API_KEY: process.env.TWELVEDATA_API_KEY,
-  });
-  if (path === "/api/gold" && response.status === 503) {
-    try {
-      const fallback = await yahooGoldFallback(request);
-      if (fallback) return fallback;
-    } catch (error) {
-      console.error("[gold-fallback]", String(error));
-      return Response.json({ error: "market data unavailable" }, { status: 503 });
+  const url = new URL(request.url);
+  const route = url.searchParams.get("route") || "";
+  try {
+    if (route === "gold" && request.method === "GET") return marketData(request, url);
+    if (route === "auth/session" && request.method === "GET") {
+      const session = await currentSession(request);
+      if (!session) return json({ user: null }, 401);
+      const headers = session.refreshed ? sessionHeaders(session.refreshed) : JSON_HEADERS;
+      return new Response(JSON.stringify({ user: publicUser(session.user) }), { status: 200, headers });
     }
+    if (request.method !== "POST" || !sameOrigin(request)) return json({ error: "not_found" }, 404);
+    if (route === "auth/sign-in") return signIn(request);
+    if (route === "auth/sign-up") return signUp(request);
+    if (route === "auth/recover") return recover(request);
+    if (route === "auth/import-session") return importSession(request);
+    if (route === "auth/update-password") return updatePassword(request);
+    if (route === "auth/sign-out") return signOut(request);
+    return json({ error: "not_found" }, 404);
+  } catch (error) {
+    if (error?.message === "invalid_content_type" || error?.message === "invalid_body") return json({ error: "invalid_request" }, 400);
+    if (error?.message === "Supabase is not configured") return json({ error: "service_not_configured" }, 503);
+    return json({ error: "server_error" }, 500);
   }
-  return customizeResponse(response, path);
 }

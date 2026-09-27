@@ -73,6 +73,15 @@ async function supabase(path, init = {}) {
   return fetch(`${url}/auth/v1${path}`, { ...init, headers });
 }
 
+async function supabaseData(path, accessToken, init = {}) {
+  const { url, key } = env();
+  const headers = new Headers(init.headers);
+  headers.set("apikey", key);
+  headers.set("authorization", `Bearer ${accessToken}`);
+  headers.set("content-type", "application/json");
+  return fetch(`${url}/rest/v1/${path}`, { ...init, headers });
+}
+
 async function userForToken(token) {
   if (!token) return null;
   const response = await supabase("/user", { headers: { authorization: `Bearer ${token}` } });
@@ -104,6 +113,164 @@ function publicUser(user) {
     email: user.email,
     name: user.user_metadata?.full_name || user.email?.split("@")[0] || "BLH",
   };
+}
+
+function sessionJson(data, status, session) {
+  const headers = session.refreshed ? sessionHeaders(session.refreshed) : new Headers(JSON_HEADERS);
+  return new Response(JSON.stringify(data), { status, headers });
+}
+
+function uuid(value) {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function finite(value, min = -1e9, max = 1e9) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= min && number <= max ? number : null;
+}
+
+function cleanText(value, max) {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function journalPayload(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const symbol = ["XAU/USD", "BTC/USD"].includes(value.symbol) ? value.symbol : null;
+  const interval = ["1min", "5min", "15min", "30min", "1h"].includes(value.interval) ? value.interval : null;
+  const status = ["snapshot", "planned", "active", "win", "loss", "breakeven", "cancelled"].includes(value.status) ? value.status : "snapshot";
+  const direction = ["buy", "sell", "observation"].includes(value.direction) ? value.direction : "observation";
+  if (!symbol || !interval) return null;
+  const payload = {
+    symbol,
+    interval,
+    status,
+    direction,
+    savedAt: finite(value.savedAt, 1, Date.now() + 86400000) || Date.now(),
+    candleTime: finite(value.candleTime, 1, Date.now() + 86400000),
+    price: finite(value.price),
+    entry: finite(value.entry),
+    stopLoss: finite(value.stopLoss),
+    takeProfits: Array.isArray(value.takeProfits) ? value.takeProfits.slice(0, 3).map(item => finite(item)).filter(item => item !== null) : [],
+    exitPrice: finite(value.exitPrice),
+    riskPercent: finite(value.riskPercent, 0.01, 100),
+    positionSize: finite(value.positionSize, 0, 1e7),
+    resultR: finite(value.resultR, -1000, 1000),
+    source: cleanText(value.source, 80),
+    signalKey: cleanText(value.signalKey, 180),
+    notes: cleanText(value.notes, 2000),
+    indicators: Array.isArray(value.indicators) ? value.indicators.slice(0, 12).map(item => cleanText(item, 50)).filter(Boolean) : [],
+    settings: value.settings && typeof value.settings === "object" && !Array.isArray(value.settings) ? value.settings : {},
+  };
+  if (JSON.stringify(payload).length > 12000) return null;
+  return payload;
+}
+
+async function workspaceData(request) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: "authentication_required" }, 401);
+  const queries = [
+    "analysis_snapshots?select=id,created_at,updated_at,kind,payload&order=created_at.desc&limit=500",
+    "notification_preferences?select=*&limit=1",
+    "user_notifications?select=id,created_at,kind,title,body,signal_key,is_read,metadata&order=created_at.desc&limit=50",
+  ];
+  const responses = await Promise.all(queries.map(path => supabaseData(path, session.accessToken)));
+  if (responses.some(response => !response.ok)) return json({ error: "workspace_unavailable" }, 503);
+  const [journal, preferences, notifications] = await Promise.all(responses.map(response => response.json()));
+  return sessionJson({ journal, preferences: preferences[0] || null, notifications }, 200, session);
+}
+
+async function saveJournal(request) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: "authentication_required" }, 401);
+  const data = await body(request);
+  const payload = journalPayload(data.payload);
+  if (!uuid(data.id) || !payload) return json({ error: "invalid_journal_entry" }, 400);
+  const response = await supabaseData("analysis_snapshots", session.accessToken, {
+    method: "POST",
+    headers: { prefer: "return=representation" },
+    body: JSON.stringify({ id: data.id, user_id: session.user.id, kind: data.kind === "trade" ? "trade" : "snapshot", payload }),
+  });
+  const result = await response.json().catch(() => []);
+  if (!response.ok) return json({ error: "journal_save_failed" }, 400);
+  return sessionJson({ entry: result[0] || null }, 201, session);
+}
+
+async function updateJournal(request, url) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: "authentication_required" }, 401);
+  const id = url.searchParams.get("id");
+  const data = await body(request);
+  const payload = journalPayload(data.payload);
+  if (!uuid(id) || !payload) return json({ error: "invalid_journal_entry" }, 400);
+  const path = `analysis_snapshots?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(session.user.id)}`;
+  const response = await supabaseData(path, session.accessToken, {
+    method: "PATCH",
+    headers: { prefer: "return=representation" },
+    body: JSON.stringify({ kind: data.kind === "trade" ? "trade" : "snapshot", payload, updated_at: new Date().toISOString() }),
+  });
+  const result = await response.json().catch(() => []);
+  if (!response.ok || !result.length) return json({ error: "journal_update_failed" }, 400);
+  return sessionJson({ entry: result[0] }, 200, session);
+}
+
+async function savePreferences(request) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: "authentication_required" }, 401);
+  const data = await body(request);
+  const boolean = key => data[key] !== false;
+  const quiet = value => typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : null;
+  const preferences = {
+    user_id: session.user.id,
+    new_signal: boolean("new_signal"),
+    entry_zone: boolean("entry_zone"),
+    target_hit: boolean("target_hit"),
+    stop_loss: boolean("stop_loss"),
+    signal_updates: boolean("signal_updates"),
+    browser_notifications: data.browser_notifications === true,
+    quiet_start: quiet(data.quiet_start),
+    quiet_end: quiet(data.quiet_end),
+    updated_at: new Date().toISOString(),
+  };
+  const response = await supabaseData("notification_preferences?on_conflict=user_id", session.accessToken, {
+    method: "POST",
+    headers: { prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify(preferences),
+  });
+  const result = await response.json().catch(() => []);
+  if (!response.ok) return json({ error: "preferences_save_failed" }, 400);
+  return sessionJson({ preferences: result[0] || preferences }, 200, session);
+}
+
+async function createNotification(request) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: "authentication_required" }, 401);
+  const data = await body(request);
+  const title = cleanText(data.title, 120), notificationBody = cleanText(data.body, 500), signalKey = cleanText(data.signalKey, 180);
+  if (!uuid(data.id) || !title || !notificationBody || !signalKey) return json({ error: "invalid_notification" }, 400);
+  const metadata = data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata) ? data.metadata : {};
+  if (JSON.stringify(metadata).length > 4000) return json({ error: "invalid_notification" }, 400);
+  const response = await supabaseData("user_notifications?on_conflict=user_id,signal_key", session.accessToken, {
+    method: "POST",
+    headers: { prefer: "resolution=ignore-duplicates,return=representation" },
+    body: JSON.stringify({ id: data.id, user_id: session.user.id, kind: "signal", title, body: notificationBody, signal_key: signalKey, metadata }),
+  });
+  const result = await response.json().catch(() => []);
+  if (!response.ok) return json({ error: "notification_save_failed" }, 400);
+  return sessionJson({ notification: result[0] || null }, 201, session);
+}
+
+async function readNotifications(request) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: "authentication_required" }, 401);
+  const path = `user_notifications?user_id=eq.${encodeURIComponent(session.user.id)}&is_read=eq.false`;
+  const response = await supabaseData(path, session.accessToken, {
+    method: "PATCH",
+    headers: { prefer: "return=minimal" },
+    body: JSON.stringify({ is_read: true }),
+  });
+  if (!response.ok) return json({ error: "notification_update_failed" }, 400);
+  return sessionJson({ updated: true }, 200, session);
 }
 
 function validEmail(value) {
@@ -283,6 +450,7 @@ export default async function handler(request) {
   const route = url.searchParams.get("route") || "";
   try {
     if (route === "gold" && request.method === "GET") return marketData(request, url);
+    if (route === "workspace" && request.method === "GET") return workspaceData(request);
     if (route === "auth/session" && request.method === "GET") {
       const session = await currentSession(request);
       if (!session) return json({ user: null }, 401);
@@ -296,6 +464,11 @@ export default async function handler(request) {
     if (route === "auth/import-session") return importSession(request);
     if (route === "auth/update-password") return updatePassword(request);
     if (route === "auth/sign-out") return signOut(request);
+    if (route === "journal/create") return saveJournal(request);
+    if (route === "journal/update") return updateJournal(request, url);
+    if (route === "preferences") return savePreferences(request);
+    if (route === "notifications/create") return createNotification(request);
+    if (route === "notifications/read") return readNotifications(request);
     return json({ error: "not_found" }, 404);
   } catch (error) {
     if (error?.message === "invalid_content_type" || error?.message === "invalid_body") return json({ error: "invalid_request" }, 400);

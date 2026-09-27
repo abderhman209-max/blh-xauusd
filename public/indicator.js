@@ -15,10 +15,19 @@ function germanUI(){
 germanUI();
 let viewCount=80,viewOffset=0,chartScale=null,lineMode=false,manualLevels={},drag=null;
 let priceView=null,trendMode=false,trendStart=null,trendLines={};
+let lastWorkspaceStateKey='';
 try{const saved=JSON.parse(localStorage.getItem('blh-drawings')||'{}');manualLevels=saved.levels||{};trendLines=saved.trends||{}}catch{}
 const drawingKey=()=>selectedSymbol+'|'+selectedInterval;
 function saveDrawings(){try{localStorage.setItem('blh-drawings',JSON.stringify({levels:manualLevels,trends:trendLines}))}catch{document.querySelector('#tool-status').textContent='Speicher nicht verfügbar: Zeichnungen bleiben für diese Sitzung erhalten.'}}
 const svgNode=document.querySelector('#structure-chart');
+function publishWorkspaceState(smart,bars){
+ const plan=smart?.sides?.at(-1)||null,signal=smart?.signals?.at(-1)||null,last=bars.at(-1)||null;
+ const signalTime=signal?.time||bars[plan?.index]?.time||null;
+ const state={symbol:selectedSymbol,interval:selectedInterval,source:marketSources[selectedSymbol],price:last?.close??null,updatedAt:Date.now(),stats:smart?.stats||null,signal:plan?{key:[selectedSymbol,selectedInterval,signalTime||plan.index,plan.direction].join('|'),direction:plan.direction===1?'buy':'sell',status:smart?.active&&smart.active.index===plan.index?'active':'historical',time:signalTime,entry:plan.entry,stopLoss:plan.stop,takeProfits:plan.tps.slice(0,3),riskReward:Math.abs((plan.tps.at(-1)-plan.entry)/(plan.entry-plan.stop))}:null};
+ window.PIPVORIA_CHART_STATE=state;
+ const nextKey=JSON.stringify([state.symbol,state.interval,state.price&&Number(state.price).toFixed(2),state.signal?.key,state.signal?.status,state.signal?.stopLoss]);
+ if(nextKey!==lastWorkspaceStateKey){lastWorkspaceStateKey=nextKey;document.dispatchEvent(new CustomEvent('pipvoria-chart-state',{detail:state}))}
+}
 function renderIndicator(){
  if(sourceBars.length<41){chartScale=null;return {mode:'unavailable'}}
  const term=document.querySelector('#term').value,rr=Number(document.querySelector('#rr').value),onlyValid=document.querySelector('#valid').checked;
@@ -29,6 +38,7 @@ function renderIndicator(){
  const number=(id,fallback,min,max=100)=>{const n=Number(document.querySelector(id).value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback};
  const smartBars=sourceBars.slice(0,sourceBars.findIndex(b=>b.partial)>=0?sourceBars.findIndex(b=>b.partial):sourceBars.length);
  const smart=smartOn?SmartEngine.analyze(smartBars,{swing:Math.floor(number('#smart-swing',5,2)),atrLength:Math.floor(number('#smart-atr',14,1)),zone:number('#smart-zone',.5,.1),rr:[1,2,3].map(i=>number('#smart-tp'+i,i,.1))}):{sides:[],signals:[]};
+ publishWorkspaceState(smart,smartBars);
  const heatOn=document.querySelector('#show-heatmap').checked,heatOptions={source:document.querySelector('#heat-source').value};
  for(const input of document.querySelectorAll('[id^="heat-"]')){if(input.type==='checkbox')heatOptions[input.id.slice(5)]=input.checked;else if(input.type==='number'){const v=Number(input.value);heatOptions[input.id.slice(5)]=Number.isFinite(v)?Math.max(Number(input.min),Math.min(Number(input.max),v)):Number(input.defaultValue)}}
  for(const key of ['base','bins','smoothing','extension','lineWidth','profileWidth','deltaWidth'])heatOptions[key]=Math.round(heatOptions[key]);
@@ -94,8 +104,11 @@ function safePriceView(min,max){
 }
 function zoom(f){viewCount*=f;clampZoomState();priceView=null;renderIndicator()}
 function setMode(on){trendMode=false;trendStart=null;document.querySelector("#trend-tool").classList.remove("active");lineMode=on;document.querySelector('#line-tool').classList.toggle('active',on);document.querySelector('#cursor-tool').classList.toggle('active',!on);document.querySelector('#tool-status').textContent=on?'In den Chart klicken, um die orange Linie zu platzieren.':'Mausrad: Zoom · Ziehen: Verschieben · ━: horizontale Linie setzen'}
-document.querySelector('#zoom-in').onclick=()=>zoom(.75);document.querySelector('#zoom-out').onclick=()=>zoom(1.3);document.querySelector('#reset-view').onclick=()=>{viewCount=80;viewOffset=0;priceView=null;renderIndicator()};document.querySelector('#line-tool').onclick=()=>setMode(!lineMode);document.querySelector('#cursor-tool').onclick=()=>setMode(false);document.querySelector('#delete-line').onclick=()=>{if(trendMode)trendLines[drawingKey()]?.pop();else manualLevels[drawingKey()]?.pop();saveDrawings();renderIndicator()};document.querySelector('#full-screen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen()}catch{document.querySelector('#tool-status').textContent='Vollbild ist in diesem Browser nicht verfügbar.'}};
+document.querySelector('#zoom-in').onclick=()=>zoom(.75);document.querySelector('#zoom-out').onclick=()=>zoom(1.3);document.querySelector('#reset-view').onclick=()=>{viewCount=80;viewOffset=0;priceView=null;renderIndicator()};document.querySelector('#line-tool').onclick=()=>setMode(!lineMode);document.querySelector('#cursor-tool').onclick=()=>setMode(false);document.querySelector('#delete-line').onclick=()=>{if(trendMode)trendLines[drawingKey()]?.pop();else manualLevels[drawingKey()]?.pop();saveDrawings();renderIndicator()};document.querySelector('#full-screen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else document.body.classList.toggle('chart-focus')}catch{document.body.classList.toggle('chart-focus')}requestAnimationFrame(renderIndicator)};
+document.addEventListener('fullscreenchange',()=>requestAnimationFrame(renderIndicator));
 svgNode.addEventListener('wheel',e=>{e.preventDefault();if(!chartScale)return;const c=chartScale,r=svgNode.getBoundingClientRect(),xx=e.clientX-r.left;if(xx>c.pw){const center=(c.min+c.max)/2,half=(c.max-c.min)/2*(e.deltaY>0?1.12:.88);priceView=safePriceView(center-half,center+half);renderIndicator();}else{const anchor=c.start+Math.max(0,Math.min(c.pw,xx))/c.step,oldCount=viewCount,ratio=Math.max(0,Math.min(1,(anchor-c.start)/Math.max(1,oldCount)));viewCount*=e.deltaY>0?1.12:.88;clampZoomState();const newStart=anchor-ratio*viewCount;viewOffset=sourceBars.length-(newStart+viewCount);clampZoomState();priceView=null;renderIndicator()}},{passive:false});
+for(const name of ['gesturestart','gesturechange','gestureend'])svgNode.addEventListener(name,event=>{event.preventDefault();event.stopPropagation()},{passive:false});
+svgNode.addEventListener('touchmove',event=>{if(event.touches.length>1)event.preventDefault()},{passive:false});
 const activePointers=new Map();let pinch=null;
 svgNode.addEventListener('pointerdown',e=>{if(!chartScale)return;activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(activePointers.size===2){drag=null;const points=[...activePointers.values()],distance=Math.hypot(points[1].x-points[0].x,points[1].y-points[0].y);pinch={distance,viewCount,viewOffset};svgNode.setPointerCapture(e.pointerId);return}const r=svgNode.getBoundingClientRect(),xx=e.clientX-r.left,yy=e.clientY-r.top;if(yy>chartScale.H-chartScale.bottom)return;
 if(xx>chartScale.pw){drag={kind:'scale',y:e.clientY,min:chartScale.min,max:chartScale.max};svgNode.setPointerCapture(e.pointerId);return}

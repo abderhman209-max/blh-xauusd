@@ -10,7 +10,11 @@ Code source de la plateforme BLH XAUUSD, importé depuis la version 10 publiée 
 - Zones achat/vente, TP1, TP2 et TP3
 - Heatmap de régression et profil de volume
 - Interface multilingue et espace client
-- Historique local des analyses
+- Fiche de signal avec entrée, Stop Loss, TP1–TP3 et ratio risque/rendement
+- Calculateur de risque et taille de position
+- Journal de trading et performances synchronisés avec Supabase
+- Centre de notifications et préférences par utilisateur
+- Zoom, pincement et plein écran dédiés au graphique
 
 ## Organisation
 
@@ -30,4 +34,8 @@ La variable `TWELVEDATA_API_KEY` est facultative. Sans elle, le serveur tente sa
 
 L’accès utilise Supabase Auth avec e-mail et mot de passe. Les sessions sont conservées dans des cookies `HttpOnly`, `Secure` et `SameSite=Lax`. La connexion, l’inscription, la confirmation d’e-mail et la réinitialisation de mot de passe sont séparées. L’interface est disponible en français, anglais, espagnol et arabe (RTL).
 
-Les données de marché sont refusées sans session valide. Aucune table applicative Supabase n’est requise pour ce flux d’authentification.
+Les données de marché sont refusées sans session valide. Les tables applicatives utilisent RLS : chaque utilisateur peut uniquement lire et modifier son propre journal, ses notifications et ses préférences.
+
+## Base de données
+
+La migration Supabase `20260927175500_enhance_personal_trading_workspace.sql` ajoute la synchronisation du journal et des notifications. Elle est déjà appliquée au projet BLH Markets.

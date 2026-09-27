@@ -1,1 +1,222 @@
-<!doctype html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Blh xauusd — Le marché, en perspective</title><meta name="description" content="Un espace dédié à l’or. Graphique XAU/USD et indicateur de structure, Fibonacci et risque/rendement."><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23141616'/%3E%3Cpath d='M8 23V9h8a4 4 0 0 1 0 8H8m8 0h3a3 3 0 0 1 0 6H8' fill='none' stroke='%2318c7a1' stroke-width='3'/%3E%3C/svg%3E"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="portal.css"><link rel="stylesheet" href="auth.css"></head><body class="chart-app auth-locked"><header class="chart-top"><a class="logo" href="#workspace" aria-label="BLH XAUUSD"><img src="blh-logo.png" alt=""><span>BLH <b>XAUUSD</b></span></a><div class="frames" role="group" aria-label="Période du graphique"><button data-interval="1min">1m</button><button data-interval="5min">5m</button><button data-interval="15min" class="active">15m</button><button data-interval="30min">30m</button><button data-interval="1h">1h</button></div><details class="settings"><summary>⚙ Indicateur</summary><form id="indicator-controls" onsubmit="return false"><label><input id="show-structure" type="checkbox" checked> Market Structure & Fibonacci + RR</label><label>Structure<select id="term"><option>Short</option><option selected>Mid</option><option>Long</option></select></label><label>Risque / rendement<input id="rr" type="number" min=".5" step=".5" value="2"></label><label><input id="valid" type="checkbox"> Masquer les configurations remplacées sans entrée</label><hr><label><input id="show-smart" type="checkbox" checked> Signal Trade Planner Strategy</label><label>Signal mode<select id="planner-mode"><option>Hybrid</option><option>EMA crossover</option><option>Pullback continuation</option></select></label><label>Fast EMA<input id="planner-fast" type="number" min="1" value="21"></label><label>Slow EMA<input id="planner-slow" type="number" min="2" value="50"></label><label>RSI length<input id="planner-rsi-length" type="number" min="2" value="14"></label><label>RSI threshold<input id="planner-rsi-threshold" type="number" min="50" max="70" value="52"></label><label>Minimum EMA separation (ATR)<input id="planner-separation" type="number" min="0" step="0.05" value="0.05"></label><label>Minimum candle body (ATR)<input id="planner-body" type="number" min="0" step="0.05" value="0.10"></label><label>Cooldown bars<input id="planner-cooldown" type="number" min="0" value="3"></label><label>Stop mode<select id="planner-stop-mode"><option>ATR</option><option>Recent swing</option></select></label><label>Swing lookback<input id="planner-swing" type="number" min="2" value="7"></label><label>Same-bar priority<select id="planner-priority"><option>Stop first</option><option>Targets first</option></select></label><label>Trade direction<select id="planner-direction"><option>Both</option><option>Long only</option><option>Short only</option></select></label><label><input id="planner-trailing" type="checkbox" checked> Trailing stop after TP1</label><label>Trailing ATR multiplier<input id="planner-trailing-atr" type="number" min="0.1" step="0.1" value="1.5"></label><label><input id="planner-dashboard" type="checkbox" checked> Show backtest dashboard</label><input id="smart-swing" type="hidden" value="5"><label>ATR Length<input id="smart-atr" type="number" min="1" max="100" value="14"></label><label>Stop ATR multiplier<input id="smart-zone" type="number" min="0.1" step="0.1" value="1.5"></label><label>TP1 R<input id="smart-tp1" type="number" min="0.1" step="0.1" value="0.5"></label><label>TP2 R<input id="smart-tp2" type="number" min="0.1" step="0.1" value="1"></label><label>TP3 R<input id="smart-tp3" type="number" min="0.1" step="0.1" value="1.5"></label><label hidden><input id="smart-zones" type="checkbox"> Zones BUY / SELL</label><label><input id="smart-tps" type="checkbox" checked> TP1 / TP2 / TP3</label><label><input id="smart-signals" type="checkbox" checked> Signaux BUY / SELL</label><label><input id="smart-trend" type="checkbox" checked> EMA 21 / EMA 50</label><hr><label><input id="show-heatmap" type="checkbox"> Volumetric Regression Heatmap</label><label>Source<select id="heat-source"><option value="hl2">HL2</option><option value="close">Close</option></select></label><label>Base Period<input id="heat-base" type="number" value="400" min="50" max="1000" step="1"></label><label>Grid Rows Each Side<input id="heat-bins" type="number" value="40" min="5" max="45" step="1"></label><label>Gradient Smoothing<input id="heat-smoothing" type="number" value="4" min="0" max="20" step="1"></label><label>Signal Band SD<input id="heat-band" type="number" value="2" min="0.1" max="10" step="0.1"></label><label>Flat Slope Threshold<input id="heat-threshold" type="number" value="2.5" min="0" max="20" step="0.5"></label><label>Future Projection<input id="heat-extension" type="number" value="30" min="0" max="200" step="1"></label><label>Heatmap Line Width<input id="heat-lineWidth" type="number" value="10" min="1" max="100" step="1"></label><label>Profile Width<input id="heat-profileWidth" type="number" value="30" min="5" max="100" step="1"></label><label>Delta Height<input id="heat-deltaScale" type="number" value="0.6" min="0.1" max="2" step="0.1"></label><label>Delta Width<input id="heat-deltaWidth" type="number" value="3" min="1" max="10" step="1"></label><label><input id="heat-dynamic" type="checkbox" checked> Dynamic Period</label><label><input id="heat-signals" type="checkbox" checked> Mean Reversion Signals</label><label><input id="heat-profile" type="checkbox" checked> Volume Profile</label><label><input id="heat-delta" type="checkbox" checked> Delta Histograms</label><label><input id="heat-dashboard" type="checkbox" checked> Dashboard</label><p>Les signaux de régression sont recalculés sur toute la fenêtre et peuvent changer dans le passé. Heatmap et delta nécessitent le volume du fournisseur.</p><p>BOS : bougies clôturées. Smart : inclut la bougie ouverte complète ; ses signaux peuvent changer avant la clôture. Bougies partielles exclues. Adaptation Pine ; correspondance exacte non vérifiée.</p></form></details><span id="feed-status">Connexion…</span><button id="full-screen" title="Plein écran" aria-label="Plein écran">⛶</button></header><main id="workspace" class="chart-workspace"><div class="drawing-tools" aria-label="Outils du graphique"><button id="cursor-tool" class="active" title="Curseur / déplacer" aria-label="Curseur / déplacer">＋</button><button id="line-tool" title="Ajouter une ligne horizontale" aria-label="Ajouter une ligne horizontale">━</button><button id="trend-tool" title="Ligne de tendance : deux points" aria-label="Ligne de tendance">╱</button><span class="tool-divider"></span><button id="zoom-in" title="Zoom avant" aria-label="Zoom avant">⊕</button><button id="zoom-out" title="Zoom arrière" aria-label="Zoom arrière">⊖</button><button id="reset-view" title="Réinitialiser la vue" aria-label="Réinitialiser la vue">↺</button><span class="tool-divider"></span><button id="delete-line" title="Supprimer la dernière ligne de cette période" aria-label="Supprimer la dernière ligne">⌫</button></div><section class="chart-stage"><div class="chart-heading"><strong>Or / Dollar américain <span id="chart-period">15 min</span> · Twelve Data</strong><span id="ohlc"></span></div><div class="indicator-legend"><span class="teal">● BOS</span><span>Fibonacci 50–61,8 %</span><span class="teal">TP</span><span class="red">SL</span><span class="orange">Lignes manuelles</span></div><div class="structure-scroll"><svg id="structure-chart" role="img" tabindex="0" aria-label="Graphique XAU/USD : chandeliers, BOS, Fibonacci et risque rendement. Flèches pour déplacer ; plus et moins pour zoomer."></svg><div id="chart-empty">Chargement des bougies…</div></div><div class="chart-bottom"><span id="indicator-status" aria-live="polite"></span><span>UTC · <span id="candle-state">Chargement…</span> · Smart : signaux provisoires avant clôture</span></div></section></main><footer class="terminal-footer"><p id="feed-update" aria-live="polite">Connexion à Twelve Data…</p><p id="heat-status" hidden></p><div id="setup-detail" aria-live="polite"></div><p id="tool-status">Molette : zoom · Glisser : déplacer · Axe droit : échelle du prix · Double-clic : échelle automatique</p></footer><script src="structure.js"></script><script src="live.js"></script><script src="smart.js"></script><script src="heatmap.js"></script><script src="auth.js"></script><script src="indicator.js"></script><script src="app.js"></script><script src="i18n.js"></script><script src="portal.js"></script></body></html>
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PIPVORIA — Le marché, en perspective</title>
+<meta name="description" content="Signaux, graphiques XAU/USD et BTC/USD, calcul du risque et journal de trading dans un espace sécurisé.">
+<link rel="icon" href="pipvoria-app-icon.jpeg" type="image/jpeg">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="portal.css">
+<link rel="stylesheet" href="workspace.css">
+<link rel="stylesheet" href="auth.css">
+</head>
+<body class="chart-app auth-locked">
+<header class="chart-top">
+<a class="logo" href="#workspace" aria-label="BLH XAUUSD">
+<img src="blh-logo.png" alt="">
+<span>BLH <b>XAUUSD</b>
+</span>
+</a>
+<div class="frames" role="group" aria-label="Période du graphique">
+<button data-interval="1min">1m</button>
+<button data-interval="5min">5m</button>
+<button data-interval="15min" class="active">15m</button>
+<button data-interval="30min">30m</button>
+<button data-interval="1h">1h</button>
+</div>
+<details class="settings">
+<summary>⚙ Indicateur</summary>
+<form id="indicator-controls" onsubmit="return false">
+<label>
+<input id="show-structure" type="checkbox" checked> Market Structure & Fibonacci + RR</label>
+<label>Structure<select id="term">
+<option>Short</option>
+<option selected>Mid</option>
+<option>Long</option>
+</select>
+</label>
+<label>Risque / rendement<input id="rr" type="number" min=".5" step=".5" value="2">
+</label>
+<label>
+<input id="valid" type="checkbox"> Masquer les configurations remplacées sans entrée</label>
+<hr>
+<label>
+<input id="show-smart" type="checkbox" checked> Signal Trade Planner Strategy</label>
+<label>Signal mode<select id="planner-mode">
+<option>Hybrid</option>
+<option>EMA crossover</option>
+<option>Pullback continuation</option>
+</select>
+</label>
+<label>Fast EMA<input id="planner-fast" type="number" min="1" value="21">
+</label>
+<label>Slow EMA<input id="planner-slow" type="number" min="2" value="50">
+</label>
+<label>RSI length<input id="planner-rsi-length" type="number" min="2" value="14">
+</label>
+<label>RSI threshold<input id="planner-rsi-threshold" type="number" min="50" max="70" value="52">
+</label>
+<label>Minimum EMA separation (ATR)<input id="planner-separation" type="number" min="0" step="0.05" value="0.05">
+</label>
+<label>Minimum candle body (ATR)<input id="planner-body" type="number" min="0" step="0.05" value="0.10">
+</label>
+<label>Cooldown bars<input id="planner-cooldown" type="number" min="0" value="3">
+</label>
+<label>Stop mode<select id="planner-stop-mode">
+<option>ATR</option>
+<option>Recent swing</option>
+</select>
+</label>
+<label>Swing lookback<input id="planner-swing" type="number" min="2" value="7">
+</label>
+<label>Same-bar priority<select id="planner-priority">
+<option>Stop first</option>
+<option>Targets first</option>
+</select>
+</label>
+<label>Trade direction<select id="planner-direction">
+<option>Both</option>
+<option>Long only</option>
+<option>Short only</option>
+</select>
+</label>
+<label>
+<input id="planner-trailing" type="checkbox" checked> Trailing stop after TP1</label>
+<label>Trailing ATR multiplier<input id="planner-trailing-atr" type="number" min="0.1" step="0.1" value="1.5">
+</label>
+<label>
+<input id="planner-dashboard" type="checkbox" checked> Show backtest dashboard</label>
+<input id="smart-swing" type="hidden" value="5">
+<label>ATR Length<input id="smart-atr" type="number" min="1" max="100" value="14">
+</label>
+<label>Stop ATR multiplier<input id="smart-zone" type="number" min="0.1" step="0.1" value="1.5">
+</label>
+<label>TP1 R<input id="smart-tp1" type="number" min="0.1" step="0.1" value="0.5">
+</label>
+<label>TP2 R<input id="smart-tp2" type="number" min="0.1" step="0.1" value="1">
+</label>
+<label>TP3 R<input id="smart-tp3" type="number" min="0.1" step="0.1" value="1.5">
+</label>
+<label hidden>
+<input id="smart-zones" type="checkbox"> Zones BUY / SELL</label>
+<label>
+<input id="smart-tps" type="checkbox" checked> TP1 / TP2 / TP3</label>
+<label>
+<input id="smart-signals" type="checkbox" checked> Signaux BUY / SELL</label>
+<label>
+<input id="smart-trend" type="checkbox" checked> EMA 21 / EMA 50</label>
+<hr>
+<label>
+<input id="show-heatmap" type="checkbox"> Volumetric Regression Heatmap</label>
+<label>Source<select id="heat-source">
+<option value="hl2">HL2</option>
+<option value="close">Close</option>
+</select>
+</label>
+<label>Base Period<input id="heat-base" type="number" value="400" min="50" max="1000" step="1">
+</label>
+<label>Grid Rows Each Side<input id="heat-bins" type="number" value="40" min="5" max="45" step="1">
+</label>
+<label>Gradient Smoothing<input id="heat-smoothing" type="number" value="4" min="0" max="20" step="1">
+</label>
+<label>Signal Band SD<input id="heat-band" type="number" value="2" min="0.1" max="10" step="0.1">
+</label>
+<label>Flat Slope Threshold<input id="heat-threshold" type="number" value="2.5" min="0" max="20" step="0.5">
+</label>
+<label>Future Projection<input id="heat-extension" type="number" value="30" min="0" max="200" step="1">
+</label>
+<label>Heatmap Line Width<input id="heat-lineWidth" type="number" value="10" min="1" max="100" step="1">
+</label>
+<label>Profile Width<input id="heat-profileWidth" type="number" value="30" min="5" max="100" step="1">
+</label>
+<label>Delta Height<input id="heat-deltaScale" type="number" value="0.6" min="0.1" max="2" step="0.1">
+</label>
+<label>Delta Width<input id="heat-deltaWidth" type="number" value="3" min="1" max="10" step="1">
+</label>
+<label>
+<input id="heat-dynamic" type="checkbox" checked> Dynamic Period</label>
+<label>
+<input id="heat-signals" type="checkbox" checked> Mean Reversion Signals</label>
+<label>
+<input id="heat-profile" type="checkbox" checked> Volume Profile</label>
+<label>
+<input id="heat-delta" type="checkbox" checked> Delta Histograms</label>
+<label>
+<input id="heat-dashboard" type="checkbox" checked> Dashboard</label>
+<p>Les signaux de régression sont recalculés sur toute la fenêtre et peuvent changer dans le passé. Heatmap et delta nécessitent le volume du fournisseur.</p>
+<p>BOS : bougies clôturées. Smart : inclut la bougie ouverte complète ; ses signaux peuvent changer avant la clôture. Bougies partielles exclues. Adaptation Pine ; correspondance exacte non vérifiée.</p>
+</form>
+</details>
+<span id="feed-status">Connexion…</span>
+<button id="full-screen" title="Plein écran" aria-label="Plein écran">⛶</button>
+</header>
+<main id="workspace" class="chart-workspace">
+<div class="drawing-tools" aria-label="Outils du graphique">
+<button id="cursor-tool" class="active" title="Curseur / déplacer" aria-label="Curseur / déplacer">＋</button>
+<button id="line-tool" title="Ajouter une ligne horizontale" aria-label="Ajouter une ligne horizontale">━</button>
+<button id="trend-tool" title="Ligne de tendance : deux points" aria-label="Ligne de tendance">╱</button>
+<span class="tool-divider">
+</span>
+<button id="zoom-in" title="Zoom avant" aria-label="Zoom avant">⊕</button>
+<button id="zoom-out" title="Zoom arrière" aria-label="Zoom arrière">⊖</button>
+<button id="reset-view" title="Réinitialiser la vue" aria-label="Réinitialiser la vue">↺</button>
+<span class="tool-divider">
+</span>
+<button id="delete-line" title="Supprimer la dernière ligne de cette période" aria-label="Supprimer la dernière ligne">⌫</button>
+</div>
+<section class="chart-stage">
+<div class="chart-heading">
+<strong>Or / Dollar américain <span id="chart-period">15 min</span> · Twelve Data</strong>
+<span id="ohlc">
+</span>
+</div>
+<div class="indicator-legend">
+<span class="teal">● BOS</span>
+<span>Fibonacci 50–61,8 %</span>
+<span class="teal">TP</span>
+<span class="red">SL</span>
+<span class="orange">Lignes manuelles</span>
+</div>
+<div class="structure-scroll">
+<svg id="structure-chart" role="img" tabindex="0" aria-label="Graphique XAU/USD : chandeliers, BOS, Fibonacci et risque rendement. Flèches pour déplacer ; plus et moins pour zoomer.">
+</svg>
+<div id="chart-empty">Chargement des bougies…</div>
+</div>
+<div class="chart-bottom">
+<span id="indicator-status" aria-live="polite">
+</span>
+<span>UTC · <span id="candle-state">Chargement…</span> · Smart : signaux provisoires avant clôture</span>
+</div>
+</section>
+</main>
+<footer class="terminal-footer">
+<p id="feed-update" aria-live="polite">Connexion à Twelve Data…</p>
+<p id="heat-status" hidden>
+</p>
+<div id="setup-detail" aria-live="polite">
+</div>
+<p id="tool-status">Molette : zoom · Glisser : déplacer · Axe droit : échelle du prix · Double-clic : échelle automatique</p>
+</footer>
+<script src="structure.js">
+</script>
+<script src="live.js">
+</script>
+<script src="smart.js">
+</script>
+<script src="heatmap.js">
+</script>
+<script src="auth.js">
+</script>
+<script src="indicator.js">
+</script>
+<script src="app.js">
+</script>
+<script src="i18n.js">
+</script>
+<script src="portal.js">
+</script>
+<script src="workspace.js">
+</script>
+</body>
+</html>

@@ -86,3 +86,68 @@
   color: #ffd019;
   background: transparent;
 }
+
+.auth-password-rules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 14px;
+  margin: -2px 0 2px;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+}
+
+.auth-password-rules li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: #ff6b78;
+  transition: color 180ms ease, opacity 180ms ease;
+}
+
+.auth-password-rules li span {
+  display: grid;
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.auth-password-rules li b {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-password-rules li.valid {
+  color: #66e3ad;
+}
+
+.auth-inline-error {
+  margin: -4px 0 1px;
+  color: #ff6b78;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.auth-inline-error::before {
+  content: "⚠ ";
+}
+
+.auth-gate .auth-field input[aria-invalid="true"] {
+  border-color: rgba(255, 107, 120, 0.72) !important;
+  box-shadow: 0 0 0 3px rgba(255, 107, 120, 0.1) !important;
+}
+
+@media (max-width: 430px) {
+  .auth-password-rules {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+}

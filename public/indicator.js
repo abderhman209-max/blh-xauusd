@@ -13,15 +13,6 @@ function germanUI(){
  const switcher=document.createElement('div');switcher.className='symbol-switcher';switcher.setAttribute('aria-label','Markt auswählen');switcher.innerHTML='<button type="button" data-symbol="XAU/USD" class="active">XAU/USD</button><button type="button" data-symbol="BTC/USD">BTC/USD</button>';document.querySelector('.logo').after(switcher);
 }
 germanUI();
-function setupLoginGate(){
- const gate=document.createElement('section');gate.className='auth-gate';gate.setAttribute('aria-label','Anmeldung');gate.innerHTML=`<form class="auth-card" id="auth-form"><div class="auth-mark">blh <span>MARKETS</span></div><h1>Willkommen</h1><p>Melden Sie sich an, um die Live-Charts für Gold und Bitcoin sowie alle Indikatoren zu öffnen.</p><label>Vollständiger Name<input id="auth-name" autocomplete="name" required maxlength="80" placeholder="Ihr Name"></label><label>Gmail-Adresse<input id="auth-email" type="email" autocomplete="email" required maxlength="120" placeholder="name@gmail.com"></label><button type="submit">Mit Gmail anmelden</button><p class="auth-error" id="auth-error" role="alert"></p><small>Es wird kein Gmail-Passwort abgefragt oder gespeichert.</small></form>`;document.body.append(gate);
- const badge=document.createElement('div');badge.className='user-badge';badge.hidden=true;badge.innerHTML='<span id="user-name"></span><button id="logout" type="button">Abmelden</button>';document.querySelector('.chart-top').append(badge);
- const unlock=user=>{gate.hidden=true;document.body.classList.remove('auth-locked');badge.hidden=false;document.querySelector('#user-name').textContent=user.name};let saved=null;try{saved=JSON.parse(localStorage.getItem('blh-user')||'null')}catch{}
- if(saved?.name&&/^[^@\s]+@gmail\.com$/i.test(saved.email))unlock(saved);else document.body.classList.add('auth-locked');
- gate.querySelector('form').addEventListener('submit',event=>{event.preventDefault();const name=gate.querySelector('#auth-name').value.trim(),email=gate.querySelector('#auth-email').value.trim().toLowerCase(),error=gate.querySelector('#auth-error');if(name.length<2){error.textContent='Bitte geben Sie Ihren vollständigen Namen ein.';return}if(!/^[^@\s]+@gmail\.com$/i.test(email)){error.textContent='Bitte verwenden Sie eine gültige Gmail-Adresse.';return}const user={name,email};localStorage.setItem('blh-user',JSON.stringify(user));unlock(user)});
- badge.querySelector('#logout').addEventListener('click',()=>{localStorage.removeItem('blh-user');badge.hidden=true;gate.hidden=false;document.body.classList.add('auth-locked');gate.querySelector('#auth-name').value='';gate.querySelector('#auth-email').value='';gate.querySelector('#auth-error').textContent=''});
-}
-setupLoginGate();
 let viewCount=80,viewOffset=0,chartScale=null,lineMode=false,manualLevels={},drag=null;
 let priceView=null,trendMode=false,trendStart=null,trendLines={};
 try{const saved=JSON.parse(localStorage.getItem('blh-drawings')||'{}');manualLevels=saved.levels||{};trendLines=saved.trends||{}}catch{}
@@ -162,4 +153,3 @@ setInterval(()=>{if(liveFeed&&GoldLive.last&&Date.now()-GoldLive.last.receivedAt
 const indicatorPreferences=[...document.querySelectorAll('#indicator-controls input, #indicator-controls select')];
 try{const saved=JSON.parse(localStorage.getItem('blh-indicators')||'{}');for(const input of indicatorPreferences)if(Object.hasOwn(saved,input.id)){if(input.type==='checkbox')input.checked=saved[input.id]===true;else if(typeof saved[input.id]==='string')input.value=saved[input.id]}}catch{}
 document.querySelector('#indicator-controls').addEventListener('input',()=>{try{localStorage.setItem('blh-indicators',JSON.stringify(Object.fromEntries(indicatorPreferences.map(input=>[input.id,input.type==='checkbox'?input.checked:input.value]))))}catch{}renderIndicator()});
-

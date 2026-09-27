@@ -575,6 +575,18 @@ body::before {
 }
 
 /* PIPVORIA brand assets */
+.auth-brand,
+.portal-brand,
+.logo {
+  width: fit-content;
+  padding: 0 10px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 225, 255, 0.2);
+  border-radius: 15px;
+  background: linear-gradient(120deg, rgba(247, 252, 255, 0.96), rgba(224, 248, 255, 0.9));
+  box-shadow: 0 10px 32px rgba(0, 10, 24, 0.28), 0 0 24px rgba(57, 221, 255, 0.08);
+}
+
 .auth-brand img {
   width: min(250px, 62vw) !important;
   height: 84px !important;
@@ -596,6 +608,7 @@ body::before {
 }
 
 @media (max-width: 700px) {
+  .auth-brand, .portal-brand, .logo { padding-inline: 7px; border-radius: 12px; }
   .auth-brand img { width: 190px !important; height: 65px !important; }
   .portal-brand img, .logo img { width: 136px !important; height: 46px !important; }
 }

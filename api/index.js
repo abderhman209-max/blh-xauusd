@@ -388,12 +388,22 @@ function strongPassword(value) {
 
 async function signIn(request) {
   const data = await body(request);
-  if (!validEmail(data.email) || typeof data.password !== "string") return json({ error: "invalid_credentials" }, 400);
+  if (!validEmail(data.email) || typeof data.password !== "string" || !data.password) return json({ error: "invalid_credentials" }, 400);
   const response = await supabase("/token?grant_type=password", {
     method: "POST",
     body: JSON.stringify({ email: data.email.trim().toLowerCase(), password: data.password }),
   });
-  if (!response.ok) return json({ error: "invalid_credentials" }, 401);
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    const safeErrors = {
+      email_not_confirmed: "email_not_confirmed",
+      user_banned: "account_disabled",
+      over_request_rate_limit: "request_rate_limit",
+      over_email_send_rate_limit: "email_rate_limit",
+    };
+    const error = safeErrors[result.code] || (response.status === 429 ? "request_rate_limit" : response.status >= 500 ? "service_unavailable" : "invalid_credentials");
+    return json({ error }, response.status === 429 ? 429 : response.status >= 500 ? 503 : 401);
+  }
   const session = await response.json();
   return new Response(JSON.stringify({ user: publicUser(session.user) }), { status: 200, headers: sessionHeaders(session) });
 }
@@ -433,10 +443,21 @@ async function recover(request) {
   const data = await body(request);
   if (!validEmail(data.email)) return json({ error: "invalid_email" }, 400);
   const redirectTo = `${new URL(request.url).origin}/`;
-  await supabase(`/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
+  const response = await supabase(`/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
     method: "POST",
     body: JSON.stringify({ email: data.email.trim().toLowerCase() }),
   });
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    const safeErrors = {
+      over_email_send_rate_limit: "email_rate_limit",
+      over_request_rate_limit: "request_rate_limit",
+      email_address_invalid: "invalid_email",
+      email_address_not_authorized: "email_not_authorized",
+    };
+    const error = safeErrors[result.code] || (response.status === 429 ? "email_rate_limit" : "recovery_unavailable");
+    return json({ error }, response.status === 429 ? 429 : 503);
+  }
   return json({ sent: true });
 }
 
@@ -464,8 +485,11 @@ async function updatePassword(request) {
     headers: { authorization: `Bearer ${session.accessToken}` },
     body: JSON.stringify({ password: data.password }),
   });
-  if (!response.ok) return json({ error: "password_update_failed" }, 400);
-  return json({ updated: true });
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    return json({ error: result.code === "same_password" ? "same_password" : response.status === 401 ? "authentication_required" : "password_update_failed" }, response.status === 401 ? 401 : 400);
+  }
+  return new Response(JSON.stringify({ updated: true }), { status: 200, headers: session.refreshed ? sessionHeaders(session.refreshed) : JSON_HEADERS });
 }
 
 async function signOut(request) {

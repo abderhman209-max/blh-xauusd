@@ -79,6 +79,13 @@
     ar: { invalidEmail:"عنوان البريد الإلكتروني غير صالح.", emailRate:"تم طلب رسائل كثيرة. انتظر دقيقة قبل المحاولة مجدداً.", requestRate:"محاولات كثيرة جداً. انتظر بضع دقائق قبل المحاولة مجدداً.", accountExists:"يوجد حساب بهذا البريد. جرّب تسجيل الدخول.", signupDisabled:"إنشاء الحسابات الجديدة متوقف مؤقتاً.", emailProvider:"إرسال رسائل التسجيل غير متاح حالياً. حاول لاحقاً.", emailUnauthorized:"لا يمكن لهذا العنوان استلام رسالة التأكيد.", lightMode:"تفعيل الوضع الفاتح", darkMode:"تفعيل الوضع الداكن" }
   };
   Object.keys(copy).forEach(code => Object.assign(copy[code], extraCopy[code]));
+  const feedbackCopy = {
+    fr: { requiredEmail:"Saisissez votre adresse e-mail.", requiredPassword:"Saisissez votre mot de passe.", requiredName:"Saisissez votre nom complet.", emailNotConfirmed:"Confirmez votre adresse e-mail avant de vous connecter. Vérifiez également les indésirables.", accountDisabled:"Ce compte est désactivé. Contactez l’assistance.", unavailable:"Le service est momentanément indisponible. Réessayez plus tard.", recoveryUnavailable:"Impossible d’envoyer le lien pour le moment. Réessayez plus tard.", expiredLink:"Le lien de réinitialisation est invalide ou a expiré. Demandez un nouveau lien.", updateFailed:"Impossible de modifier le mot de passe. Réessayez avec un nouveau lien.", samePassword:"Choisissez un mot de passe différent de l’ancien.", sending:"Envoi du lien…", signingIn:"Connexion en cours…", creating:"Création du compte…", updating:"Mise à jour du mot de passe…" },
+    en: { requiredEmail:"Enter your email address.", requiredPassword:"Enter your password.", requiredName:"Enter your full name.", emailNotConfirmed:"Confirm your email before signing in. Check your spam folder too.", accountDisabled:"This account is disabled. Contact support.", unavailable:"The service is temporarily unavailable. Try again later.", recoveryUnavailable:"The reset link could not be sent right now. Try again later.", expiredLink:"This reset link is invalid or has expired. Request a new one.", updateFailed:"The password could not be updated. Try again with a new link.", samePassword:"Choose a different password.", sending:"Sending the link…", signingIn:"Signing in…", creating:"Creating your account…", updating:"Updating password…" },
+    es: { requiredEmail:"Introduce tu correo electrónico.", requiredPassword:"Introduce tu contraseña.", requiredName:"Introduce tu nombre completo.", emailNotConfirmed:"Confirma tu correo antes de iniciar sesión. Revisa también el correo no deseado.", accountDisabled:"Esta cuenta está desactivada. Contacta con soporte.", unavailable:"El servicio no está disponible temporalmente. Inténtalo más tarde.", recoveryUnavailable:"No se puede enviar el enlace ahora. Inténtalo más tarde.", expiredLink:"El enlace no es válido o ha caducado. Solicita uno nuevo.", updateFailed:"No se pudo cambiar la contraseña. Prueba con un enlace nuevo.", samePassword:"Elige una contraseña diferente.", sending:"Enviando enlace…", signingIn:"Iniciando sesión…", creating:"Creando cuenta…", updating:"Actualizando contraseña…" },
+    ar: { requiredEmail:"أدخل بريدك الإلكتروني.", requiredPassword:"أدخل كلمة المرور.", requiredName:"أدخل اسمك الكامل.", emailNotConfirmed:"أكّد بريدك الإلكتروني قبل تسجيل الدخول. تحقق أيضاً من البريد غير المرغوب فيه.", accountDisabled:"هذا الحساب معطّل. اتصل بالدعم.", unavailable:"الخدمة غير متاحة مؤقتاً. حاول لاحقاً.", recoveryUnavailable:"تعذّر إرسال الرابط الآن. حاول لاحقاً.", expiredLink:"رابط إعادة التعيين غير صالح أو انتهت صلاحيته. اطلب رابطاً جديداً.", updateFailed:"تعذّر تغيير كلمة المرور. حاول برابط جديد.", samePassword:"اختر كلمة مرور مختلفة.", sending:"جارٍ إرسال الرابط…", signingIn:"جارٍ تسجيل الدخول…", creating:"جارٍ إنشاء الحساب…", updating:"جارٍ تحديث كلمة المرور…" }
+  };
+  Object.keys(copy).forEach(code => Object.assign(copy[code], feedbackCopy[code]));
   let language = "fr";
   try { language = localStorage.getItem("blh-language") || "fr"; } catch {}
   if (!languages[language]) language = "fr";
@@ -107,7 +114,7 @@
   const signupConfirm = forms.signup.elements.confirm;
   const signupButton = forms.signup.querySelector('[type="submit"]');
   let signupCooldownTimer = 0;
-  forms.signup.noValidate = true;
+  Object.values(forms).forEach(form => { form.noValidate = true; });
   const passwordRules = document.createElement("ul");
   passwordRules.className = "auth-password-rules";
   passwordRules.setAttribute("aria-label", "Password requirements");
@@ -157,7 +164,10 @@
   function signupErrorMessage(code){
     return tr({ weak_password:'weak', invalid_email:'invalidEmail', email_rate_limit:'emailRate', request_rate_limit:'requestRate', account_exists:'accountExists', signup_disabled:'signupDisabled', email_provider_disabled:'emailProvider', email_not_authorized:'emailUnauthorized', service_not_configured:'service' }[code] || 'invalidSignup');
   }
-  function setStatus(message, success=false){ status.textContent = message; status.classList.toggle("success", success); }
+  function setStatus(message, success=false){ status.textContent = message; status.classList.toggle("success", success); status.hidden = !message; }
+  function authError(code, fallback='unavailable'){
+    return tr({ invalid_credentials:'invalid', invalid_email:'invalidEmail', email_not_confirmed:'emailNotConfirmed', account_disabled:'accountDisabled', request_rate_limit:'requestRate', email_rate_limit:'emailRate', email_not_authorized:'emailUnauthorized', service_not_configured:'service', same_password:'samePassword', weak_password:'weak', authentication_required:'expiredLink', password_update_failed:'updateFailed', recovery_unavailable:'recoveryUnavailable' }[code] || fallback);
+  }
   function setBusy(form, busy){ form.querySelectorAll("button,input").forEach(node => node.disabled = busy); }
   function passwordChecks(value){
     return {
@@ -186,6 +196,7 @@
     const recovering = mode === "recovery" || mode === "reset";
     tabs.hidden = recovering;
     for (const [name, form] of Object.entries(forms)) form.hidden = name !== mode;
+    forms[mode].append(status);
     gate.querySelectorAll("[data-mode]").forEach(button => button.setAttribute("aria-selected", String(button.dataset.mode === mode)));
     header.querySelector("h1").textContent = tr(mode === "signup" ? "create" : mode === "recovery" ? "recoverTitle" : mode === "reset" ? "resetTitle" : "welcome");
     header.querySelector("p").textContent = tr(mode === "signup" ? "createSub" : mode === "recovery" ? "recoverSub" : mode === "reset" ? "resetSub" : "welcomeSub");
@@ -225,7 +236,7 @@
   authThemeButton.addEventListener('click', () => window.PIPVORIA_THEME.toggle());
   document.addEventListener('pipvoria-theme-change', event => { siteTheme=event.detail.theme; renderThemeButton(); });
   gate.querySelectorAll("[data-mode]").forEach(button=>button.onclick=()=>{mode=button.dataset.mode;renderMode();updateSignupValidation()});
-  gate.querySelector("#forgot-password").onclick=()=>{mode="recovery";renderMode()};
+  gate.querySelector("#forgot-password").onclick=()=>{forms.recovery.elements.email.value=forms.signin.elements.email.value;mode="recovery";renderMode();forms.recovery.elements.email.focus()};
   gate.querySelector("[data-back]").onclick=()=>{mode="signin";renderMode()};
   gate.querySelectorAll("[data-password-toggle]").forEach(button=>button.onclick=()=>{const input=button.parentElement.querySelector("input");input.type=input.type==="password"?"text":"password"});
   signupPassword.addEventListener("input", () => updateSignupValidation());
@@ -233,31 +244,66 @@
   signupConfirm.addEventListener("blur", () => updateSignupValidation(true));
 
   forms.signin.addEventListener("submit", async event=>{
-    event.preventDefault(); setBusy(forms.signin,true); setStatus(tr("loading"));
+    event.preventDefault();
     const data=Object.fromEntries(new FormData(forms.signin));
-    try{const {response,result}=await request("auth/sign-in",{method:"POST",body:JSON.stringify(data)});if(!response.ok){setStatus(result.error==="service_not_configured"?tr("service"):tr("invalid"));return}unlock(result.user)}catch{setStatus(tr("invalid"))}finally{setBusy(forms.signin,false)}
+    if(!data.email){setStatus(tr('requiredEmail'));forms.signin.elements.email.focus();return}
+    if(!forms.signin.elements.email.validity.valid){setStatus(tr('invalidEmail'));forms.signin.elements.email.focus();return}
+    if(!data.password){setStatus(tr('requiredPassword'));forms.signin.elements.password.focus();return}
+    setBusy(forms.signin,true);setStatus(tr('signingIn'));
+    try{const {response,result}=await request("auth/sign-in",{method:"POST",body:JSON.stringify(data)});if(!response.ok){setStatus(authError(result.error));return}unlock(result.user)}catch{setStatus(tr('unavailable'))}finally{setBusy(forms.signin,false)}
   });
   forms.signup.addEventListener("submit", async event=>{
     event.preventDefault(); const data=Object.fromEntries(new FormData(forms.signup));
     const invalidIdentity = data.name.trim().length < 2 || !forms.signup.elements.email.validity.valid || !data.email;
-    if(invalidIdentity){setStatus(tr("invalidSignup"));(data.name.trim().length < 2 ? forms.signup.elements.name : forms.signup.elements.email).focus();return}
+    if(invalidIdentity){setStatus(tr(data.name.trim().length < 2 ? (data.name.trim() ? 'invalidSignup' : 'requiredName') : data.email ? 'invalidEmail' : 'requiredEmail'));(data.name.trim().length < 2 ? forms.signup.elements.name : forms.signup.elements.email).focus();return}
+    if(!data.password){setStatus(tr('requiredPassword'));signupPassword.focus();return}
     if(data.password!==data.confirm){updateSignupValidation(true);setStatus(tr("mismatch"));signupConfirm.focus();return}
     const strong=updateSignupValidation(true);
     if(!strong){setStatus(tr("weak"));return}
-    setBusy(forms.signup,true); setStatus(tr("loading"));
+    setBusy(forms.signup,true); setStatus(tr("creating"));
     try{const {response,result}=await request("auth/sign-up",{method:"POST",body:JSON.stringify({name:data.name,email:data.email,password:data.password})});if(!response.ok){setStatus(signupErrorMessage(result.error));if(result.error==='email_rate_limit')startSignupCooldown(result.retryAfter||60);return}if(result.confirmationRequired){const email=data.email;forms.signup.reset();updateSignupValidation();mode="signin";renderMode();forms.signin.elements.email.value=email;setStatus(tr("confirmation"),true);forms.signin.elements.password.focus();return}unlock(result.user)}catch{setStatus(tr("invalidSignup"))}finally{setBusy(forms.signup,false);if(signupCooldownTimer)signupButton.disabled=true}
   });
-  forms.recovery.addEventListener("submit",async event=>{event.preventDefault();setBusy(forms.recovery,true);try{await request("auth/recover",{method:"POST",body:JSON.stringify(Object.fromEntries(new FormData(forms.recovery)))});setStatus(tr("sent"),true)}catch{setStatus(tr("sent"),true)}finally{setBusy(forms.recovery,false)}});
-  forms.reset.addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(forms.reset));setBusy(forms.reset,true);try{const {response}=await request("auth/update-password",{method:"POST",body:JSON.stringify(data)});if(!response.ok){setStatus(tr("weak"));return}setStatus(tr("updated"),true);setTimeout(()=>unlock(user),900)}finally{setBusy(forms.reset,false)}});
+  forms.recovery.addEventListener("submit",async event=>{
+    event.preventDefault();
+    const email=forms.recovery.elements.email;
+    if(!email.value.trim()){setStatus(tr('requiredEmail'));email.focus();return}
+    if(!email.validity.valid){setStatus(tr('invalidEmail'));email.focus();return}
+    setBusy(forms.recovery,true);setStatus(tr('sending'));
+    try{
+      const {response,result}=await request("auth/recover",{method:"POST",body:JSON.stringify({email:email.value.trim()})});
+      if(!response.ok){setStatus(authError(result.error,'recoveryUnavailable'));return}
+      setStatus(tr('sent'),true);
+    }catch{setStatus(tr('recoveryUnavailable'))}finally{setBusy(forms.recovery,false)}
+  });
+  forms.reset.addEventListener("submit",async event=>{
+    event.preventDefault();const password=forms.reset.elements.password;
+    if(!password.value){setStatus(tr('requiredPassword'));password.focus();return}
+    if(!Object.values(passwordChecks(password.value)).every(Boolean)){setStatus(tr('weak'));password.focus();return}
+    setBusy(forms.reset,true);setStatus(tr('updating'));
+    try{
+      const {response,result}=await request("auth/update-password",{method:"POST",body:JSON.stringify({password:password.value})});
+      if(!response.ok){setStatus(authError(result.error,'updateFailed'));return}
+      password.value='';setStatus(tr('updated'),true);
+      if(user) setTimeout(()=>unlock(user),900);
+      else { mode='signin';renderMode();setStatus(tr('updated'),true); }
+    }catch{setStatus(tr('updateFailed'))}finally{setBusy(forms.reset,false)}
+  });
 
   async function bootstrap(){
     applyLanguage();
     const hash=new URLSearchParams(location.hash.replace(/^#/,""));
+    if(hash.get('error') && (hash.get('error_code') === 'otp_expired' || hash.get('type') === 'recovery')){
+      history.replaceState(null,'',location.pathname+location.search);
+      lock();mode='recovery';renderMode();setStatus(tr('expiredLink'));return;
+    }
     if(hash.get("access_token")&&hash.get("refresh_token")){
       const type=hash.get("type");
-      const {response,result}=await request("auth/import-session",{method:"POST",body:JSON.stringify({accessToken:hash.get("access_token"),refreshToken:hash.get("refresh_token"),expiresIn:hash.get("expires_in")})});
       history.replaceState(null,"",location.pathname+location.search);
-      if(response.ok){user=result.user;if(type==="recovery"){window.BLH_AUTH.user=user;window.BLH_AUTH.authenticated=true;mode="reset";renderMode();return}unlock(user);return}
+      try {
+        const {response,result}=await request("auth/import-session",{method:"POST",body:JSON.stringify({accessToken:hash.get("access_token"),refreshToken:hash.get("refresh_token"),expiresIn:hash.get("expires_in")})});
+        if(response.ok){user=result.user;if(type==="recovery"){window.BLH_AUTH.user=user;window.BLH_AUTH.authenticated=true;mode="reset";renderMode();return}unlock(user);return}
+      } catch {}
+      if(type==='recovery'){lock();mode='recovery';renderMode();setStatus(tr('expiredLink'));return}
     }
     try{const {response,result}=await request("auth/session",{method:"GET",headers:{}});if(response.ok){unlock(result.user);return}}catch{}
     lock();

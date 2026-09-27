@@ -145,6 +145,37 @@
   box-shadow: 0 0 0 3px rgba(255, 107, 120, 0.1) !important;
 }
 
+.auth-gate .auth-status:not([hidden]) {
+  display: block;
+  margin: 1px 0 0;
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 107, 120, .45);
+  border-radius: 10px;
+  background: rgba(150, 28, 50, .18);
+  color: #ffb3bd;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.auth-gate .auth-status.success:not([hidden]) {
+  border-color: rgba(86, 211, 154, .45);
+  background: rgba(20, 120, 76, .2);
+  color: #a5f1cb;
+}
+
+html[data-theme="light"] .auth-gate .auth-status:not([hidden]) {
+  border-color: #d4818b;
+  background: #ffedf0;
+  color: #8e1832;
+}
+
+html[data-theme="light"] .auth-gate .auth-status.success:not([hidden]) {
+  border-color: #77b99a;
+  background: #e9f8ef;
+  color: #145d3d;
+}
+
 @media (max-width: 430px) {
   .auth-password-rules {
     grid-template-columns: 1fr;

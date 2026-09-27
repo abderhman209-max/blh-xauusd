@@ -13,6 +13,12 @@
   marketFx.defer = true;
   document.head.append(marketFx);
   const languages = { fr: "Français", en: "English", es: "Español", ar: "العربية" };
+  const passwordRuleCopy = {
+    fr: ["12 caractères minimum", "Une lettre majuscule", "Une lettre minuscule", "Un chiffre", "Un symbole"],
+    en: ["At least 12 characters", "One uppercase letter", "One lowercase letter", "One number", "One symbol"],
+    es: ["12 caracteres como mínimo", "Una letra mayúscula", "Una letra minúscula", "Un número", "Un símbolo"],
+    ar: ["12 حرفاً على الأقل", "حرف كبير واحد", "حرف صغير واحد", "رقم واحد", "رمز واحد"]
+  };
   const copy = {
     fr: { kicker:"ESPACE TRADING PRIVÉ", hero:"Analysez le marché avec clarté.", heroSub:"Graphiques Or et Bitcoin, structure de marché et indicateurs réunis dans un espace sécurisé.", protected:"Session sécurisée", private:"Données privées", realtime:"Marchés en direct", welcome:"Bon retour", welcomeSub:"Connectez-vous pour accéder à votre espace BLH.", create:"Créer votre compte", createSub:"Inscrivez-vous pour ouvrir votre espace d’analyse.", signin:"Connexion", signup:"Inscription", name:"Nom complet", namePh:"Votre nom", email:"Adresse e-mail", emailPh:"vous@exemple.com", password:"Mot de passe", confirm:"Confirmer le mot de passe", passwordPh:"12 caractères minimum", passwordHint:"12 caractères avec majuscule, minuscule, chiffre et symbole.", forgot:"Mot de passe oublié ?", signinAction:"Se connecter", signupAction:"Créer mon compte", security:"Votre mot de passe est chiffré par Supabase et n’est jamais stocké par BLH.", invalid:"E-mail ou mot de passe incorrect.", invalidSignup:"Vérifiez les informations saisies.", mismatch:"Les mots de passe ne correspondent pas.", weak:"Utilisez au moins 12 caractères avec majuscule, minuscule, chiffre et symbole.", confirmation:"Compte créé. Vérifiez votre e-mail pour confirmer l’inscription.", recoverTitle:"Réinitialiser le mot de passe", recoverSub:"Saisissez votre e-mail pour recevoir un lien sécurisé.", send:"Envoyer le lien", back:"Retour à la connexion", sent:"Si ce compte existe, un lien de réinitialisation vient d’être envoyé.", resetTitle:"Choisir un nouveau mot de passe", resetSub:"Saisissez un nouveau mot de passe sécurisé.", update:"Mettre à jour", updated:"Mot de passe mis à jour. Vous pouvez continuer.", service:"L’authentification n’est pas encore configurée.", loading:"Vérification de la session…", logout:"Se déconnecter", show:"Afficher le mot de passe" },
     en: { kicker:"PRIVATE TRADING WORKSPACE", hero:"See the market with clarity.", heroSub:"Gold and Bitcoin charts, market structure and indicators in one secure workspace.", protected:"Secure session", private:"Private data", realtime:"Live markets", welcome:"Welcome back", welcomeSub:"Sign in to access your BLH workspace.", create:"Create your account", createSub:"Sign up to open your analysis workspace.", signin:"Sign in", signup:"Sign up", name:"Full name", namePh:"Your name", email:"Email address", emailPh:"you@example.com", password:"Password", confirm:"Confirm password", passwordPh:"At least 12 characters", passwordHint:"12 characters with uppercase, lowercase, a number and a symbol.", forgot:"Forgot password?", signinAction:"Sign in", signupAction:"Create account", security:"Your password is encrypted by Supabase and is never stored by BLH.", invalid:"Incorrect email or password.", invalidSignup:"Check the information you entered.", mismatch:"Passwords do not match.", weak:"Use at least 12 characters with uppercase, lowercase, a number and a symbol.", confirmation:"Account created. Check your email to confirm your registration.", recoverTitle:"Reset password", recoverSub:"Enter your email to receive a secure reset link.", send:"Send reset link", back:"Back to sign in", sent:"If this account exists, a reset link has been sent.", resetTitle:"Choose a new password", resetSub:"Enter a new secure password.", update:"Update password", updated:"Password updated. You can continue.", service:"Authentication is not configured yet.", loading:"Checking your session…", logout:"Sign out", show:"Show password" },
@@ -36,6 +42,21 @@
   const tabs = gate.querySelector(".auth-tabs");
   const forms = Object.fromEntries(["signin","signup","recovery","reset"].map(name => [name, gate.querySelector(`#${name}-form`)]));
   const languageSelect = gate.querySelector(".auth-language select");
+  const signupPassword = forms.signup.elements.password;
+  const signupConfirm = forms.signup.elements.confirm;
+  forms.signup.noValidate = true;
+  const passwordRules = document.createElement("ul");
+  passwordRules.className = "auth-password-rules";
+  passwordRules.setAttribute("aria-label", "Password requirements");
+  passwordRules.innerHTML = ["length", "upper", "lower", "number", "symbol"].map(rule => `<li data-password-rule="${rule}"><span aria-hidden="true">×</span><b></b></li>`).join("");
+  signupPassword.closest(".auth-field").after(passwordRules);
+  const confirmError = document.createElement("p");
+  confirmError.className = "auth-inline-error";
+  confirmError.setAttribute("role", "alert");
+  confirmError.setAttribute("aria-live", "polite");
+  confirmError.hidden = true;
+  signupConfirm.closest(".auth-field").after(confirmError);
+  forms.signup.querySelector(".auth-password-hint").hidden = true;
   languageSelect.value = language;
 
   function tr(key){ return copy[language][key] || key; }
@@ -46,10 +67,36 @@
     gate.querySelectorAll("[data-auth]").forEach(node => node.textContent = tr(node.dataset.auth));
     gate.querySelectorAll("[data-auth-placeholder]").forEach(node => node.placeholder = tr(node.dataset.authPlaceholder));
     gate.querySelectorAll("[data-password-toggle]").forEach(node => node.setAttribute("aria-label", tr("show")));
+    passwordRules.querySelectorAll("li b").forEach((node, index) => { node.textContent = passwordRuleCopy[language][index]; });
+    confirmError.textContent = tr("mismatch");
     renderMode();
+    updateSignupValidation();
   }
   function setStatus(message, success=false){ status.textContent = message; status.classList.toggle("success", success); }
   function setBusy(form, busy){ form.querySelectorAll("button,input").forEach(node => node.disabled = busy); }
+  function passwordChecks(value){
+    return {
+      length: value.length >= 12,
+      upper: /[A-Z]/.test(value),
+      lower: /[a-z]/.test(value),
+      number: /\d/.test(value),
+      symbol: /[^A-Za-z0-9]/.test(value)
+    };
+  }
+  function updateSignupValidation(forceMismatch=false){
+    const checks = passwordChecks(signupPassword.value);
+    passwordRules.querySelectorAll("[data-password-rule]").forEach(item => {
+      const valid = checks[item.dataset.passwordRule];
+      item.classList.toggle("valid", valid);
+      item.classList.toggle("invalid", !valid);
+      item.querySelector("span").textContent = valid ? "✓" : "×";
+    });
+    const mismatch = signupPassword.value !== signupConfirm.value;
+    const showMismatch = mismatch && (forceMismatch || signupConfirm.value.length > 0);
+    confirmError.hidden = !showMismatch;
+    signupConfirm.setAttribute("aria-invalid", String(showMismatch));
+    return Object.values(checks).every(Boolean) && !mismatch;
+  }
   function renderMode(){
     const recovering = mode === "recovery" || mode === "reset";
     tabs.hidden = recovering;
@@ -90,10 +137,13 @@
     if (appSelect && appSelect.value !== language){ appSelect.value=language; appSelect.dispatchEvent(new Event("change",{bubbles:true})); }
   });
   document.addEventListener("blh-language-change",()=>{ const next=document.documentElement.lang; if(languages[next]&&next!==language){ language=next; languageSelect.value=next; applyLanguage(); } });
-  gate.querySelectorAll("[data-mode]").forEach(button=>button.onclick=()=>{mode=button.dataset.mode;renderMode()});
+  gate.querySelectorAll("[data-mode]").forEach(button=>button.onclick=()=>{mode=button.dataset.mode;renderMode();updateSignupValidation()});
   gate.querySelector("#forgot-password").onclick=()=>{mode="recovery";renderMode()};
   gate.querySelector("[data-back]").onclick=()=>{mode="signin";renderMode()};
   gate.querySelectorAll("[data-password-toggle]").forEach(button=>button.onclick=()=>{const input=button.parentElement.querySelector("input");input.type=input.type==="password"?"text":"password"});
+  signupPassword.addEventListener("input", () => updateSignupValidation());
+  signupConfirm.addEventListener("input", () => updateSignupValidation());
+  signupConfirm.addEventListener("blur", () => updateSignupValidation(true));
 
   forms.signin.addEventListener("submit", async event=>{
     event.preventDefault(); setBusy(forms.signin,true); setStatus(tr("loading"));
@@ -102,11 +152,13 @@
   });
   forms.signup.addEventListener("submit", async event=>{
     event.preventDefault(); const data=Object.fromEntries(new FormData(forms.signup));
-    if(data.password!==data.confirm){setStatus(tr("mismatch"));return}
-    const strong=data.password.length>=12&&/[a-z]/.test(data.password)&&/[A-Z]/.test(data.password)&&/\d/.test(data.password)&&/[^A-Za-z0-9]/.test(data.password);
+    const invalidIdentity = data.name.trim().length < 2 || !forms.signup.elements.email.validity.valid || !data.email;
+    if(invalidIdentity){setStatus(tr("invalidSignup"));(data.name.trim().length < 2 ? forms.signup.elements.name : forms.signup.elements.email).focus();return}
+    if(data.password!==data.confirm){updateSignupValidation(true);setStatus(tr("mismatch"));signupConfirm.focus();return}
+    const strong=updateSignupValidation(true);
     if(!strong){setStatus(tr("weak"));return}
     setBusy(forms.signup,true); setStatus(tr("loading"));
-    try{const {response,result}=await request("auth/sign-up",{method:"POST",body:JSON.stringify({name:data.name,email:data.email,password:data.password})});if(!response.ok){setStatus(result.error==="weak_password"?tr("weak"):result.error==="service_not_configured"?tr("service"):tr("invalidSignup"));return}if(result.confirmationRequired){setStatus(tr("confirmation"),true);forms.signup.reset();return}unlock(result.user)}catch{setStatus(tr("invalidSignup"))}finally{setBusy(forms.signup,false)}
+    try{const {response,result}=await request("auth/sign-up",{method:"POST",body:JSON.stringify({name:data.name,email:data.email,password:data.password})});if(!response.ok){setStatus(result.error==="weak_password"?tr("weak"):result.error==="service_not_configured"?tr("service"):tr("invalidSignup"));return}if(result.confirmationRequired){const email=data.email;forms.signup.reset();updateSignupValidation();mode="signin";renderMode();forms.signin.elements.email.value=email;setStatus(tr("confirmation"),true);forms.signin.elements.password.focus();return}unlock(result.user)}catch{setStatus(tr("invalidSignup"))}finally{setBusy(forms.signup,false)}
   });
   forms.recovery.addEventListener("submit",async event=>{event.preventDefault();setBusy(forms.recovery,true);try{await request("auth/recover",{method:"POST",body:JSON.stringify(Object.fromEntries(new FormData(forms.recovery)))});setStatus(tr("sent"),true)}catch{setStatus(tr("sent"),true)}finally{setBusy(forms.recovery,false)}});
   forms.reset.addEventListener("submit",async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(forms.reset));setBusy(forms.reset,true);try{const {response}=await request("auth/update-password",{method:"POST",body:JSON.stringify(data)});if(!response.ok){setStatus(tr("weak"));return}setStatus(tr("updated"),true);setTimeout(()=>unlock(user),900)}finally{setBusy(forms.reset,false)}});

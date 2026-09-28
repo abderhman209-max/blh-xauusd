@@ -953,3 +953,16 @@ html[data-theme="light"] .feed-state p { color: #566f82; }
   .avatar { width: 31px !important; height: 31px !important; }
   .header-actions { gap: 2px !important; }
 }
+
+/* The translucent iOS PWA status bar overlays the viewport on every phone size. */
+@media (max-width: 900px) {
+  .portal-header { height: calc(74px + env(safe-area-inset-top)) !important; padding-top: env(safe-area-inset-top) !important; }
+  .portal-sidebar { padding-top: calc(22px + env(safe-area-inset-top)) !important; }
+  .settings form, .rtl .settings form { top: calc(84px + env(safe-area-inset-top)) !important; max-height: calc(100dvh - 180px - env(safe-area-inset-top)) !important; }
+}
+@media (max-width: 600px) {
+  .portal-header { height: calc(62px + env(safe-area-inset-top)) !important; }
+  .portal-popover { top: calc(69px + env(safe-area-inset-top)) !important; max-height: calc(100dvh - 86px - env(safe-area-inset-top)) !important; }
+  .auth-panel { padding-top: calc(66px + env(safe-area-inset-top)) !important; }
+  .auth-language, .auth-theme-toggle { margin-top: env(safe-area-inset-top); }
+}

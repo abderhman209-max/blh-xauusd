@@ -501,6 +501,7 @@ async function signOut(request) {
 
 const durations = { "1min": 60000, "5min": 300000, "15min": 900000, "30min": 1800000, "1h": 3600000 };
 const marketCache = new Map();
+let goldPriceCache = null;
 
 function activityVolume(bar, previous) {
   const range = Math.max(bar.high - bar.low, Math.abs(bar.high - (previous?.close ?? bar.open)), Math.abs(bar.low - (previous?.close ?? bar.open)), 0.001);
@@ -574,11 +575,32 @@ async function marketData(request, url) {
   }
 }
 
+async function goldPrice(request) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: "authentication_required" }, 401);
+  if (!process.env.TWELVEDATA_API_KEY) return json({ error: "price_feed_unavailable" }, 503);
+  try {
+    if (!goldPriceCache || Date.now() - goldPriceCache.receivedAt >= 15000) {
+      const response = await fetch("https://api.twelvedata.com/price?symbol=XAU%2FUSD", {
+        headers: { authorization: `apikey ${process.env.TWELVEDATA_API_KEY}` },
+      });
+      const data = await response.json();
+      const price = Number(data.price);
+      if (!response.ok || !Number.isFinite(price) || price <= 0) throw new Error("price unavailable");
+      goldPriceCache = { price, receivedAt: Date.now(), source: "Twelve Data" };
+    }
+    return sessionJson(goldPriceCache, 200, session);
+  } catch {
+    return json({ error: "price_feed_unavailable" }, 503);
+  }
+}
+
 export default async function handler(request) {
   const url = new URL(request.url);
   const route = url.searchParams.get("route") || "";
   try {
     if (route === "gold" && request.method === "GET") return marketData(request, url);
+    if (route === "gold/price" && request.method === "GET") return goldPrice(request);
     if (route === "workspace" && request.method === "GET") return workspaceData(request);
     if (route === "admin/users" && request.method === "GET" && sameOrigin(request)) return listAdminUsers(request);
     if (route === "auth/session" && request.method === "GET") {

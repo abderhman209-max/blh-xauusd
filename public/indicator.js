@@ -202,7 +202,7 @@ async function refreshGoldPrice(){
  try{
   const response=await fetch('/api?route=gold/price',{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(12000)});
   if(response.status===401){document.dispatchEvent(new Event('blh-session-expired'));return}
-  if(!response.ok)return;
+  if(!response.ok){document.querySelector('#feed-update').textContent='Prix XAU/USD direct indisponible · Dernières bougies : '+marketSources['XAU/USD']+' · Synchronisation automatique en cours.';return}
   const data=await response.json(),price=Number(data.price),receivedAt=Number(data.receivedAt);
   if(selectedSymbol!=='XAU/USD'||!Number.isFinite(price)||!Number.isFinite(receivedAt)||Date.now()-receivedAt>60000)return;
   const tick={price,time:receivedAt,receivedAt};if(!GoldLive.add(tick))return;

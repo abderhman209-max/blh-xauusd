@@ -124,8 +124,9 @@ async function enterChartLandscape(){
  if(document.body.classList.contains('chart-landscape'))return;
  chartHome=document.createComment('chart workspace home');chartWorkspace.replaceWith(chartHome);document.body.append(chartWorkspace);
  document.body.classList.add('chart-landscape');setFullScreenButton(true);syncChartRotation();
- // Fullscreen must be requested synchronously from the tap; iOS Safari uses the fixed, rotated fallback.
- try{if(chartWorkspace.requestFullscreen&&!document.fullscreenElement)await chartWorkspace.requestFullscreen()}catch{}
+ // iPhone Safari uses the fixed chart layer; native fullscreen can hide the rotated SVG.
+ const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+ try{if(!ios&&chartWorkspace.requestFullscreen&&!document.fullscreenElement)await chartWorkspace.requestFullscreen()}catch{}
  try{await screen.orientation?.lock?.('landscape')}catch{}
  if(document.body.classList.contains('chart-landscape'))syncChartRotation();
 }

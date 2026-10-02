@@ -107,6 +107,8 @@ function notifyBlhClean(model, bars) {
   if (!signal || signal.index < bars.length - 2) return;
   const key = `blh-clean|${selectedSymbol}|${selectedInterval}|${signal.time || signal.index}|${signal.direction}`;
   try { if (localStorage.getItem('blh-clean-last-alert') === key) return; localStorage.setItem('blh-clean-last-alert', key); } catch { return; }
+  const plan = model.plan;
+  if(plan) document.dispatchEvent(new CustomEvent('pipvoria-planner-signal',{detail:{key,engine:'blh',symbol:selectedSymbol,interval:selectedInterval,time:signal.time||Date.now(),direction:signal.direction===1?'buy':'sell',price:signal.entry,entry:plan.entry,stopLoss:plan.stop,takeProfits:plan.tps.slice(0,3)}}));
   const toast = document.createElement('div');
   const buy = signal.direction === 1;
   toast.setAttribute('role','status');

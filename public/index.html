@@ -43,6 +43,19 @@
 <input id="valid" type="checkbox"> Masquer les configurations remplacées sans entrée</label>
 <hr>
 <label>
+<input id="show-blh-clean" type="checkbox" checked> BLH XAUUSD M5 CLEAN</label>
+<p class="indicator-hint">Sweep · BOS / CHoCH · BUY / SELL · uniquement XAU/USD en 5 min</p>
+<label>Swing Length<input id="blh-swing" type="number" min="2" max="20" value="4"></label>
+<label>ATR Length<input id="blh-atr" type="number" min="1" max="100" value="14"></label>
+<label>EMA Length<input id="blh-ema-length" type="number" min="1" max="200" value="50"></label>
+<label>Sweep Confirmation Bars<input id="blh-sweep" type="number" min="1" max="50" value="5"></label>
+<label>Zone Width<input id="blh-zone" type="number" min="1" max="100" value="30"></label>
+<label>TP1 RR<input id="blh-rr1" type="number" min="0.25" step="0.25" value="1"></label>
+<label>TP2 RR<input id="blh-rr2" type="number" min="0.25" step="0.25" value="2"></label>
+<label>TP3 RR<input id="blh-rr3" type="number" min="0.25" step="0.25" value="3"></label>
+<label><input id="blh-ema" type="checkbox" checked> Show EMA</label>
+<hr>
+<label>
 <input id="show-smart" type="checkbox" checked> Signal Trade Planner Strategy</label>
 <label>Signal mode<select id="planner-mode">
 <option>Hybrid</option>
@@ -203,6 +216,8 @@
 <script src="structure.js">
 </script>
 <script src="live.js">
+</script>
+<script src="blh-clean.js">
 </script>
 <script src="smart.js">
 </script>

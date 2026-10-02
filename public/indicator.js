@@ -20,10 +20,13 @@ try{const saved=JSON.parse(localStorage.getItem('blh-drawings')||'{}');manualLev
 const drawingKey=()=>selectedSymbol+'|'+selectedInterval;
 function saveDrawings(){try{localStorage.setItem('blh-drawings',JSON.stringify({levels:manualLevels,trends:trendLines}))}catch{document.querySelector('#tool-status').textContent='Speicher nicht verfügbar: Zeichnungen bleiben für diese Sitzung erhalten.'}}
 const svgNode=document.querySelector('#structure-chart');
-function publishWorkspaceState(smart,bars){
- const plan=smart?.sides?.at(-1)||null,signal=smart?.signals?.at(-1)||null,last=bars.at(-1)||null;
- const signalTime=signal?.time||bars[plan?.index]?.time||null;
- const state={symbol:selectedSymbol,interval:selectedInterval,source:marketSources[selectedSymbol],price:last?.close??null,updatedAt:Date.now(),stats:smart?.stats||null,signal:plan?{key:[selectedSymbol,selectedInterval,signalTime||plan.index,plan.direction].join('|'),direction:plan.direction===1?'buy':'sell',status:smart?.active&&smart.active.index===plan.index?'active':'historical',time:signalTime,entry:plan.entry,stopLoss:plan.stop,takeProfits:plan.tps.slice(0,3),riskReward:Math.abs((plan.tps.at(-1)-plan.entry)/(plan.entry-plan.stop))}:null};
+function publishWorkspaceState(smart,blh,bars){
+ const smartPlan=smart?.sides?.at(-1)||null,blhPlan=blh?.plan||null,last=bars.at(-1)||null;
+ const useBlh=!!blhPlan&&(!smartPlan||blhPlan.index>=smartPlan.index);
+ const plan=useBlh?blhPlan:smartPlan,latestSignal=useBlh?blh?.signals?.at(-1):smart?.signals?.at(-1);
+ const signalTime=plan?(latestSignal?.time||plan.time||bars[plan.index]?.time||null):null;
+ const engine=useBlh?'blh':'planner';
+ const state={symbol:selectedSymbol,interval:selectedInterval,source:marketSources[selectedSymbol],price:last?.close??null,updatedAt:Date.now(),stats:smart?.stats||null,signal:plan?{key:[selectedSymbol,selectedInterval,engine,signalTime||plan.index,plan.direction].join('|'),engine,direction:plan.direction===1?'buy':'sell',status:useBlh?(plan.index>=bars.length-2?'active':'historical'):smart?.active&&smart.active.index===plan.index?'active':'historical',time:signalTime,entry:plan.entry,stopLoss:plan.stop,takeProfits:plan.tps.slice(0,3),riskReward:Math.abs((plan.tps.at(-1)-plan.entry)/(plan.entry-plan.stop))}:null};
  window.PIPVORIA_CHART_STATE=state;
  const nextKey=JSON.stringify([state.symbol,state.interval,state.price&&Number(state.price).toFixed(2),state.signal?.key,state.signal?.status,state.signal?.stopLoss]);
  if(nextKey!==lastWorkspaceStateKey){lastWorkspaceStateKey=nextKey;document.dispatchEvent(new CustomEvent('pipvoria-chart-state',{detail:state}))}
@@ -38,13 +41,13 @@ function renderIndicator(){
  const number=(id,fallback,min,max=100)=>{const n=Number(document.querySelector(id).value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback};
  const smartBars=sourceBars.slice(0,sourceBars.findIndex(b=>b.partial)>=0?sourceBars.findIndex(b=>b.partial):sourceBars.length);
  const smart=smartOn?SmartEngine.analyze(smartBars,{swing:Math.floor(number('#smart-swing',5,2)),atrLength:Math.floor(number('#smart-atr',14,1)),zone:number('#smart-zone',.5,.1),rr:[1,2,3].map(i=>number('#smart-tp'+i,i,.1))}):{sides:[],signals:[]};
- publishWorkspaceState(smart,smartBars);
  const blhOn=document.querySelector('#show-blh-clean')?.checked&&selectedSymbol==='XAU/USD'&&selectedInterval==='5min';
  const blh=blhOn?BlhClean.analyze(smartBars,{
   swing:Math.floor(number('#blh-swing',4,2,20)),atrLength:Math.floor(number('#blh-atr',14,1,100)),
   emaLength:Math.floor(number('#blh-ema-length',50,1,200)),sweepWindow:Math.floor(number('#blh-sweep',5,1,50)),
   zoneBars:Math.floor(number('#blh-zone',30,1,100)),rr:[1,2,3].map(i=>number('#blh-rr'+i,i,.25,100))
  }):null;
+ publishWorkspaceState(smart,blh,smartBars);
  if(blhOn)notifyBlhClean(blh,smartBars);
  const heatOn=document.querySelector('#show-heatmap').checked,heatOptions={source:document.querySelector('#heat-source').value};
  for(const input of document.querySelectorAll('[id^="heat-"]')){if(input.type==='checkbox')heatOptions[input.id.slice(5)]=input.checked;else if(input.type==='number'){const v=Number(input.value);heatOptions[input.id.slice(5)]=Number.isFinite(v)?Math.max(Number(input.min),Math.min(Number(input.max),v)):Number(input.defaultValue)}}

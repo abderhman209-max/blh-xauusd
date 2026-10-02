@@ -1,4 +1,6 @@
 // Browser adaptation of the supplied Pine v6 “Price Action & Liquidity Map”.
+// Original Pine Script supplied under the Mozilla Public License 2.0:
+// https://mozilla.org/MPL/2.0/
 // Only closed OHLC bars are passed in; a pivot is usable after its right bars close.
 const PALiquidity = {
   analyze(bars, options = {}) {

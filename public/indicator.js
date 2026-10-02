@@ -47,6 +47,14 @@ function renderIndicator(){
   emaLength:Math.floor(number('#blh-ema-length',50,1,200)),sweepWindow:Math.floor(number('#blh-sweep',5,1,50)),
   zoneBars:Math.floor(number('#blh-zone',30,1,100)),rr:[1,2,3].map(i=>number('#blh-rr'+i,i,.25,100))
  }):null;
+ const paOn=document.querySelector('#show-pa-liquidity')?.checked;
+ const pa=paOn?PALiquidity.analyze(closedBars,{
+  pivotLength:Math.floor(number('#pa-pivot',5,2,50)),atrLength:Math.floor(number('#pa-atr',14,1,100)),
+  tolerance:number('#pa-tolerance',.10,.01,1),rr:number('#pa-rr',2,.25,10),
+  structure:document.querySelector('#pa-structure').checked,sweeps:document.querySelector('#pa-sweeps').checked,
+  equalLevels:document.querySelector('#pa-equal').checked,tradeLevels:document.querySelector('#pa-levels').checked
+ }):null;
+ const paColors=paOn?{bull:document.querySelector('#pa-bull').value,bear:document.querySelector('#pa-bear').value,equal:document.querySelector('#pa-color').value}:null;
  publishWorkspaceState(smart,blh,smartBars);
  if(blhOn)notifyBlhClean(blh,smartBars);
  const heatOn=document.querySelector('#show-heatmap').checked,heatOptions={source:document.querySelector('#heat-source').value};
@@ -60,6 +68,7 @@ function renderIndicator(){
  let prices=shown.flatMap(b=>[b.high,b.low]);for(const s of model.setups)if(s.trade&&s.trade.end>=start&&s.trade.index<end)prices.push(s.trade.sl,s.trade.tp);
  for(const z of smart.sides)if(z.index+30>=start&&z.index-25<end){if(document.querySelector('#smart-zones').checked)prices.push(z.top,z.bottom,z.secondTop,z.secondBottom);if(document.querySelector('#smart-tps').checked)prices.push(...z.tps)}
  if(blh){const p=blh.plan,z=blh.zone;if(p&&p.end>=start&&p.index<end)prices.push(p.entry,p.stop,...p.tps);if(z&&z.end>=start&&z.index<end)prices.push(z.top,z.bottom)}
+ if(pa?.plan&&pa.plan.index<end)prices.push(pa.plan.entry,pa.plan.stop,pa.plan.target);
  if(heatOn&&!heat.error){for(const index of [Math.max(start,heat.offset),Math.min(end+heat.extension,heat.offset+heat.length+heat.extension-1)]){const center=heat.start+heat.slope*(index-heat.offset);prices.push(center-3*heat.sd,center+3*heat.sd)}}
  const low=Math.min(...prices),high=Math.max(...prices),range=Math.max(high-low,1),autoMin=low-range*.12,autoMax=high+range*.14,min=priceView?.min??autoMin,max=priceView?.max??autoMax;
  const x=i=>(i-start+.5)*step,y=p=>top+(max-p)/(max-min)*(H-top-bottom);
@@ -70,6 +79,7 @@ function renderIndicator(){
  if(heatOn&&!heat.error)s+=renderHeatmap(heat,x,y,heatOptions);
  s+=renderSmart(smart,x,y,pw,H-bottom,"shapes");
  if(blh)s+=renderBlhClean(blh,x,y,pw,H-bottom,"shapes");
+ if(pa)s+=renderPALiquidity(pa,x,y,pw,'shapes',paColors);
  s+='<g data-indicator="structure">';
  for(const z of model.setups){const c=z.direction===1?'#089981':'#f23645';s+=`<rect x="${x(z.origin.index)}" y="${y(z.top)}" width="${Math.max(2,x(z.end)-x(z.origin.index))}" height="${y(z.bottom)-y(z.top)}" fill="${c}" fill-opacity=".17" stroke="${c}" stroke-width=".65"/><line x1="${x(z.broken.index)}" y1="${y(z.broken.price)}" x2="${x(z.index)}" y2="${y(z.broken.price)}" stroke="${c}" stroke-width=".8" stroke-dasharray="5 3"/><text x="${x((z.broken.index+z.index)/2)}" y="${y(z.broken.price)-6}" fill="${c}" font-size="10">BOS</text>`;
  if(z.trade){const t=z.trade,xx=x(t.index),w=Math.max(step,x(t.end)-xx);for(const [a,b,c,label] of [[t.entry,t.sl,'#f23645','SL'],[t.entry,t.tp,'#089981','TP']])s+=`<rect x="${xx}" y="${y(Math.max(a,b))}" width="${w}" height="${Math.abs(y(a)-y(b))}" fill="${c}" fill-opacity=".20" stroke="${c}" stroke-width=".7"/><text x="${xx+3}" y="${y(b)-4}" fill="${c}" font-size="10">${label}</text>`;}
@@ -79,6 +89,7 @@ function renderIndicator(){
  s+='</g>';
  s+=renderSmart(smart,x,y,pw,H-bottom,'labels');
  if(blh)s+=renderBlhClean(blh,x,y,pw,H-bottom,'labels');
+ if(pa)s+=renderPALiquidity(pa,x,y,pw,'labels',paColors);
  const last=sourceBars.at(-1),lastColor=document.body.dataset.palette==='gold'?'#18c7a1':last.close>=last.open?'#089981':'#f23645';s+=`<line x1="0" y1="${y(last.close)}" x2="${pw}" y2="${y(last.close)}" stroke="${lastColor}" stroke-dasharray="2 3"/>`;
  for(const p of manualLevels[drawingKey()]||[])s+=`<line x1="0" y1="${y(p)}" x2="${pw}" y2="${y(p)}" stroke="#ff7900" stroke-width="3"/>`;
  const duration={'1min':60000,'5min':300000,'15min':900000,'30min':1800000,'1h':3600000}[selectedInterval];
@@ -98,9 +109,9 @@ s+='</g>';
  svgNode.innerHTML=s;document.querySelector('#chart-empty').hidden=true;document.querySelector('#chart-period').textContent=intervalLabels[selectedInterval];setOHLC(last);document.querySelector('#candle-state').textContent=last.closed?'Letzte Kerze geschlossen':'Kerze in Bildung';
  const trades=model.setups.filter(z=>z.trade),latest=trades.at(-1);document.querySelector('#indicator-status').textContent=`${model.setups.length} BOS · ${trades.length} Auslösungen · Pivots nach ${model.len} Kerzen bestätigt`;
  const tradeStatus=latest&&({'active':'aktiv','remplacé':'ersetzt','SL touché':'SL berührt','TP touché':'TP berührt','SL et TP touchés · ordre inconnu':'SL und TP berührt · Reihenfolge unbekannt'}[latest.trade.status]||latest.trade.status);document.querySelector('#setup-detail').innerHTML=latest?`<strong>Letztes historisches Signal · ${latest.direction===1?'Kauf':'Verkauf'}</strong><span>Einstieg ${latest.trade.entry.toFixed(2)}</span><span>SL ${latest.trade.sl.toFixed(2)}</span><span>TP ${latest.trade.tp.toFixed(2)}</span><span>CRV ${rr}</span><span>${tradeStatus}</span>`:'Keine Auslösung in den geladenen Kerzen.';
- document.querySelector('#indicator-status').textContent=(structureOn?'BOS: '+model.setups.length+' · ':'')+(smartOn?'Trade Planner: '+smart.signals.length+' bestätigte Signale':'')+(blhOn?' · BLH M5: '+blh.signals.length+' signaux':document.querySelector('#show-blh-clean')?.checked?' · BLH: choisir XAU/USD · 5 min':'')+(heatOn?' · Regression aktiv':'')+(!structureOn&&!smartOn&&!heatOn?'Indikatoren deaktiviert':'');
+ document.querySelector('#indicator-status').textContent=(structureOn?'BOS: '+model.setups.length+' · ':'')+(smartOn?'Trade Planner: '+smart.signals.length+' bestätigte Signale':'')+(blhOn?' · BLH M5: '+blh.signals.length+' signaux':document.querySelector('#show-blh-clean')?.checked?' · BLH: choisir XAU/USD · 5 min':'')+(paOn?' · PA Liquidity: '+pa.events.length+' événements':'')+(heatOn?' · Regression aktiv':'')+(!structureOn&&!smartOn&&!paOn&&!blhOn&&!heatOn?'Indikatoren deaktiviert':'');
  if(!structureOn)document.querySelector('#setup-detail').textContent='';
- document.querySelector('.indicator-legend').textContent=[structureOn?'● BOS · Fibonacci · CRV':null,smartOn?'● Signal Trade Planner · EMA 21/50 · RSI':null,blhOn?'● BLH M5 · Sweep · BOS/CHoCH':null,heatOn?(heat.error?'● Regression wartet':heat.hasVolume&&heat.maxVolume>0?'● Volumetric Regression':'● Preiskanal · ohne Volumen'):null,'Manuelle Linien'].filter(Boolean).join('   |   ');
+ document.querySelector('.indicator-legend').textContent=[structureOn?'● BOS · Fibonacci · CRV':null,smartOn?'● Signal Trade Planner · EMA 21/50 · RSI':null,blhOn?'● BLH M5 · Sweep · BOS/CHoCH':null,paOn?'● PA Liquidity · BOS/CHoCH · EQH/EQL':null,heatOn?(heat.error?'● Regression wartet':heat.hasVolume&&heat.maxVolume>0?'● Volumetric Regression':'● Preiskanal · ohne Volumen'):null,'Manuelle Linien'].filter(Boolean).join('   |   ');
  return {mode:'market-data',term,rr,setups:model.setups.length,trades:trades.length};
 }
 function setOHLC(b){document.querySelector('#ohlc').textContent=`O ${b.open.toFixed(2)}  H ${b.high.toFixed(2)}  L ${b.low.toFixed(2)}  C ${b.close.toFixed(2)}`}

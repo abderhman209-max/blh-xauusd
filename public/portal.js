@@ -134,14 +134,20 @@ async function loadAvatar(){
   }catch{if(id===window.BLH_AUTH?.user?.id)showAvatar(null)}
 }
 async function avatarJpeg(file){
-  const bitmap=await createImageBitmap(file),size=512;
+  let bitmap,objectUrl;
   try{
-    const canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+    if(typeof createImageBitmap==='function')bitmap=await createImageBitmap(file);
+    else{
+      objectUrl=URL.createObjectURL(file);
+      bitmap=new Image();bitmap.src=objectUrl;
+      await bitmap.decode();
+    }
+    const size=512,canvas=document.createElement('canvas');canvas.width=canvas.height=size;
     const ctx=canvas.getContext('2d'),scale=Math.max(size/bitmap.width,size/bitmap.height);
     const width=bitmap.width*scale,height=bitmap.height*scale;
     ctx.drawImage(bitmap,(size-width)/2,(size-height)/2,width,height);
     return await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.82));
-  }finally{bitmap.close()}
+  }finally{bitmap?.close?.();if(objectUrl)URL.revokeObjectURL(objectUrl)}
 }
 avatarInput.onchange=async()=>{
   const file=avatarInput.files?.[0];avatarInput.value='';
@@ -155,8 +161,10 @@ avatarInput.onchange=async()=>{
     const blob=await avatarJpeg(file);
     if(!blob||blob.size>1024*1024)throw new Error('invalid image');
     const response=await fetch('/api?route=profile/avatar',{method:'PUT',headers:{'content-type':'image/jpeg'},body:blob,credentials:'same-origin'});
-    if(!response.ok)throw new Error('upload failed');
-    if(id===window.BLH_AUTH?.user?.id){showAvatar(blob);status.textContent=t('avatarSaved')}
+    if(!response.ok)throw new Error('upload '+response.status);
+    const saved=await fetch('/api?route=profile/avatar',{credentials:'same-origin',cache:'no-store'});
+    if(!saved.ok)throw new Error('verification '+saved.status);
+    if(id===window.BLH_AUTH?.user?.id){showAvatar(await saved.blob());status.textContent=t('avatarSaved')}
   }catch{if(id===window.BLH_AUTH?.user?.id)status.textContent=t('avatarError')}
   finally{buttons.forEach(button=>button.disabled=false)}
 };

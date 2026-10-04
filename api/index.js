@@ -595,10 +595,51 @@ async function goldPrice(request) {
   }
 }
 
+const AVATAR_BUCKET = "profile-avatars";
+const AVATAR_BYTES_LIMIT = 1024 * 1024;
+
+async function avatarStorage(path, accessToken, init = {}) {
+  const { url, key } = env();
+  const headers = new Headers(init.headers);
+  headers.set("apikey", key);
+  headers.set("authorization", `Bearer ${accessToken}`);
+  return fetch(`${url}/storage/v1/${path}`, { ...init, headers });
+}
+
+async function profileAvatar(request) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: "authentication_required" }, 401);
+  const path = `object/${AVATAR_BUCKET}/${session.user.id}/avatar.jpg`;
+  if (request.method === "GET") {
+    const response = await avatarStorage(path.replace("object/", "object/authenticated/"), session.accessToken);
+    if (response.status === 404) return new Response(null, { status: 404, headers: { "cache-control": "private, no-store" } });
+    if (!response.ok) return json({ error: "avatar_unavailable" }, 503);
+    const headers = session.refreshed ? sessionHeaders(session.refreshed) : new Headers();
+    headers.set("content-type", "image/jpeg");
+    headers.set("cache-control", "private, no-store");
+    headers.set("x-content-type-options", "nosniff");
+    return new Response(response.body, { status: 200, headers });
+  }
+  if (request.method !== "PUT" || !sameOrigin(request)) return json({ error: "not_found" }, 404);
+  if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "image/jpeg") return json({ error: "invalid_avatar_type" }, 415);
+  const declared = Number(request.headers.get("content-length") || 0);
+  if (declared > AVATAR_BYTES_LIMIT) return json({ error: "avatar_too_large" }, 413);
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  if (bytes.length < 4 || bytes.length > AVATAR_BYTES_LIMIT || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes.at(-2) !== 0xff || bytes.at(-1) !== 0xd9) return json({ error: "invalid_avatar" }, 400);
+  const response = await avatarStorage(path, session.accessToken, {
+    method: "POST",
+    headers: { "content-type": "image/jpeg", "x-upsert": "true", "cache-control": "no-cache" },
+    body: bytes,
+  });
+  if (!response.ok) return json({ error: "avatar_save_failed" }, 503);
+  return sessionJson({ updated: true }, 200, session);
+}
+
 export default async function handler(request) {
   const url = new URL(request.url);
   const route = url.searchParams.get("route") || "";
   try {
+    if (route === "profile/avatar") return profileAvatar(request);
     if (route === "gold" && request.method === "GET") return marketData(request, url);
     if (route === "gold/price" && request.method === "GET") return goldPrice(request);
     if (route === "workspace" && request.method === "GET") return workspaceData(request);

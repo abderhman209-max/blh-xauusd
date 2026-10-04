@@ -31,6 +31,13 @@ officialSource:['Official source','Offizielle Quelle','Source officielle','Fuent
 localTime:['Local time','Ortszeit','Heure locale','Hora local','التوقيت المحلي','الوقت المحلي'],
 newsDisclaimer:['Economic releases can cause volatility, but direction is not predictable from this calendar.','Daten können Volatilität auslösen; die Kursrichtung ist daraus nicht ableitbar.','Les annonces peuvent créer de la volatilité, sans prédire la direction du prix.','Los datos pueden generar volatilidad sin predecir la dirección del precio.','قد ترفع الأخبار التقلبات، لكنها لا تحدد اتجاه السعر.','الأخبار تقدر تزيد التقلب، ولكن ما كتعطيش اتجاه الثمن.']
 });
+Object.assign(copy,{
+avatarChange:['Change photo','Foto ändern','Changer la photo','Cambiar foto','تغيير الصورة','بدّل الصورة'],
+avatarSaving:['Saving your photo…','Foto wird gespeichert…','Enregistrement de la photo…','Guardando la foto…','جارٍ حفظ الصورة…','كنحفظ الصورة…'],
+avatarSaved:['Photo saved','Foto gespeichert','Photo enregistrée','Foto guardada','تم حفظ الصورة','تحفظات الصورة'],
+avatarInvalid:['Choose a JPG, PNG or WebP photo under 10 MB.','JPG, PNG oder WebP unter 10 MB wählen.','Choisissez une photo JPG, PNG ou WebP de moins de 10 Mo.','Elige una foto JPG, PNG o WebP de menos de 10 MB.','اختر صورة JPG أو PNG أو WebP أقل من 10 ميغابايت.','اختار صورة JPG ولا PNG ولا WebP أقل من 10 ميغا.'],
+avatarError:['The photo could not be saved. Please try again.','Foto konnte nicht gespeichert werden. Bitte erneut versuchen.','Impossible d’enregistrer la photo. Réessayez.','No se pudo guardar la foto. Inténtalo de nuevo.','تعذر حفظ الصورة. حاول مجددًا.','ما تحفطاتش الصورة. عاود جرّب.']
+});
 const languageIndex={en:0,de:1,fr:2,es:3,ar:4,ary:5};
 const t=k=>(copy[k]||[k])[languageIndex[document.documentElement.lang]??0];
 const paths={news:'<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4m8-4v4M4 10h16m-12 4h3m2 0h3m-8 4h3"/>',signals:'<path d="M4 10v4m5-9v14m5-11v8m5-6v4"/>',history:'<path d="M5 5h14M5 10h14"/><rect x="4" y="14" width="16" height="6" rx="2"/>',performance:'<path d="M5 20v-5m5 5V9m5 11V4m5 16v-9"/>',weekly:'<path d="M3 20h18M5 15l5-4 4 2 5-8"/><circle cx="19" cy="5" r="1"/>',settings:'<path d="m9 3-1 3-3 1v4l-2 1 2 4 3-1 2 3h4l1-3 3-1 2-3-2-3V5l-4-1-1-1z"/><circle cx="11" cy="10" r="3"/>',support:'<path d="M4 14v-3a8 8 0 0 1 16 0v5a4 4 0 0 1-4 4h-3"/><rect x="2" y="10" width="4" height="7" rx="2"/><rect x="18" y="10" width="4" height="7" rx="2"/>',access:'<rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/>',menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',close:'<path d="m6 6 12 12M6 18 18 6"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 22a8 8 0 0 1 16 0"/>',bell:'<path d="M5 10a7 7 0 0 1 14 0c0 7 2 7 2 7H3s2 0 2-7m6 10h2"/>',sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M19 5l-1.5 1.5m-11 11L5 19"/>',moon:'<path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z"/>',arrow:'<path d="M5 12h14m-5-5 5 5-5 5"/>',save:'<path d="M5 3h14v18l-7-4-7 4z"/>',logout:'<path d="M9 4H4v16h5m3-8h9m-4-4 4 4-4 4"/>'};
@@ -39,7 +46,7 @@ const label=k=>`<span data-copy="${k}">${t(k)}</span>`;
 const navLink=k=>`<a href="#${k}" data-route="${k}">${icon(k)}${label(k)}</a>`;
 const create=(tag,cls,html='')=>{const n=document.createElement(tag);n.className=cls;n.innerHTML=html;return n};
 const originalHeader=$('.chart-top'),chart=$('#workspace'),footer=$('.terminal-footer');
-const header=create('header','portal-header',`<button class="menu-toggle icon-button" id="portal-menu" aria-expanded="false" aria-controls="portal-sidebar">${icon('menu')}</button><a class="portal-brand" href="#signals" aria-label="PIPVORIA"><img src="pipvoria-logo.png" alt="PIPVORIA"></a><span class="header-tagline" data-copy="market"></span><div class="header-actions"><button class="icon-button gold-icon" id="feed-toggle" aria-expanded="false" aria-controls="feed-popover">${icon('bell')}</button><button class="profile-toggle" id="profile-toggle" aria-expanded="false" aria-controls="profile-popover"><span class="avatar">${icon('profile')}</span><span class="profile-label" data-copy="profile"></span><span class="chevron">⌄</span></button></div>`);
+const header=create('header','portal-header',`<button class="menu-toggle icon-button" id="portal-menu" aria-expanded="false" aria-controls="portal-sidebar">${icon('menu')}</button><a class="portal-brand" href="#signals" aria-label="PIPVORIA"><img src="pipvoria-logo.png" alt="PIPVORIA"></a><span class="header-tagline" data-copy="market"></span><div class="header-actions"><button class="icon-button gold-icon" id="feed-toggle" aria-expanded="false" aria-controls="feed-popover">${icon('bell')}</button><button class="profile-toggle" id="profile-toggle" aria-expanded="false" aria-controls="profile-popover"><span class="avatar">${icon('profile')}<img id="header-avatar" alt="" hidden></span><span class="profile-label" data-copy="profile"></span><span class="chevron">⌄</span></button></div>`);
 const themeToggle=create('button','icon-button theme-toggle');themeToggle.id='theme-toggle';themeToggle.type='button';header.querySelector('.header-actions').prepend(themeToggle);
 const sidebar=create('aside','portal-sidebar',`<div class="sidebar-heading"><a href="#signals" class="portal-brand" aria-label="PIPVORIA"><img src="pipvoria-logo.png" alt="PIPVORIA"></a><button class="icon-button" id="close-menu">${icon('close')}</button></div><nav>${['signals','news','access','history','performance','weekly','support','settings'].map(navLink).join('')}</nav><div class="sidebar-bottom"><span class="private-dot"></span>${label('private')}</div>`);sidebar.id='portal-sidebar';
 const shade=create('button','menu-shade');shade.hidden=true;shade.tabIndex=-1;
@@ -77,9 +84,10 @@ const link=create('a','quiet-link');link.href=event[3];link.target='_blank';link
 const caution=create('p','news-caution');caution.textContent=t('newsDisclaimer');pages.news.append(caution);
 }
 const bottom=create('nav','portal-bottom', ['signals','history','performance'].map(navLink).join(''));
-const popover=create('section','portal-popover profile-popover',`<div class="popover-heading"><span class="popover-kicker" data-copy="profile"></span><button class="popover-close icon-button" type="button" aria-label="">${icon('close')}</button></div><div class="profile-intro">${icon('profile')}<div><strong id="portal-name" data-portal-only>PIPVORIA</strong><small id="portal-email" data-portal-only></small></div></div><div class="popover-actions"><a href="#settings" class="profile-settings">${icon('settings')}${label('settings')}</a><button type="button" id="portal-logout">${icon('logout')}${label('logout')}</button></div>`);popover.id='profile-popover';popover.hidden=true;popover.setAttribute('aria-hidden','true');
+const popover=create('section','portal-popover profile-popover',`<div class="popover-heading"><span class="popover-kicker" data-copy="profile"></span><button class="popover-close icon-button" type="button" aria-label="">${icon('close')}</button></div><div class="profile-intro"><button type="button" class="profile-avatar-edit" id="profile-avatar-edit" aria-label=""><span class="profile-avatar">${icon('profile')}<img id="popover-avatar" alt="" hidden></span><span class="avatar-pencil" aria-hidden="true">✎</span></button><div><strong id="portal-name" data-portal-only>PIPVORIA</strong><small id="portal-email" data-portal-only></small></div></div><div class="popover-actions"><a href="#settings" class="profile-settings">${icon('settings')}${label('settings')}</a><button type="button" class="profile-photo-action" id="profile-photo-action">${label('avatarChange')}</button><p id="profile-photo-status" role="status" aria-live="polite"></p><button type="button" id="portal-logout">${icon('logout')}${label('logout')}</button></div>`);popover.id='profile-popover';popover.hidden=true;popover.setAttribute('aria-hidden','true');
 const feedPopover=create('section','portal-popover feed-popover',`<div class="popover-heading"><div><span class="popover-kicker" data-copy="feed"></span><h3 data-copy="feed"></h3></div><button class="popover-close icon-button" type="button" aria-label="">${icon('close')}</button></div><div class="feed-state"><span class="feed-live-dot" aria-hidden="true"></span><div><strong id="portal-feed-status" data-portal-only></strong><p id="portal-feed" data-portal-only></p></div></div>`);feedPopover.id='feed-popover';feedPopover.hidden=true;feedPopover.setAttribute('aria-hidden','true');
 document.body.prepend(header,sidebar,shade,content,bottom,popover,feedPopover);
+const avatarInput=document.createElement('input');avatarInput.type='file';avatarInput.accept='image/jpeg,image/png,image/webp';avatarInput.hidden=true;avatarInput.setAttribute('aria-label',t('avatarChange'));document.body.append(avatarInput);
 const themeLabels={fr:['Activer le mode clair','Activer le mode sombre'],en:['Switch to light mode','Switch to dark mode'],es:['Activar modo claro','Activar modo oscuro'],ar:['تفعيل الوضع الفاتح','تفعيل الوضع الداكن']};
 function renderThemeToggle(){const light=window.PIPVORIA_THEME?.get()==='light',labels=themeLabels[document.documentElement.lang]||themeLabels.en;themeToggle.innerHTML=icon(light?'moon':'sun');themeToggle.setAttribute('aria-label',labels[light?1:0]);themeToggle.title=themeToggle.getAttribute('aria-label');themeToggle.setAttribute('aria-pressed',String(light));}
 themeToggle.onclick=()=>window.PIPVORIA_THEME?.toggle();document.addEventListener('pipvoria-theme-change',renderThemeToggle);renderThemeToggle();
@@ -100,11 +108,62 @@ pages.settings.innerHTML=pageTitle('settings','settingsSub')+`<article class="su
 $('#portal-language-slot').append(languagePicker);
 pages.support.innerHTML=pageTitle('support','helpSub')+['Chart','Data','Signals'].map(k=>`<details class="surface help-item"><summary data-copy="help${k}"></summary><p data-copy="help${k}Body"></p></details>`).join('');
 pages.access.innerHTML=pageTitle('access','accessSub')+`<article class="surface access-card"><span class="access-emblem">${icon('access')}</span><span class="eyebrow">PIPVORIA</span><h2 data-copy="private"></h2><p data-copy="accessSub"></p><a class="gold-button" href="#signals">${label('go')}${icon('arrow')}</a></article><article class="surface access-features"><h2 data-copy="included"></h2>${['markets','timeframes','indicators','history','language'].map(k=>`<div>${label(k)}<span class="feature-check">✓</span></div>`).join('')}</article>`;
-function translate(){document.querySelectorAll('[data-copy]').forEach(n=>n.textContent=t(n.dataset.copy));$('#portal-menu').setAttribute('aria-label',t('menu'));$('#close-menu').setAttribute('aria-label',t('close'));shade.setAttribute('aria-label',t('close'));$('#feed-toggle').setAttribute('aria-label',t('feed'));$('#profile-toggle').setAttribute('aria-label',t('profile'));bottom.setAttribute('aria-label',t('menu'));document.querySelectorAll('[data-edit-indicator]').forEach(b=>{b.title=t('settings')+' · '+t(b.dataset.editIndicator);b.setAttribute('aria-label',b.title)});document.querySelectorAll('.popover-close').forEach(b=>b.setAttribute('aria-label',t('close')));$('#close-indicators')?.setAttribute('aria-label',t('close'));renderThemeToggle();syncToggles();}
+function translate(){document.querySelectorAll('[data-copy]').forEach(n=>n.textContent=t(n.dataset.copy));$('#portal-menu').setAttribute('aria-label',t('menu'));$('#close-menu').setAttribute('aria-label',t('close'));shade.setAttribute('aria-label',t('close'));$('#feed-toggle').setAttribute('aria-label',t('feed'));$('#profile-toggle').setAttribute('aria-label',t('profile'));bottom.setAttribute('aria-label',t('menu'));document.querySelectorAll('[data-edit-indicator]').forEach(b=>{b.title=t('settings')+' · '+t(b.dataset.editIndicator);b.setAttribute('aria-label',b.title)});document.querySelectorAll('.popover-close').forEach(b=>b.setAttribute('aria-label',t('close')));$('#close-indicators')?.setAttribute('aria-label',t('close'));$('#profile-avatar-edit').setAttribute('aria-label',t('avatarChange'));avatarInput.setAttribute('aria-label',t('avatarChange'));renderThemeToggle();syncToggles();}
 function syncToggles(){document.querySelectorAll('[data-toggle-indicator]').forEach(b=>{const enabled=$('#'+b.dataset.toggleIndicator).checked;b.classList.toggle('enabled',enabled);b.setAttribute('aria-pressed',String(enabled));const state=b.querySelector('.indicator-state');if(state)state.textContent=t(enabled?'on':'off');});}
 function menu(open){document.body.classList.toggle('menu-open',open);shade.hidden=!open;$('#portal-menu').setAttribute('aria-expanded',String(open));if(open)sidebar.querySelector('a[data-route]').focus();}
 function setPopover(panel,button,open){panel.hidden=!open;panel.setAttribute('aria-hidden',String(!open));button.setAttribute('aria-expanded',String(open));}
 function closePopovers(){setPopover(popover,$('#profile-toggle'),false);setPopover(feedPopover,$('#feed-toggle'),false);}
+let avatarObjectUrl=null;
+function showAvatar(blob){
+  if(avatarObjectUrl)URL.revokeObjectURL(avatarObjectUrl);
+  avatarObjectUrl=blob?URL.createObjectURL(blob):null;
+  for(const id of ['header-avatar','popover-avatar']){
+    const img=$('#'+id),fallback=img.previousElementSibling;
+    img.hidden=!avatarObjectUrl;
+    if(avatarObjectUrl)img.src=avatarObjectUrl;else img.removeAttribute('src');
+    fallback.hidden=!!avatarObjectUrl;
+  }
+}
+async function loadAvatar(){
+  const id=window.BLH_AUTH?.user?.id;
+  if(!id){showAvatar(null);return}
+  try{
+    const response=await fetch('/api?route=profile/avatar',{credentials:'same-origin',cache:'no-store'});
+    if(id!==window.BLH_AUTH?.user?.id)return;
+    showAvatar(response.ok?await response.blob():null);
+  }catch{if(id===window.BLH_AUTH?.user?.id)showAvatar(null)}
+}
+async function avatarJpeg(file){
+  const bitmap=await createImageBitmap(file),size=512;
+  try{
+    const canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+    const ctx=canvas.getContext('2d'),scale=Math.max(size/bitmap.width,size/bitmap.height);
+    const width=bitmap.width*scale,height=bitmap.height*scale;
+    ctx.drawImage(bitmap,(size-width)/2,(size-height)/2,width,height);
+    return await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.82));
+  }finally{bitmap.close()}
+}
+avatarInput.onchange=async()=>{
+  const file=avatarInput.files?.[0];avatarInput.value='';
+  if(!file)return;
+  const status=$('#profile-photo-status'),id=window.BLH_AUTH?.user?.id;
+  if(!id)return;
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10*1024*1024){status.textContent=t('avatarInvalid');return}
+  const buttons=[$('#profile-avatar-edit'),$('#profile-photo-action')];
+  buttons.forEach(button=>button.disabled=true);status.textContent=t('avatarSaving');
+  try{
+    const blob=await avatarJpeg(file);
+    if(!blob||blob.size>1024*1024)throw new Error('invalid image');
+    const response=await fetch('/api?route=profile/avatar',{method:'PUT',headers:{'content-type':'image/jpeg'},body:blob,credentials:'same-origin'});
+    if(!response.ok)throw new Error('upload failed');
+    if(id===window.BLH_AUTH?.user?.id){showAvatar(blob);status.textContent=t('avatarSaved')}
+  }catch{if(id===window.BLH_AUTH?.user?.id)status.textContent=t('avatarError')}
+  finally{buttons.forEach(button=>button.disabled=false)}
+};
+$('#profile-avatar-edit').onclick=$('#profile-photo-action').onclick=()=>avatarInput.click();
+document.addEventListener('blh-authenticated',loadAvatar);
+document.addEventListener('blh-session-expired',()=>showAvatar(null));
+if(window.BLH_AUTH?.authenticated)loadAvatar();
 function renderProfile(){const account=window.BLH_AUTH?.user||{};$('#portal-name').textContent=account.name||$('#user-name')?.textContent||'PIPVORIA';$('#portal-email').textContent=account.email||t('private');}
 function renderFeed(){const statusNode=$('#feed-status'),updateNode=$('#feed-update');const statusText=statusNode?.textContent?.trim();const updateText=updateNode?.textContent?.trim();$('#portal-feed-status').textContent=statusText||t('feed');$('#portal-feed').textContent=updateText||t('noData');feedPopover.classList.toggle('feed-offline',!statusText||/FAIL|INDISPONIBLE|UNAVAILABLE/i.test(statusText));}
 function route(){const key=location.hash.slice(1);currentRoute=Object.hasOwn(pages,key)?key:'signals';signals.hidden=currentRoute!=='signals';for(const [k,p] of Object.entries(pages))p.hidden=k!==currentRoute;if(currentRoute==='news')renderNews();if(currentRoute==='history')renderHistory();if(currentRoute==='performance'||currentRoute==='weekly')renderPerformance(currentRoute==='weekly');document.querySelectorAll('[data-route]').forEach(a=>{const active=a.dataset.route===currentRoute;a.classList.toggle('selected',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});menu(false);closePopovers();translate();if(currentRoute==='signals')requestAnimationFrame(()=>renderIndicator());window.scrollTo({top:0,behavior:'instant'});}
@@ -112,7 +171,7 @@ $('#portal-menu').onclick=()=>menu(!document.body.classList.contains('menu-open'
 $('#profile-toggle').onclick=event=>{event.stopPropagation();const show=popover.hidden;closePopovers();if(show){renderProfile();setPopover(popover,$('#profile-toggle'),true)}};
 $('#feed-toggle').onclick=event=>{event.stopPropagation();const show=feedPopover.hidden;closePopovers();if(show){renderFeed();setPopover(feedPopover,$('#feed-toggle'),true)}};
 document.querySelectorAll('.popover-close').forEach(button=>button.onclick=closePopovers);
-$('#portal-logout').onclick=()=>{closePopovers();if(window.BLH_AUTH?.logout)window.BLH_AUTH.logout();else $('#logout')?.click()};
+$('#portal-logout').onclick=()=>{showAvatar(null);closePopovers();if(window.BLH_AUTH?.logout)window.BLH_AUTH.logout();else $('#logout')?.click()};
 document.addEventListener('click',e=>{if(!e.target.closest('.portal-popover,.header-actions'))closePopovers();const toggle=e.target.closest('[data-toggle-indicator]');if(toggle){const input=$('#'+toggle.dataset.toggleIndicator);input.checked=!input.checked;input.dispatchEvent(new Event('input',{bubbles:true}));syncToggles()}const p=e.target.closest('[data-period]');if(p){period=p.dataset.period;renderPerformance();translate()}const palette=e.target.closest('[data-palette]');if(palette){setPalette(palette.dataset.palette);try{localStorage.setItem('blh-palette',palette.dataset.palette)}catch{}}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){menu(false);closePopovers()}if(e.key==='Tab'&&document.body.classList.contains('menu-open')){const nodes=[...sidebar.querySelectorAll('a,button')],first=nodes[0],last=nodes.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}});
 const indicatorForm=$('#indicator-controls'),indicatorKeys=['structure','smart','blh','pa','heat'];

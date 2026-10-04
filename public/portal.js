@@ -84,7 +84,7 @@ const link=create('a','quiet-link');link.href=event[3];link.target='_blank';link
 const caution=create('p','news-caution');caution.textContent=t('newsDisclaimer');pages.news.append(caution);
 }
 const bottom=create('nav','portal-bottom', ['signals','history','performance'].map(navLink).join(''));
-const popover=create('section','portal-popover profile-popover',`<div class="popover-heading"><span class="popover-kicker" data-copy="profile"></span><button class="popover-close icon-button" type="button" aria-label="">${icon('close')}</button></div><div class="profile-intro"><button type="button" class="profile-avatar-edit" id="profile-avatar-edit" aria-label=""><span class="profile-avatar">${icon('profile')}<img id="popover-avatar" alt="" hidden></span></button><div><strong id="portal-name" data-portal-only>PIPVORIA</strong><small id="portal-email" data-portal-only></small></div></div><div class="popover-actions"><a href="#settings" class="profile-settings">${icon('settings')}${label('settings')}</a><p id="profile-photo-status" role="status" aria-live="polite"></p><button type="button" id="portal-logout">${icon('logout')}${label('logout')}</button></div>`);popover.id='profile-popover';popover.hidden=true;popover.setAttribute('aria-hidden','true');
+const popover=create('section','portal-popover profile-popover',`<div class="popover-heading"><span class="popover-kicker" data-copy="profile"></span><button class="popover-close icon-button" type="button" aria-label="">${icon('close')}</button></div><div class="profile-intro"><button type="button" class="profile-avatar-edit" id="profile-avatar-edit" aria-label=""><span class="profile-avatar">${icon('profile')}<img id="popover-avatar" alt="" hidden></span></button><div><strong id="portal-name" data-portal-only>PIPVORIA</strong><small id="portal-email" data-portal-only></small></div></div><div class="popover-actions"><button type="button" class="profile-photo-action" id="profile-photo-action">${label('avatarChange')}</button><a href="#settings" class="profile-settings">${icon('settings')}${label('settings')}</a><p id="profile-photo-status" role="status" aria-live="polite"></p><button type="button" id="portal-logout">${icon('logout')}${label('logout')}</button></div>`);popover.id='profile-popover';popover.hidden=true;popover.setAttribute('aria-hidden','true');
 const feedPopover=create('section','portal-popover feed-popover',`<div class="popover-heading"><div><span class="popover-kicker" data-copy="feed"></span><h3 data-copy="feed"></h3></div><button class="popover-close icon-button" type="button" aria-label="">${icon('close')}</button></div><div class="feed-state"><span class="feed-live-dot" aria-hidden="true"></span><div><strong id="portal-feed-status" data-portal-only></strong><p id="portal-feed" data-portal-only></p></div></div>`);feedPopover.id='feed-popover';feedPopover.hidden=true;feedPopover.setAttribute('aria-hidden','true');
 document.body.prepend(header,sidebar,shade,content,bottom,popover,feedPopover);
 const avatarInput=document.createElement('input');avatarInput.type='file';avatarInput.accept='image/jpeg,image/png,image/webp';avatarInput.hidden=true;avatarInput.setAttribute('aria-label',t('avatarChange'));document.body.append(avatarInput);
@@ -155,7 +155,7 @@ avatarInput.onchange=async()=>{
   const status=$('#profile-photo-status'),id=window.BLH_AUTH?.user?.id;
   if(!id)return;
   if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10*1024*1024){status.textContent=t('avatarInvalid');return}
-  const buttons=[$('#profile-avatar-edit')];
+  const buttons=[$('#profile-avatar-edit'),$('#profile-photo-action')];
   buttons.forEach(button=>button.disabled=true);status.textContent=t('avatarSaving');
   try{
     const blob=await avatarJpeg(file);
@@ -168,7 +168,7 @@ avatarInput.onchange=async()=>{
   }catch{if(id===window.BLH_AUTH?.user?.id)status.textContent=t('avatarError')}
   finally{buttons.forEach(button=>button.disabled=false)}
 };
-$('#profile-avatar-edit').onclick=()=>avatarInput.click();
+$('#profile-avatar-edit').onclick=$('#profile-photo-action').onclick=()=>avatarInput.click();
 document.addEventListener('blh-authenticated',loadAvatar);
 document.addEventListener('blh-session-expired',()=>showAvatar(null));
 if(window.BLH_AUTH?.authenticated)loadAvatar();

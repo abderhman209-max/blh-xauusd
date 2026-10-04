@@ -612,7 +612,14 @@ async function profileAvatar(request) {
   const path = `object/${AVATAR_BUCKET}/${session.user.id}/avatar.jpg`;
   if (request.method === "GET") {
     const response = await avatarStorage(path.replace("object/", "object/authenticated/"), session.accessToken);
-    if (response.status === 404) return new Response(null, { status: 404, headers: { "cache-control": "private, no-store" } });
+    if (response.status === 400 || response.status === 404) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 404 || error.code === "NoSuchKey" || error.error === "not_found") {
+        const headers = session.refreshed ? sessionHeaders(session.refreshed) : new Headers();
+        headers.set("cache-control", "private, no-store");
+        return new Response(null, { status: 404, headers });
+      }
+    }
     if (!response.ok) return json({ error: "avatar_unavailable" }, 503);
     const headers = session.refreshed ? sessionHeaders(session.refreshed) : new Headers();
     headers.set("content-type", "image/jpeg");

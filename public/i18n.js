@@ -131,6 +131,8 @@ function translateText(source){
 }
 function translateNode(node){
  const element=node.nodeType===1?node:node.parentElement;
+ // Localized labels must never change the values consumed by the strategy.
+ if(element?.tagName==='OPTION'&&!element.hasAttribute('value'))element.setAttribute('value',element.textContent);
  if(element?.closest('script,style,.language-picker,#user-name,[data-copy],[data-portal-only]'))return;
  if(node.nodeType===3){
   let state=original.get(node);

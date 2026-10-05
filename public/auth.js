@@ -51,7 +51,7 @@
   futureStyles.href = "future.css?v=20261005-profile";
   document.head.append(futureStyles);
   const marketFx = document.createElement("script");
-  marketFx.src = "market-fx.js";
+  marketFx.src = "market-fx.js?v=20261005-workspace";
   marketFx.defer = true;
   document.head.append(marketFx);
   const languages = { fr: "Français", en: "English", es: "Español", ar: "العربية" };
@@ -220,7 +220,20 @@
     user = null; window.BLH_AUTH.user = null; window.BLH_AUTH.authenticated = false;
     document.body.classList.add("auth-locked"); gate.hidden = false; if (!motionPreference?.matches) promoVideo.play().catch(() => {}); mode = "signin"; renderMode();
   }
-  async function logout(){ await request("auth/sign-out", { method:"POST", body:"{}" }).catch(()=>{}); lock(); }
+  const logoutKey='pipvoria-logout-pending';
+  const logoutCopy={fr:['La déconnexion n’est pas confirmée. L’accès reste bloqué. Réessayez.','Réessayer la déconnexion'],en:['Sign-out is not confirmed. Access remains locked. Try again.','Retry sign-out'],es:['No se ha confirmado la desconexión. El acceso sigue bloqueado.','Reintentar desconexión'],ar:['لم يتم تأكيد تسجيل الخروج. يظل الوصول محظوراً. أعد المحاولة.','إعادة محاولة تسجيل الخروج']};
+  const logoutRetry=document.createElement('button');logoutRetry.type='button';logoutRetry.id='logout-retry';logoutRetry.className='auth-primary';logoutRetry.hidden=true;status.after(logoutRetry);
+  function pendingLogout(){try{return localStorage.getItem(logoutKey)==='1'}catch{return window.__pipvoriaLogoutPending===true}}
+  function markLogout(pending){window.__pipvoriaLogoutPending=pending;try{if(pending)localStorage.setItem(logoutKey,'1');else localStorage.removeItem(logoutKey)}catch{}}
+  async function logout(){
+    markLogout(true);lock();document.dispatchEvent(new Event('blh-session-expired'));logoutRetry.disabled=true;logoutRetry.hidden=false;
+    const messages=logoutCopy[language]||logoutCopy.en;logoutRetry.textContent=messages[1];
+    try{const {response,result}=await request('auth/sign-out',{method:'POST',body:'{}'});if(!response.ok||result.signedOut!==true)throw Error('signout_unconfirmed');markLogout(false);logoutRetry.hidden=true;setStatus('');return true;}
+    catch{setStatus(messages[0]);logoutRetry.disabled=false;return false;}
+  }
+  logoutRetry.onclick=logout;
+  gate.addEventListener('submit',event=>{if(pendingLogout()){event.preventDefault();event.stopImmediatePropagation();setStatus((logoutCopy[language]||logoutCopy.en)[0]);}},true);
+
   window.BLH_AUTH = { authenticated:false, user:null, logout };
   document.addEventListener("blh-session-expired", lock);
 
@@ -303,5 +316,5 @@
     try{const {response,result}=await request("auth/session",{method:"GET",headers:{}});if(response.ok){unlock(result.user);return}}catch{}
     lock();
   }
-  bootstrap();
+  if(pendingLogout()){applyLanguage();logout();}else bootstrap();
 })();

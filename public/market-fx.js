@@ -150,7 +150,7 @@
 
   function restart() {
     cancelAnimationFrame(frame);
-    running = !document.hidden;
+    running = !document.hidden && document.body.classList.contains('auth-locked');
     if (running) frame = requestAnimationFrame(render);
   }
 
@@ -159,8 +159,10 @@
   document.addEventListener("visibilitychange", restart);
   reducedMotion.addEventListener?.("change", restart);
   addEventListener("pointermove", (event) => {
+    if(!running)return;
     document.documentElement.style.setProperty("--pointer-x", `${(event.clientX / Math.max(width, 1)) * 100}%`);
     document.documentElement.style.setProperty("--pointer-y", `${(event.clientY / Math.max(height, 1)) * 100}%`);
   }, { passive: true });
-  frame = requestAnimationFrame(render);
+  new MutationObserver(restart).observe(document.body,{attributes:true,attributeFilter:['class']});
+  restart();
 })();

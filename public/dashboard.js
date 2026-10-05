@@ -14,6 +14,7 @@
   };
   const t = index => (labels[document.documentElement.lang === 'ary' ? 'ar' : document.documentElement.lang] || labels.fr)[index];
   const format = value => new Intl.NumberFormat(document.documentElement.lang === 'ary' ? 'ar-MA' : document.documentElement.lang, {maximumFractionDigits: 2}).format(value);
+  const lang = () => document.documentElement.lang === 'ary' ? 'ar' : document.documentElement.lang;
   const paths = {
     trade: '<path d="M5 7h14M15 3l4 4-4 4M19 17H5m4-4-4 4 4 4"/>',
     positions: '<rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3h6v2M9 10h6m-6 4h6m-6 4h3"/>',
@@ -76,7 +77,7 @@
   syncMenu();
 
   let snapshot = window.PIPVORIA_WORKSPACE?.getSnapshot() || {journal:[],loaded:false};
-  let goal = null;
+  let goal = null;document.addEventListener('pipvoria-settings-state',()=>{const saved=window.PIPVORIA_SETTINGS?.get().goal;goal=saved||null;$('#dash-target-r').value=goal?.targetR||'';$('#dash-risk-limit').value=goal?.maxRisk||2;refreshAccount()});
   const goalKey = () => 'pipvoria-dashboard-goal:' + (window.BLH_AUTH?.user?.id || 'local');
   function loadGoal() {
     goal = null;
@@ -105,10 +106,9 @@
     $('#dash-net-result').classList.toggle('dash-negative',net < 0);
     renderPositions();
   }
-  function renderPositions() {
-    const rows = (snapshot.journal || []).filter(row => row.kind === 'trade' && ['active','planned'].includes(row.status));
-    const heading = `<div class="page-title"><h1>${esc(t(4))}</h1><p>${esc(t(27))}</p></div>`;
-    positionList.innerHTML = heading + (rows.length ? `<div class="dash-position-grid">${rows.map(row => `<article class="surface dash-position-card"><header><strong>${esc(row.symbol)}</strong><span class="dash-side ${row.direction === 'sell' ? 'sell' : 'buy'}">${esc(String(row.direction || '').toUpperCase())}</span></header><small>${esc(String(row.interval || '').replace('min','m'))} · ${esc(row.status === 'active' ? t(10) : t(15))}</small><div><span>Entry <b>${Number.isFinite(row.entry) ? esc(format(row.entry)) : '—'}</b></span><span>SL <b>${Number.isFinite(row.stopLoss) ? esc(format(row.stopLoss)) : '—'}</b></span><span>TP1 <b>${Number.isFinite(row.takeProfits?.[0]) ? esc(format(row.takeProfits[0])) : '—'}</b></span></div><a href="#history">${esc(t(28))} ↗</a></article>`).join('')}</div>` : `<article class="surface dash-position-empty"><h2>${esc(t(26))}</h2><a href="#history">${esc(t(28))} ↗</a></article>`);
+  const positionFilter={market:'all',status:'all',strategy:'all'};
+  positionList.addEventListener('change',event=>{if(event.target.dataset.positionFilter){positionFilter[event.target.dataset.positionFilter]=event.target.value;renderPositions()}});
+  function renderPositions(){const all=(snapshot.journal||[]).filter(r=>r.kind==='trade'&&['active','planned'].includes(r.status)),rows=all.filter(r=>Object.entries(positionFilter).every(([k,v])=>v==='all'||r[k==='market'?'symbol':k]===v));const values={market:['XAU/USD','BTC/USD'],status:['active','planned'],strategy:[...new Set(all.map(r=>r.strategy).filter(Boolean))]};positionList.innerHTML=`<div class="page-title"><h1>${esc(t(4))}</h1><p>${esc(t(27))}</p></div><div class="journal-controls">${Object.entries(values).map(([key,options])=>`<select data-position-filter="${key}" aria-label="${key}"><option value="all">${esc(key)} · *</option>${options.map(v=>`<option value="${esc(v)}" ${v===positionFilter[key]?'selected':''}>${esc(v)}</option>`).join('')}</select>`).join('')}</div>${rows.length?`<div class="dash-position-grid">${rows.map(row=>`<article class="surface dash-position-card"><header><strong>${esc(row.symbol)}</strong><span class="dash-side ${row.direction==='sell'?'sell':'buy'}">${esc(String(row.direction||'').toUpperCase())}</span></header><small>${esc(row.interval)} · ${esc(row.strategy||'—')} · ${esc(row.status)} · ${esc(new Date(row.createdAt).toLocaleString(lang(),{timeZone:window.PIPVORIA_SETTINGS?.get().timezone||'UTC'}))}</small><div>${[['ENTRY',row.entry],['SL',row.stopLoss],...[0,1,2].map(i=>['TP'+(i+1),row.takeProfits?.[i]])].map(([label,value])=>`<span>${label} <b>${window.PIPVORIA_CORE.numeric(value)?esc(format(value)):'—'}</b></span>`).join('')}</div><small>${esc(t(33))}: ${row.riskPercent??'—'}% · ${esc(t(11))}: ${(row.targetHits||[]).filter(Boolean).length}/3</small><a href="#history">${esc(t(28))} ↗</a></article>`).join('')}</div>`:`<article class="surface dash-position-empty"><h2>${esc(t(26))}</h2><a href="#history">${esc(t(28))} ↗</a></article>`}`;
   }
   function translate() {
     document.querySelectorAll('[data-dash-label]').forEach(el => { el.textContent = t(Number(el.dataset.dashLabel)); });
@@ -127,7 +127,7 @@
   $('#dash-goal-form').addEventListener('submit', event => {
     event.preventDefault(); const targetR = Number($('#dash-target-r').value), maxRisk = Number($('#dash-risk-limit').value);
     if (!Number.isFinite(targetR) || targetR <= 0 || !Number.isFinite(maxRisk) || maxRisk <= 0 || maxRisk > 100) return;
-    goal = {targetR,maxRisk}; try { localStorage.setItem(goalKey(),JSON.stringify(goal)); } catch {}
+    goal = {targetR,maxRisk}; window.PIPVORIA_SETTINGS?.update({goal}); try { localStorage.setItem(goalKey(),JSON.stringify(goal)); } catch {}
     $('.dash-goal-settings').open = false; refreshAccount();
   });
   document.addEventListener('pipvoria-workspace-state', event => { snapshot = event.detail; refreshAccount(); });

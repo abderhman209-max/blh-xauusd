@@ -16,6 +16,11 @@ germanUI();
 let viewCount=80,viewOffset=0,chartScale=null,lineMode=false,manualLevels={},drag=null,viewInitialized=false;
 let priceView=null,trendMode=false,trendStart=null,trendLines={};
 let lastWorkspaceStateKey='';
+const feedMeta={receivedAt:0,error:true};
+const modelMemo=new Map();
+function analyzeCached(name,options,run){const controls=JSON.stringify([...document.querySelectorAll('#indicator-controls input,#indicator-controls select')].map(n=>[n.id,n.type==='checkbox'?n.checked:n.value]));const key=JSON.stringify([selectedSymbol,selectedInterval,options,controls,window.PIPVORIA_SETTINGS?.get().confirmedOnly]);const cached=modelMemo.get(name);if(cached?.bars===sourceBars&&cached.key===key)return cached.value;const value=run();modelMemo.set(name,{bars:sourceBars,key,value});return value;}
+function resetWorkspaceState(){window.PIPVORIA_CHART_STATE={symbol:selectedSymbol,interval:selectedInterval,source:marketSources[selectedSymbol],signal:null,price:null,stale:true,receivedAt:0};document.dispatchEvent(new CustomEvent('pipvoria-chart-state',{detail:window.PIPVORIA_CHART_STATE}));}
+
 try{const saved=JSON.parse(localStorage.getItem('blh-drawings')||'{}');manualLevels=saved.levels||{};trendLines=saved.trends||{}}catch{}
 const drawingKey=()=>selectedSymbol+'|'+selectedInterval;
 function saveDrawings(){try{localStorage.setItem('blh-drawings',JSON.stringify({levels:manualLevels,trends:trendLines}))}catch{document.querySelector('#tool-status').textContent='Speicher nicht verfügbar: Zeichnungen bleiben für diese Sitzung erhalten.'}}
@@ -25,10 +30,10 @@ function publishWorkspaceState(smart,blh,bars){
  const useBlh=!!blhPlan&&(!smartPlan||blhPlan.index>=smartPlan.index);
  const plan=useBlh?blhPlan:smartPlan,latestSignal=useBlh?blh?.signals?.at(-1):smart?.signals?.at(-1);
  const signalTime=plan?(latestSignal?.time||plan.time||bars[plan.index]?.time||null):null;
- const engine=useBlh?'blh':'planner';
- const state={symbol:selectedSymbol,interval:selectedInterval,source:marketSources[selectedSymbol],price:last?.close??null,updatedAt:Date.now(),stats:smart?.stats||null,signal:plan?{key:[selectedSymbol,selectedInterval,engine,signalTime||plan.index,plan.direction].join('|'),engine,direction:plan.direction===1?'buy':'sell',status:useBlh?(plan.index>=bars.length-2?'active':'historical'):smart?.active&&smart.active.index===plan.index?'active':'historical',time:signalTime,entry:plan.entry,stopLoss:plan.stop,takeProfits:plan.tps.slice(0,3),riskReward:Math.abs((plan.tps.at(-1)-plan.entry)/(plan.entry-plan.stop))}:null};
+ const engine=useBlh?'blh':'planner',finished=!useBlh&&plan?smart?.trades?.find(t=>t.index===plan.index):null;
+ const initialRisk=useBlh?Math.abs(plan?.entry-plan?.stop):smart?.active?.initialRisk||finished?.initialRisk||Math.abs(plan?.entry-plan?.stop);const live=sourceBars.at(-1)||last,duration=PIPVORIA_CORE.intervals[selectedInterval];const state={symbol:selectedSymbol,interval:selectedInterval,source:marketSources[selectedSymbol],price:live?.close??null,bar:live,priority:document.querySelector('#planner-priority')?.value||'Stop first',receivedAt:feedMeta.receivedAt,stale:feedMeta.error||Date.now()-feedMeta.receivedAt>120000,updatedAt:Date.now(),stats:smart?.stats||null,signal:plan?{key:[selectedSymbol,selectedInterval,engine,signalTime||plan.index,plan.direction].join('|'),engine,direction:plan.direction===1?'buy':'sell',status:useBlh?(plan.index>=bars.length-2?'active':'historical'):smart?.active&&smart.active.index===plan.index?'active':'historical',confirmed:!!bars[plan.index]&&bars[plan.index].closed!==false&&bars[plan.index].time+duration<=Date.now(),targetHits:useBlh?[false,false,false]:smart?.active?.index===plan?.index?smart.active.reached:finished?.reached||[false,false,false],exitReason:finished?.reason||null,closedAt:finished?.closedAt||null,time:signalTime,entry:plan.entry,stopLoss:plan.stop,takeProfits:plan.tps.slice(0,3),riskReward:initialRisk>0?Math.abs((plan.tps.at(-1)-plan.entry)/initialRisk):null}:null};
  window.PIPVORIA_CHART_STATE=state;
- const nextKey=JSON.stringify([state.symbol,state.interval,state.price&&Number(state.price).toFixed(2),state.signal?.key,state.signal?.status,state.signal?.stopLoss]);
+ const nextKey=JSON.stringify([state.symbol,state.interval,state.price&&Number(state.price).toFixed(2),state.signal?.key,state.signal?.status,state.signal?.stopLoss,state.signal?.confirmed,state.stale,state.receivedAt,state.bar?.high,state.bar?.low,state.signal?.targetHits,state.signal?.exitReason]);
  if(nextKey!==lastWorkspaceStateKey){lastWorkspaceStateKey=nextKey;document.dispatchEvent(new CustomEvent('pipvoria-chart-state',{detail:state}))}
 }
 function renderIndicator(){
@@ -37,30 +42,30 @@ function renderIndicator(){
  if(document.querySelector('#show-structure').checked&&(!Number.isFinite(rr)||rr<=0)){document.querySelector('#indicator-status').textContent='Das CRV muss größer als null sein.';return}
  const closedBars=sourceBars.filter(b=>b.closed!==false);
  const structureOn=document.querySelector('#show-structure').checked,smartOn=document.querySelector('#show-smart').checked;
- const model=structureOn?StructureEngine.analyze(closedBars,{term,rr,onlyValid}):{setups:[],pivots:[],len:0};
+ const model=structureOn?analyzeCached('structure',{term,rr,onlyValid},()=>StructureEngine.analyze(closedBars,{term,rr,onlyValid})):{setups:[],pivots:[],len:0};
  const number=(id,fallback,min,max=100)=>{const n=Number(document.querySelector(id).value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback};
- const smartBars=sourceBars.slice(0,sourceBars.findIndex(b=>b.partial)>=0?sourceBars.findIndex(b=>b.partial):sourceBars.length);
- const smart=smartOn?SmartEngine.analyze(smartBars,{swing:Math.floor(number('#smart-swing',5,2)),atrLength:Math.floor(number('#smart-atr',14,1)),zone:number('#smart-zone',.5,.1),rr:[1,2,3].map(i=>number('#smart-tp'+i,i,.1))}):{sides:[],signals:[]};
+ const smartBars=sourceBars.filter(b=>!b.partial&&(window.PIPVORIA_SETTINGS?.get().confirmedOnly===false||b.closed!==false&&b.time+PIPVORIA_CORE.intervals[selectedInterval]<=Date.now()));
+ const smart=smartOn?analyzeCached('smart',{},()=>SmartEngine.analyze(smartBars,{swing:Math.floor(number('#smart-swing',5,2)),atrLength:Math.floor(number('#smart-atr',14,1)),zone:number('#smart-zone',.5,.1),rr:[1,2,3].map(i=>number('#smart-tp'+i,i,.1))})):{sides:[],signals:[]};
  const blhOn=document.querySelector('#show-blh-clean')?.checked&&selectedSymbol==='XAU/USD'&&selectedInterval==='5min';
- const blh=blhOn?BlhClean.analyze(smartBars,{
+ const blh=blhOn?analyzeCached('blh',{},()=>BlhClean.analyze(smartBars,{
   swing:Math.floor(number('#blh-swing',4,2,20)),atrLength:Math.floor(number('#blh-atr',14,1,100)),
   emaLength:Math.floor(number('#blh-ema-length',50,1,200)),sweepWindow:Math.floor(number('#blh-sweep',5,1,50)),
   zoneBars:Math.floor(number('#blh-zone',30,1,100)),rr:[1,2,3].map(i=>number('#blh-rr'+i,i,.25,100))
- }):null;
+ })):null;
  const paOn=document.querySelector('#show-pa-liquidity')?.checked;
- const pa=paOn?PALiquidity.analyze(closedBars,{
+ const pa=paOn?analyzeCached('pa',{},()=>PALiquidity.analyze(closedBars,{
   pivotLength:Math.floor(number('#pa-pivot',5,2,50)),atrLength:Math.floor(number('#pa-atr',14,1,100)),
   tolerance:number('#pa-tolerance',.10,.01,1),rr:number('#pa-rr',2,.25,10),
   structure:document.querySelector('#pa-structure').checked,sweeps:document.querySelector('#pa-sweeps').checked,
   equalLevels:document.querySelector('#pa-equal').checked,tradeLevels:document.querySelector('#pa-levels').checked
- }):null;
+ })):null;
  const paColors=paOn?{bull:document.querySelector('#pa-bull').value,bear:document.querySelector('#pa-bear').value,equal:document.querySelector('#pa-color').value}:null;
  publishWorkspaceState(smart,blh,smartBars);
- if(blhOn)notifyBlhClean(blh,smartBars);
+ const demo=document.body.classList.contains('desk-demo'),demoSignal=window.PIPVORIA_CHART_STATE?.signal;
  const heatOn=document.querySelector('#show-heatmap').checked,heatOptions={source:document.querySelector('#heat-source').value};
  for(const input of document.querySelectorAll('[id^="heat-"]')){if(input.type==='checkbox')heatOptions[input.id.slice(5)]=input.checked;else if(input.type==='number'){const v=Number(input.value);heatOptions[input.id.slice(5)]=Number.isFinite(v)?Math.max(Number(input.min),Math.min(Number(input.max),v)):Number(input.defaultValue)}}
  for(const key of ['base','bins','smoothing','extension','lineWidth','profileWidth','deltaWidth'])heatOptions[key]=Math.round(heatOptions[key]);
- const heat=heatOn?HeatmapEngine.analyze(smartBars,heatOptions):null;
+ const heat=heatOn?analyzeCached('heat',heatOptions,()=>HeatmapEngine.analyze(smartBars,heatOptions)):null;
  const heatStatus=document.querySelector('#heat-status');heatStatus.hidden=!heatOn;
  if(heatOn)heatStatus.textContent=heat.error||((heatOptions.dashboard?'Heatmap · '+(heat.contraction?'Kontraktion':'Expansion')+' · '+(heat.slope>0?'Bullisch':'Bärisch')+' · '+heat.length+' Kerzen · Breite '+(heat.sd*6).toFixed(2)+' · ':'')+(!heat.hasVolume?'Nur Regressionskanal.':heat.maxVolume===0?'Keine Aktivität.':volumeMode==='provider'?'Volumen des Datenanbieters.':'Geschätzte Kerzenaktivität, ergänzt durch direkte Live-Ticks.')+' Historische Signale neu berechnet.');
  const W=Math.max(240,svgNode.clientWidth),H=Math.max(260,svgNode.clientHeight),right=82,top=20,bottom=48,pw=W-right;
@@ -70,6 +75,7 @@ function renderIndicator(){
  if(blh){const p=blh.plan,z=blh.zone;if(p&&p.end>=start&&p.index<end)prices.push(p.entry,p.stop,...p.tps);if(z&&z.end>=start&&z.index<end)prices.push(z.top,z.bottom)}
  if(pa?.plan&&pa.plan.index<end)prices.push(pa.plan.entry,pa.plan.stop,pa.plan.target);
  if(heatOn&&!heat.error){for(const index of [Math.max(start,heat.offset),Math.min(end+heat.extension,heat.offset+heat.length+heat.extension-1)]){const center=heat.start+heat.slope*(index-heat.offset);prices.push(center-3*heat.sd,center+3*heat.sd)}}
+ if(demo){prices=shown.flatMap(b=>[b.high,b.low]);if(demoSignal)prices.push(demoSignal.entry,demoSignal.stopLoss,...demoSignal.takeProfits);}
  const low=Math.min(...prices),high=Math.max(...prices),range=Math.max(high-low,1),autoMin=low-range*.12,autoMax=high+range*.14,min=priceView?.min??autoMin,max=priceView?.max??autoMax;
  const x=i=>(i-start+.5)*step,y=p=>top+(max-p)/(max-min)*(H-top-bottom);
  chartScale={W,H,pw,min,max,top,bottom,start,end,step,x,y,space,plotWidth:step*(count+space)};svgNode.setAttribute('viewBox',`0 0 ${W} ${H}`);
@@ -77,29 +83,30 @@ function renderIndicator(){
  for(let j=0;j<9;j++){const p=min+(max-min)*j/8;s+=`<text x="${pw+8}" y="${y(p)+4}" fill="#adadad" font-size="12">${p.toFixed(2)}</text>`}
  s+='<g clip-path="url(#plot-area)">';
  if(document.body.dataset.dashboardLayout==='reference'){for(let j=0;j<=8;j++){const yy=top+j*(H-top-bottom)/8;s+=`<line x1="0" y1="${yy}" x2="${pw}" y2="${yy}" stroke="#27292e" stroke-width=".55"/>`}for(let j=0;j<=12;j++){const xx=j*pw/12;s+=`<line x1="${xx}" y1="${top}" x2="${xx}" y2="${H-bottom}" stroke="#27292e" stroke-width=".55"/>`}}
- if(heatOn&&!heat.error)s+=renderHeatmap(heat,x,y,heatOptions);
- s+=renderSmart(smart,x,y,pw,H-bottom,"shapes");
- if(blh)s+=renderBlhClean(blh,x,y,pw,H-bottom,"shapes");
- if(pa)s+=renderPALiquidity(pa,x,y,pw,'shapes',paColors);
+ if(!demo&&heatOn&&!heat.error)s+=renderHeatmap(heat,x,y,heatOptions);
+ if(!demo)s+=renderSmart(smart,x,y,pw,H-bottom,"shapes");
+ if(!demo&&blh)s+=renderBlhClean(blh,x,y,pw,H-bottom,"shapes");
+ if(!demo&&pa)s+=renderPALiquidity(pa,x,y,pw,'shapes',paColors);
  s+='<g data-indicator="structure">';
- for(const z of model.setups){const c=z.direction===1?'#089981':'#f23645';s+=`<rect x="${x(z.origin.index)}" y="${y(z.top)}" width="${Math.max(2,x(z.end)-x(z.origin.index))}" height="${y(z.bottom)-y(z.top)}" fill="${c}" fill-opacity=".17" stroke="${c}" stroke-width=".65"/><line x1="${x(z.broken.index)}" y1="${y(z.broken.price)}" x2="${x(z.index)}" y2="${y(z.broken.price)}" stroke="${c}" stroke-width=".8" stroke-dasharray="5 3"/><text x="${x((z.broken.index+z.index)/2)}" y="${y(z.broken.price)-6}" fill="${c}" font-size="10">BOS</text>`;
+ for(const z of demo?[]:model.setups){const c=z.direction===1?'#089981':'#f23645';s+=`<rect x="${x(z.origin.index)}" y="${y(z.top)}" width="${Math.max(2,x(z.end)-x(z.origin.index))}" height="${y(z.bottom)-y(z.top)}" fill="${c}" fill-opacity=".17" stroke="${c}" stroke-width=".65"/><line x1="${x(z.broken.index)}" y1="${y(z.broken.price)}" x2="${x(z.index)}" y2="${y(z.broken.price)}" stroke="${c}" stroke-width=".8" stroke-dasharray="5 3"/><text x="${x((z.broken.index+z.index)/2)}" y="${y(z.broken.price)-6}" fill="${c}" font-size="10">BOS</text>`;
  if(z.trade){const t=z.trade,xx=x(t.index),w=Math.max(step,x(t.end)-xx);for(const [a,b,c,label] of [[t.entry,t.sl,'#f23645','SL'],[t.entry,t.tp,'#089981','TP']])s+=`<rect x="${xx}" y="${y(Math.max(a,b))}" width="${w}" height="${Math.abs(y(a)-y(b))}" fill="${c}" fill-opacity=".20" stroke="${c}" stroke-width=".7"/><text x="${xx+3}" y="${y(b)-4}" fill="${c}" font-size="10">${label}</text>`;}
  }
- shown.forEach((b,j)=>{const i=start+j,c=document.body.dataset.dashboardLayout==='reference'?(b.close>=b.open?'#84ed43':'#ffe05b'):b.close>=b.open?(document.body.dataset.palette==='gold'?'#18c7a1':'#089981'):(document.body.dataset.palette==='gold'?'#606771':'#f23645'),w=Math.max(1,step*.55);s+=`<line x1="${x(i)}" y1="${y(b.high)}" x2="${x(i)}" y2="${y(b.low)}" stroke="${c}" stroke-width=".8"/><rect x="${x(i)-w/2}" y="${y(Math.max(b.open,b.close))}" width="${w}" height="${Math.max(1,Math.abs(y(b.open)-y(b.close)))}" fill="${c}"/>`});
- for(const p of model.pivots)if(p.index>=start-1&&p.index<=end+1)s+=`<text x="${x(p.index)-4}" y="${y(p.price)+(p.type==='high'?-7:14)}" fill="${p.type==='high'?'#087f71':'#a32b38'}" font-size="16">×</text>`;
+ shown.forEach((b,j)=>{const i=start+j,c=demo?(b.close>=b.open?'#34d399':'#f87171'):document.body.dataset.dashboardLayout==='reference'?(b.close>=b.open?'#84ed43':'#ffe05b'):b.close>=b.open?(document.body.dataset.palette==='gold'?'#18c7a1':'#089981'):(document.body.dataset.palette==='gold'?'#606771':'#f23645'),w=Math.max(1,step*.55);s+=`<line x1="${x(i)}" y1="${y(b.high)}" x2="${x(i)}" y2="${y(b.low)}" stroke="${c}" stroke-width=".8"/><rect x="${x(i)-w/2}" y="${y(Math.max(b.open,b.close))}" width="${w}" height="${Math.max(1,Math.abs(y(b.open)-y(b.close)))}" fill="${c}"/>`});
+ for(const p of demo?[]:model.pivots)if(p.index>=start-1&&p.index<=end+1)s+=`<text x="${x(p.index)-4}" y="${y(p.price)+(p.type==='high'?-7:14)}" fill="${p.type==='high'?'#087f71':'#a32b38'}" font-size="16">×</text>`;
  s+='</g>';
- s+=renderSmart(smart,x,y,pw,H-bottom,'labels');
- if(blh)s+=renderBlhClean(blh,x,y,pw,H-bottom,'labels');
- if(pa)s+=renderPALiquidity(pa,x,y,pw,'labels',paColors);
+ if(!demo)s+=renderSmart(smart,x,y,pw,H-bottom,'labels');
+ if(!demo&&blh)s+=renderBlhClean(blh,x,y,pw,H-bottom,'labels');
+ if(!demo&&pa)s+=renderPALiquidity(pa,x,y,pw,'labels',paColors);
  const last=sourceBars.at(-1),lastColor=document.body.dataset.dashboardLayout==='reference'?(last.close>=last.open?'#84ed43':'#ffe05b'):document.body.dataset.palette==='gold'?'#18c7a1':last.close>=last.open?'#089981':'#f23645';s+=`<line x1="0" y1="${y(last.close)}" x2="${pw}" y2="${y(last.close)}" stroke="${lastColor}" stroke-dasharray="2 3"/>`;
- for(const p of manualLevels[drawingKey()]||[])s+=`<line x1="0" y1="${y(p)}" x2="${pw}" y2="${y(p)}" stroke="#ff7900" stroke-width="3"/>`;
+ for(const p of demo?[]:manualLevels[drawingKey()]||[])s+=`<line x1="0" y1="${y(p)}" x2="${pw}" y2="${y(p)}" stroke="#ff7900" stroke-width="3"/>`;
  const duration={'1min':60000,'5min':300000,'15min':900000,'30min':1800000,'1h':3600000}[selectedInterval];
 function timeX(t){let k=sourceBars.findIndex(b=>b.time>=t);if(k<0)k=sourceBars.length-1+(t-sourceBars.at(-1).time)/duration;else if(k>0&&sourceBars[k].time!==t)k=k-1+(t-sourceBars[k-1].time)/(sourceBars[k].time-sourceBars[k-1].time);return x(k)}
-for(const t of trendLines[drawingKey()]||[])s+=`<line data-drawing="trend" x1="${timeX(t.a.time)}" y1="${y(t.a.price)}" x2="${timeX(t.b.time)}" y2="${y(t.b.price)}" stroke="#69a8ff" stroke-width="2"/><circle cx="${timeX(t.a.time)}" cy="${y(t.a.price)}" r="3" fill="#69a8ff"/><circle cx="${timeX(t.b.time)}" cy="${y(t.b.price)}" r="3" fill="#69a8ff"/>`;
-if(trendStart)s+=`<circle cx="${timeX(trendStart.time)}" cy="${y(trendStart.price)}" r="5" fill="#69a8ff"/>`;
+for(const t of demo?[]:trendLines[drawingKey()]||[])s+=`<line data-drawing="trend" x1="${timeX(t.a.time)}" y1="${y(t.a.price)}" x2="${timeX(t.b.time)}" y2="${y(t.b.price)}" stroke="#69a8ff" stroke-width="2"/><circle cx="${timeX(t.a.time)}" cy="${y(t.a.price)}" r="3" fill="#69a8ff"/><circle cx="${timeX(t.b.time)}" cy="${y(t.b.price)}" r="3" fill="#69a8ff"/>`;
+if(!demo&&trendStart)s+=`<circle cx="${timeX(trendStart.time)}" cy="${y(trendStart.price)}" r="5" fill="#69a8ff"/>`;
+if(demo&&demoSignal){const levels=[['ENTRY',demoSignal.entry,'#69a8ff'],['SL',demoSignal.stopLoss,'#f87171'],...demoSignal.takeProfits.map((p,i)=>['TP'+(i+1),p,'#34d399'])].sort((a,b)=>y(a[1])-y(b[1]));const from=Math.max(0,sourceBars.findIndex(b=>b.time>=demoSignal.time));let labelY=-100;for(const [label,price,color] of levels){labelY=Math.max(labelY+16,y(price)-5);s+=`<line data-demo-level="${label}" x1="${Math.max(0,x(from))}" x2="${pw}" y1="${y(price)}" y2="${y(price)}" stroke="${color}" stroke-width="1.5"/><text x="${Math.max(8,pw-130)}" y="${labelY}" fill="${color}" font-size="12">${label} ${price.toFixed(2)}</text>`;}}
 s+='</g>';
  function priceTag(p,c){if(y(p)<0||y(p)>H-bottom)return '';return `<rect x="${pw}" y="${y(p)-10}" width="82" height="20" fill="${c}"/><text x="${pw+5}" y="${y(p)+4}" fill="white" font-size="12">${p.toFixed(2)}</text>`}
- for(const p of manualLevels[drawingKey()]||[])s+=priceTag(p,'#e76b00');
+ for(const p of demo?[]:manualLevels[drawingKey()]||[])s+=priceTag(p,'#e76b00');
  if(y(last.close)>=0&&y(last.close)<=H-bottom)s+=`<g><rect x="${pw}" y="${y(last.close)-10}" width="82" height="36" fill="${lastColor}"/><text x="${pw+5}" y="${y(last.close)+4}" fill="${document.body.dataset.palette==='gold'?'#161300':'white'}" font-size="12">${last.close.toFixed(2)}</text><text id="candle-countdown" x="${pw+5}" y="${y(last.close)+19}" fill="${document.body.dataset.palette==='gold'?'#161300':'white'}" font-size="12" aria-label="Verbleibende Kerzenzeit">${candleCountdown()}</text></g>`;
  s+=`<line x1="0" y1="${H-bottom}" x2="${pw}" y2="${H-bottom}" stroke="#2b2e36"/>`;
  const labelEvery=Math.max(1,Math.ceil(70/step));let lastDateX=-100;
@@ -186,7 +193,8 @@ if(trendMode){const c=chartScale,i=Math.max(0,Math.min(sourceBars.length-1,Math.
 svgNode.addEventListener('pointerup',e=>{activePointers.delete(e.pointerId);if(activePointers.size<2)pinch=null;drag=null});svgNode.addEventListener('pointercancel',e=>{activePointers.delete(e.pointerId);pinch=null;drag=null});
 svgNode.addEventListener('pointermove',e=>{if(!chartScale)return;if(activePointers.has(e.pointerId))activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pinch&&activePointers.size>=2){const points=[...activePointers.values()],distance=Math.max(8,Math.hypot(points[1].x-points[0].x,points[1].y-points[0].y));viewCount=pinch.viewCount*pinch.distance/distance;clampZoomState();viewOffset=sourceBars.length-pinch.anchor-(1-pinch.ratio)*viewCount;clampZoomState();renderGesture();return}const {x:xx,y:yy}=chartPoint(e);if(drag){if(drag.kind==='scale'){const center=(drag.min+drag.max)/2,half=(drag.max-drag.min)/2*Math.exp(Math.max(-5,Math.min(5,(yy-drag.y)/200)));priceView=safePriceView(center-half,center+half)}else{viewOffset=drag.offset+(xx-drag.x)/drag.step;clampZoomState();const delta=(yy-drag.y)/drag.height*(drag.max-drag.min);priceView=safePriceView(drag.min+delta,drag.max+delta)}renderGesture();return}const c=chartScale,g=document.querySelector('#crosshair');if(!g)return;g.setAttribute('visibility',xx<c.pw?'visible':'hidden');const line=(id,a)=>{const n=document.querySelector(id);Object.entries(a).forEach(([k,v])=>n.setAttribute(k,v))};line('#cross-x',{x1:xx,x2:xx,y1:0,y2:c.H-c.bottom});line('#cross-y',{x1:0,x2:xx,y1:yy,y2:yy});line('#cross-bg',{x:c.pw,y:yy-10});line('#cross-price',{x:c.pw+5,y:yy+4});document.querySelector('#cross-price').textContent=(c.max-(yy-c.top)/(c.H-c.top-c.bottom)*(c.max-c.min)).toFixed(2);const b=sourceBars[Math.max(c.start,Math.min(sourceBars.length-1,c.end-1,Math.floor(xx/c.step+c.start)))];if(b)setOHLC(b)});
 svgNode.addEventListener('pointerleave',()=>{document.querySelector('#crosshair')?.setAttribute('visibility','hidden');if(sourceBars.length)setOHLC(sourceBars.at(-1))});svgNode.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='=')zoom(.8);else if(e.key==='-')zoom(1.2);else if(e.key==='ArrowLeft'){viewOffset+=15;renderIndicator()}else if(e.key==='ArrowRight'){viewOffset-=15;renderIndicator()}else return;e.preventDefault()});
-new ResizeObserver(()=>renderIndicator()).observe(svgNode);document.querySelector('#indicator-controls').addEventListener('input',()=>{priceView=null;renderIndicator()});
+new ResizeObserver(()=>renderIndicator()).observe(svgNode);document.querySelector('#indicator-controls').addEventListener('submit',event=>event.preventDefault());
+document.querySelector('#indicator-controls').addEventListener('input',()=>{priceView=null;renderIndicator()});
 
 let controller=null,requestId=0,historyBars=[],historyFetchedAt=0,volumeMode='activity-proxy-plus-live-ticks';
 function prepareVolume(bars,mode){
@@ -199,12 +207,12 @@ const id=++requestId,interval=selectedInterval,symbol=selectedSymbol;controller?
 try{
 let data;if(symbol==='BTC/USD'){const bars=await CoinbaseMarket.history(interval,AbortSignal.any([controller.signal,AbortSignal.timeout(25000)]));data={symbol,interval,source:'Coinbase',volumeMode:'provider',fetchedAt:Date.now(),bars}}else{const response=await fetch('/api?route=gold&interval='+encodeURIComponent(interval),{credentials:'same-origin',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(20000)])});if(response.status===401){document.dispatchEvent(new Event('blh-session-expired'));throw Error('Authentification requise')}if(!response.ok)throw Error('Flux indisponible');data=await response.json()}
 if(id!==requestId)return;
-if(data.interval!==interval||!Array.isArray(data.bars)||data.bars.length<41)throw Error('Données invalides');historyBars=data.bars;historyFetchedAt=data.fetchedAt;marketSources[symbol]=data.source||marketSources[symbol];volumeMode=prepareVolume(historyBars,data.volumeMode);sourceBars=GoldLive.merge(historyBars,interval,historyFetchedAt);if(!viewInitialized){viewCount=defaultViewCount();viewInitialized=true}renderIndicator();if(symbol==='XAU/USD')refreshGoldPrice();
+if(data.interval!==interval||!Array.isArray(data.bars)||data.bars.length<41)throw Error('Données invalides');historyBars=data.bars;historyFetchedAt=data.fetchedAt;feedMeta.receivedAt=data.fetchedAt||Date.now();feedMeta.error=false;marketSources[symbol]=data.source||marketSources[symbol];volumeMode=prepareVolume(historyBars,data.volumeMode);sourceBars=GoldLive.merge(historyBars,interval,historyFetchedAt);if(!viewInitialized){viewCount=defaultViewCount();viewInitialized=true}renderIndicator();if(symbol==='XAU/USD')refreshGoldPrice();
 const heading=document.querySelector('.chart-heading strong');heading.firstChild.textContent=marketLabels[symbol]+' ';heading.lastChild.textContent=' · '+marketSources[symbol];document.querySelector('#structure-chart').setAttribute('aria-label',symbol+'-Chart mit Kerzen, BOS, Fibonacci sowie Risiko und Ertrag.');const label=intervalLabels[interval],last=sourceBars.at(-1);document.querySelector('#feed-status').textContent=symbol+' · '+label+' · '+marketSources[symbol].toUpperCase();
 document.querySelector('#feed-update').textContent=(last.closed?'Letzter Schlusskurs ':'Kerze in Bildung ')+label+': '+last.close.toFixed(2)+' USD · Kerze: '+new Date(last.time).toISOString().slice(0,16).replace('T',' ')+' UTC · Heatmap: '+(volumeMode==='provider'?'Volumen des Datenanbieters':'Kerzenaktivität + Live-Ticks')+' · Daten empfangen: '+new Date(data.fetchedAt).toLocaleTimeString('de-DE')+'.';
-}catch{if(id!==requestId)return;document.querySelector('#feed-status').textContent=sourceBars.length?'AKTUALISIERUNG FEHLGESCHLAGEN · VORHERIGE DATEN':'DATEN NICHT VERFÜGBAR';document.querySelector('#chart-empty').textContent='Daten nicht verfügbar';document.querySelector('#feed-update').textContent='Verbindung oder Datenkontingent für '+intervalLabels[interval]+' nicht verfügbar. Keine künstlichen Marktdaten verwendet.';}}
+}catch{if(id!==requestId)return;feedMeta.error=true;if(!sourceBars.length)resetWorkspaceState();else renderIndicator();document.querySelector('#feed-status').textContent=sourceBars.length?'AKTUALISIERUNG FEHLGESCHLAGEN · VORHERIGE DATEN':'DATEN NICHT VERFÜGBAR';document.querySelector('#chart-empty').textContent='Daten nicht verfügbar';document.querySelector('#feed-update').textContent='Verbindung oder Datenkontingent für '+intervalLabels[interval]+' nicht verfügbar. Keine künstlichen Marktdaten verwendet.';}}
 document.querySelectorAll('[data-interval]').forEach(button=>{button.setAttribute('aria-pressed',button.dataset.interval===selectedInterval);button.addEventListener('click',()=>{
-if(button.dataset.interval===selectedInterval)return;selectedInterval=button.dataset.interval;sourceBars=[];historyBars=[];chartScale=null;viewOffset=0;priceView=null;trendStart=null;document.querySelector("#ohlc").textContent="";document.querySelector("#chart-empty").hidden=false;document.querySelector("#chart-empty").textContent="Kerzen werden geladen…";document.querySelector("#chart-period").textContent=intervalLabels[selectedInterval];document.querySelector("#heat-status").hidden=true;
+if(button.dataset.interval===selectedInterval)return;selectedInterval=button.dataset.interval;sourceBars=[];historyBars=[];feedMeta.receivedAt=0;feedMeta.error=true;resetWorkspaceState();chartScale=null;viewOffset=0;priceView=null;trendStart=null;document.querySelector("#ohlc").textContent="";document.querySelector("#chart-empty").hidden=false;document.querySelector("#chart-empty").textContent="Kerzen werden geladen…";document.querySelector("#chart-period").textContent=intervalLabels[selectedInterval];document.querySelector("#heat-status").hidden=true;
 document.querySelectorAll('[data-interval]').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',b===button)});
 document.querySelector('#structure-chart').replaceChildren();document.querySelector('#setup-detail').textContent='';document.querySelector('#indicator-status').textContent='';
 document.querySelector('#feed-status').textContent='LADEN · '+intervalLabels[selectedInterval];document.querySelector('#feed-update').textContent='Kerzen werden abgerufen…';refreshGold();
@@ -231,7 +239,7 @@ async function refreshGoldPrice(){
   const data=await response.json(),price=Number(data.price),receivedAt=Number(data.receivedAt);
   if(selectedSymbol!=='XAU/USD'||!Number.isFinite(price)||!Number.isFinite(receivedAt)||Date.now()-receivedAt>60000)return;
   const tick={price,time:receivedAt,receivedAt};if(!GoldLive.add(tick))return;
-  sourceBars=GoldLive.merge(historyBars,selectedInterval,historyFetchedAt);renderIndicator();
+  feedMeta.receivedAt=GoldLive.last?.receivedAt||Date.now();feedMeta.error=false;sourceBars=GoldLive.merge(historyBars,selectedInterval,historyFetchedAt);renderIndicator();
   document.querySelector('#feed-status').textContent='XAU/USD · '+intervalLabels[selectedInterval]+' · '+data.source.toUpperCase();
   document.querySelector('#feed-update').textContent='Prix actualisé : '+price.toFixed(2)+' USD · Reçu à '+new Date(receivedAt).toLocaleTimeString('fr-FR')+' · Historique synchronisé séparément.';
  }catch{}finally{quotePending=false}
@@ -251,5 +259,5 @@ if(liveFeed)liveFeed.onerror=()=>{if(selectedSymbol==='XAU/USD')document.querySe
 setInterval(()=>{if(liveFeed&&GoldLive.last&&Date.now()-GoldLive.last.receivedAt>30000)document.querySelector('#feed-status').textContent='WARTEN AUF NEUEN PREIS · '+selectedSymbol+' · '+intervalLabels[selectedInterval]},5000);
 
 const indicatorPreferences=[...document.querySelectorAll('#indicator-controls input, #indicator-controls select')];
-try{const saved=JSON.parse(localStorage.getItem('blh-indicators')||'{}');for(const input of indicatorPreferences)if(Object.hasOwn(saved,input.id)){if(input.type==='checkbox')input.checked=saved[input.id]===true;else if(typeof saved[input.id]==='string')input.value=saved[input.id]}}catch{}
+try{const saved=JSON.parse(localStorage.getItem('blh-indicators')||'{}');for(const input of indicatorPreferences)if(Object.hasOwn(saved,input.id)){if(input.type==='checkbox')input.checked=saved[input.id]===true;else if(typeof saved[input.id]==='string'&&(input.tagName!=='SELECT'||[...input.options].some(o=>o.value===saved[input.id])))input.value=saved[input.id]}}catch{}
 document.querySelector('#indicator-controls').addEventListener('input',()=>{try{localStorage.setItem('blh-indicators',JSON.stringify(Object.fromEntries(indicatorPreferences.map(input=>[input.id,input.type==='checkbox'?input.checked:input.value]))))}catch{}renderIndicator()});

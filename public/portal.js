@@ -36,7 +36,9 @@ avatarChange:['Change photo','Foto ändern','Changer la photo','Cambiar foto','�
 avatarSaving:['Saving your photo…','Foto wird gespeichert…','Enregistrement de la photo…','Guardando la foto…','جارٍ حفظ الصورة…','كنحفظ الصورة…'],
 avatarSaved:['Photo saved','Foto gespeichert','Photo enregistrée','Foto guardada','تم حفظ الصورة','تحفظات الصورة'],
 avatarInvalid:['Choose a JPG, PNG or WebP photo under 10 MB.','JPG, PNG oder WebP unter 10 MB wählen.','Choisissez une photo JPG, PNG ou WebP de moins de 10 Mo.','Elige una foto JPG, PNG o WebP de menos de 10 MB.','اختر صورة JPG أو PNG أو WebP أقل من 10 ميغابايت.','اختار صورة JPG ولا PNG ولا WebP أقل من 10 ميغا.'],
-avatarError:['The photo could not be saved. Please try again.','Foto konnte nicht gespeichert werden. Bitte erneut versuchen.','Impossible d’enregistrer la photo. Réessayez.','No se pudo guardar la foto. Inténtalo de nuevo.','تعذر حفظ الصورة. حاول مجددًا.','ما تحفطاتش الصورة. عاود جرّب.']
+avatarError:['The photo could not be saved. Please try again.','Foto konnte nicht gespeichert werden. Bitte erneut versuchen.','Impossible d’enregistrer la photo. Réessayez.','No se pudo guardar la foto. Inténtalo de nuevo.','تعذر حفظ الصورة. حاول مجددًا.','ما تحفطاتش الصورة. عاود جرّب.'],
+profilePhoto:['Profile photo','Profilbild','Photo de profil','Foto de perfil','الصورة الشخصية','تصويرة البروفايل'],
+profilePhotoSub:['Choose a photo for your account. It appears in your private workspace.','Wähle ein Foto für dein Konto. Es erscheint in deinem privaten Workspace.','Choisissez une photo pour votre compte. Elle apparaîtra dans votre espace privé.','Elige una foto para tu cuenta. Aparecerá en tu espacio privado.','اختر صورة لحسابك. ستظهر في مساحتك الخاصة.','اختار تصويرة لحسابك وغادي تبان فالمساحة ديالك.']
 });
 const languageIndex={en:0,de:1,fr:2,es:3,ar:4,ary:5};
 const t=k=>(copy[k]||[k])[languageIndex[document.documentElement.lang]??0];
@@ -104,7 +106,7 @@ function emptyCard(){return `<article class="surface empty-state"><span class="e
 function renderHistory(){const items=records();pages.history.innerHTML=pageTitle('historyTitle','historySub')+(items.length?'<div class="history-list">'+items.map(r=>`<article class="surface history-card"><div class="history-market"><span class="asset-icon">${r.symbol==='XAU/USD'?'Au':'₿'}</span><div><strong>${r.symbol}</strong><small>${date(r.savedAt)}</small></div><span class="period-chip">${r.interval.replace('min','m')}</span></div><div class="history-values"><div>${label('price')}<strong>${number(r.price)} <small>USD</small></strong></div><div>${label('indicators')}<strong>${Array.isArray(r.indicators)?r.indicators.length:0}</strong></div></div><span class="snapshot-label">${label('snapshot')} · ${r.source==='Coinbase'?'Coinbase':'Twelve Data'}</span></article>`).join('')+'</div>':emptyCard())+`<p class="page-note" data-copy="local"></p>`;}
 function filtered(items,range){const now=Date.now(),start=range==='today'?new Date().setHours(0,0,0,0):range==='week'?now-7*86400000:range==='month'?now-30*86400000:0;return items.filter(r=>r.savedAt>=start&&r.savedAt<=now)}
 function renderPerformance(weekly=false){const page=weekly?pages.weekly:pages.performance,range=weekly?'week':period,items=filtered(records(),range);page.innerHTML=pageTitle(weekly?'weekly':'performance','perfSub')+(!weekly?`<article class="surface period-card"><h2 data-copy="period"></h2><div class="period-buttons">${['today','week','month','all'].map(k=>`<button data-period="${k}" aria-pressed="${k===period}" class="${k===period?'selected':''}">${label(k)}</button>`).join('')}</div></article>`:'')+`<div class="stats-grid"><article class="surface stat-card"><h2 data-copy="total"></h2><strong>${items.length}</strong><p>${label(range)}</p></article><article class="surface stat-card"><h2 data-copy="pips"></h2><strong>—</strong><p data-copy="untracked"></p></article></div>`+(weekly?`<article class="surface"><h2 data-copy="weekly"></h2><div class="activity-bars">${Array.from({length:7},(_,i)=>{const day=new Date();day.setHours(0,0,0,0);day.setDate(day.getDate()-6+i);const count=items.filter(r=>r.savedAt>=day.getTime()&&r.savedAt<day.getTime()+86400000).length;return `<div><span>${count}</span><i style="height:${Math.max(3,Math.min(110,count*14))}px"></i><small>${day.toLocaleDateString(document.documentElement.lang==='ary'?'ar-MA':document.documentElement.lang,{weekday:'short'})}</small></div>`}).join('')}</div></article>`:`<article class="surface empty-results"><h2 data-copy="noResults"></h2><p data-copy="resultsSub"></p><a href="#signals" class="gold-button">${label('go')}${icon('arrow')}</a></article>`)+`<p class="page-note" data-copy="local"></p>`;}
-pages.settings.innerHTML=pageTitle('settings','settingsSub')+`<article class="surface settings-row"><div><h2 data-copy="language"></h2></div><div id="portal-language-slot"></div></article><article class="surface"><h2 data-copy="appearance"></h2><div class="appearance-options"><button data-palette="gold"><i class="palette-swatch gold-swatch"></i>${label('gold')}</button><button data-palette="classic"><i class="palette-swatch classic-swatch"></i>${label('classic')}</button></div></article><article class="surface"><h2 data-copy="indicators"></h2><p data-copy="toolsSub"></p><button class="gold-button" id="open-chart-settings">${icon('settings')}${label('indicators')}</button></article>`;
+pages.settings.innerHTML=pageTitle('settings','settingsSub')+`<article class="surface settings-photo"><h2 data-copy="profilePhoto"></h2><div class="settings-photo-main"><span class="settings-photo-preview">${icon('profile')}<img id="settings-avatar" alt="" hidden></span><div><p data-copy="profilePhotoSub"></p><button type="button" class="profile-photo-action" id="settings-photo-action">${label('avatarChange')}</button></div></div><p id="settings-photo-status" role="status" aria-live="polite"></p></article><article class="surface settings-row"><div><h2 data-copy="language"></h2></div><div id="portal-language-slot"></div></article><article class="surface"><h2 data-copy="appearance"></h2><div class="appearance-options"><button data-palette="gold"><i class="palette-swatch gold-swatch"></i>${label('gold')}</button><button data-palette="classic"><i class="palette-swatch classic-swatch"></i>${label('classic')}</button></div></article><article class="surface"><h2 data-copy="indicators"></h2><p data-copy="toolsSub"></p><button class="gold-button" id="open-chart-settings">${icon('settings')}${label('indicators')}</button></article>`;
 $('#portal-language-slot').append(languagePicker);
 pages.support.innerHTML=pageTitle('support','helpSub')+['Chart','Data','Signals'].map(k=>`<details class="surface help-item"><summary data-copy="help${k}"></summary><p data-copy="help${k}Body"></p></details>`).join('');
 pages.access.innerHTML=pageTitle('access','accessSub')+`<article class="surface access-card"><span class="access-emblem">${icon('access')}</span><span class="eyebrow">PIPVORIA</span><h2 data-copy="private"></h2><p data-copy="accessSub"></p><a class="gold-button" href="#signals">${label('go')}${icon('arrow')}</a></article><article class="surface access-features"><h2 data-copy="included"></h2>${['markets','timeframes','indicators','history','language'].map(k=>`<div>${label(k)}<span class="feature-check">✓</span></div>`).join('')}</article>`;
@@ -117,7 +119,7 @@ let avatarObjectUrl=null;
 function showAvatar(blob){
   if(avatarObjectUrl)URL.revokeObjectURL(avatarObjectUrl);
   avatarObjectUrl=blob?URL.createObjectURL(blob):null;
-  for(const id of ['header-avatar','popover-avatar']){
+  for(const id of ['header-avatar','popover-avatar','settings-avatar']){
     const img=$('#'+id),fallback=img.previousElementSibling;
     img.hidden=!avatarObjectUrl;
     if(avatarObjectUrl)img.src=avatarObjectUrl;else img.removeAttribute('src');
@@ -149,14 +151,15 @@ async function avatarJpeg(file){
     return await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.82));
   }finally{bitmap?.close?.();if(objectUrl)URL.revokeObjectURL(objectUrl)}
 }
+function avatarStatus(message){for(const id of ['profile-photo-status','settings-photo-status'])$('#'+id).textContent=message}
 avatarInput.onchange=async()=>{
   const file=avatarInput.files?.[0];avatarInput.value='';
   if(!file)return;
-  const status=$('#profile-photo-status'),id=window.BLH_AUTH?.user?.id;
+  const id=window.BLH_AUTH?.user?.id;
   if(!id)return;
-  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10*1024*1024){status.textContent=t('avatarInvalid');return}
-  const buttons=[$('#profile-avatar-edit'),$('#profile-photo-action')];
-  buttons.forEach(button=>button.disabled=true);status.textContent=t('avatarSaving');
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10*1024*1024){avatarStatus(t('avatarInvalid'));return}
+  const buttons=[$('#profile-avatar-edit'),$('#profile-photo-action'),$('#settings-photo-action')];
+  buttons.forEach(button=>button.disabled=true);avatarStatus(t('avatarSaving'));
   try{
     const blob=await avatarJpeg(file);
     if(!blob||blob.size>1024*1024)throw new Error('invalid image');
@@ -164,11 +167,11 @@ avatarInput.onchange=async()=>{
     if(!response.ok)throw new Error('upload '+response.status);
     const saved=await fetch('/api?route=profile/avatar',{credentials:'same-origin',cache:'no-store'});
     if(!saved.ok)throw new Error('verification '+saved.status);
-    if(id===window.BLH_AUTH?.user?.id){showAvatar(await saved.blob());status.textContent=t('avatarSaved')}
-  }catch{if(id===window.BLH_AUTH?.user?.id)status.textContent=t('avatarError')}
+    if(id===window.BLH_AUTH?.user?.id){showAvatar(await saved.blob());avatarStatus(t('avatarSaved'))}
+  }catch{if(id===window.BLH_AUTH?.user?.id)avatarStatus(t('avatarError'))}
   finally{buttons.forEach(button=>button.disabled=false)}
 };
-$('#profile-avatar-edit').onclick=$('#profile-photo-action').onclick=()=>avatarInput.click();
+$('#profile-avatar-edit').onclick=$('#profile-photo-action').onclick=$('#settings-photo-action').onclick=()=>avatarInput.click();
 document.addEventListener('blh-authenticated',loadAvatar);
 document.addEventListener('blh-session-expired',()=>showAvatar(null));
 if(window.BLH_AUTH?.authenticated)loadAvatar();

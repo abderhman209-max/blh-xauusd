@@ -9,6 +9,7 @@ const BlhClean = {
     const zoneBars = Math.max(1, Math.floor(options.zoneBars ?? 30));
     const rr = options.rr ?? [1, 2, 3];
     const result = { ema: [], signals: [], structure: null, zone: null, plan: null };
+    if (!PIPVORIA_CORE.validTargets(rr)) return {...result,error:'invalid_targets'};
     if (!bars.length) return result;
     let ema = bars[0].close, atr = 0, lastHigh = null, lastLow = null;
     let bias = 0, lastSsl = -Infinity, lastBsl = -Infinity, previousBuy = false, previousSell = false;

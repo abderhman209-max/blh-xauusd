@@ -284,7 +284,7 @@ async function workspaceData(request) {
   const session = await currentSession(request);
   if (!session) return json({ error: "authentication_required" }, 401);
   const queries = [
-    "analysis_snapshots?select=id,created_at,updated_at,kind,payload&order=created_at.desc&limit=500",
+    "analysis_snapshots?kind=neq.settings&select=id,created_at,updated_at,kind,payload&order=created_at.desc&limit=500",
     "notification_preferences?select=*&limit=1",
     "user_notifications?select=id,created_at,kind,title,body,signal_key,is_read,metadata&order=created_at.desc&limit=50",
   ];
@@ -299,7 +299,7 @@ async function saveJournal(request) {
   if (!session) return json({ error: "authentication_required" }, 401);
   const data = await body(request);
   const payload = journalPayload(data.payload);
-  if (!uuid(data.id) || !payload) return json({ error: "invalid_journal_entry" }, 400);
+  if (!uuid(data.id) || data.id===session.user.id || !payload) return json({ error: "invalid_journal_entry" }, 400);
   const response = await supabaseData("analysis_snapshots?on_conflict=id", session.accessToken, {
     method: "POST",
     headers: { prefer: "resolution=ignore-duplicates,return=representation" },
@@ -323,7 +323,7 @@ async function updateJournal(request, url) {
   const id = url.searchParams.get("id");
   const data = await body(request);
   const payload = journalPayload(data.payload);
-  if (!uuid(id) || !payload) return json({ error: "invalid_journal_entry" }, 400);
+  if (!uuid(id) || id===session.user.id || !payload) return json({ error: "invalid_journal_entry" }, 400);
   const ownerPath = `analysis_snapshots?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(session.user.id)}`;
   if (!data.baseUpdatedAt || !Number.isFinite(Date.parse(data.baseUpdatedAt))) return json({error:"missing_revision"},409);
   const path = ownerPath + '&updated_at=eq.' + encodeURIComponent(data.baseUpdatedAt);
@@ -345,14 +345,32 @@ async function updateJournal(request, url) {
 async function accountSettings(request) {
   const session=await currentSession(request);
   if(!session)return json({error:"authentication_required"},401);
-  if(request.method==='GET')return sessionJson({configured:!!session.user.user_metadata?.pipvoria_settings,settings:globalThis.PIPVORIA_CORE.settings(session.user.user_metadata?.pipvoria_settings)},200,session);
+  // One reserved owner-scoped record in the existing JSON document store.
+  // Postgres checks updated_at in the UPDATE itself; metadata PUT cannot offer CAS.
+  const ownerPath='analysis_snapshots?id=eq.'+encodeURIComponent(session.user.id)+'&user_id=eq.'+encodeURIComponent(session.user.id)+'&kind=eq.settings';
+  const read=async()=>{
+    const r=await supabaseData(ownerPath+'&select=payload,updated_at',session.accessToken);
+    if(!r.ok)throw Error('settings_read_failed');
+    const rows=await r.json(),row=rows[0],legacy=session.user.user_metadata?.pipvoria_settings;
+    return {configured:!!row||!!legacy,settings:globalThis.PIPVORIA_CORE.settings(row?.payload?.settings||legacy),revision:row?.updated_at||null};
+  };
+  if(request.method==='GET')return sessionJson(await read(),200,session);
   const data=await body(request);
   if(!data.settings||typeof data.settings!=='object'||Array.isArray(data.settings))return json({error:"invalid_settings"},400);
   if(JSON.stringify(data.settings).length>48000)return json({error:"settings_too_large"},400);
+  if(!globalThis.PIPVORIA_CORE.settingsTargetsValid(data.settings))return json({error:"invalid_targets"},400);
+  if(!Object.hasOwn(data,'baseRevision')||(data.baseRevision!==null&&!Number.isFinite(Date.parse(data.baseRevision))))return json({error:"missing_revision"},409);
   const settings=globalThis.PIPVORIA_CORE.settings(data.settings);
-  const response=await supabase('/user',{method:'PUT',headers:{authorization:`Bearer ${session.accessToken}`},body:JSON.stringify({data:{pipvoria_settings:settings}})});
+  const updatedAt=new Date(Math.max(Date.now(),(Date.parse(data.baseRevision)||0)+1)).toISOString();
+  const response=await supabaseData(data.baseRevision?ownerPath+'&updated_at=eq.'+encodeURIComponent(data.baseRevision):'analysis_snapshots?on_conflict=id',session.accessToken,{
+    method:data.baseRevision?'PATCH':'POST',
+    headers:{prefer:data.baseRevision?'return=representation':'resolution=ignore-duplicates,return=representation'},
+    body:JSON.stringify(data.baseRevision?{payload:{settings},updated_at:updatedAt}:{id:session.user.id,user_id:session.user.id,kind:'settings',payload:{settings},updated_at:updatedAt})
+  });
   if(!response.ok)return json({error:"settings_save_failed"},400);
-  return sessionJson({settings},200,session);
+  const rows=await response.json();
+  if(!rows.length)return sessionJson({error:'settings_conflict',...await read()},409,session);
+  return sessionJson({settings,revision:rows[0].updated_at},200,session);
 }
 
 async function savePreferences(request) {
@@ -363,11 +381,11 @@ async function savePreferences(request) {
   const quiet = value => typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : null;
   const preferences = {
     user_id: session.user.id,
-    new_signal: boolean("new_signal"),
+    new_signal: data.new_signal === true,
     entry_zone: boolean("entry_zone"),
     target_hit: boolean("target_hit"),
     stop_loss: boolean("stop_loss"),
-    signal_updates: boolean("signal_updates"),
+    signal_updates: data.signal_updates === true,
     browser_notifications: data.browser_notifications === true,
     quiet_start: quiet(data.quiet_start),
     quiet_end: quiet(data.quiet_end),

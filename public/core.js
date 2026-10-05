@@ -5,6 +5,70 @@
   const closedStatuses = ['win','loss','breakeven'];
   const numeric = value => value !== null && value !== '' && value !== undefined && Number.isFinite(Number(value));
   const epoch = value => typeof value === 'number' ? value : Date.parse(value) || null;
+  const targetDefaults = {'smart-tp':[.5,1,1.5],'blh-rr':[1,2,3]};
+  const validTargets = rr => Array.isArray(rr)&&rr.length===3&&rr.every((r,i)=>(typeof r==='number'||typeof r==='string')&&numeric(r)&&Number(r)>0&&(i===0||Number(r)>Number(rr[i-1])));
+  function targetsValid(values={}) {
+    if(!values||typeof values!=='object'||Array.isArray(values))return false;
+    return Object.entries(targetDefaults).every(([prefix,defaults])=>validTargets(defaults.map((v,i)=>values[prefix+(i+1)]??v)));
+  }
+  function settingsTargetsValid(value={}) {
+    if(!value||typeof value!=='object'||value.presets!==undefined&&!Array.isArray(value.presets))return false;
+    return targetsValid(value.indicators)&&Object.values(value.marketProfiles||{}).every(targetsValid)&&(value.presets||[]).every(p=>p&&typeof p==='object'&&targetsValid(p.indicators));
+  }
+  // A field-level diff preserves independent edits when rebasing on a newer remote version.
+  function settingsDiff(base={},next={}) {
+    const patch={};
+    for(const key of new Set([...Object.keys(base),...Object.keys(next)])){
+      if(['__proto__','constructor','prototype'].includes(key))continue;
+      if(JSON.stringify(base[key])===JSON.stringify(next[key]))continue;
+      if(!Object.hasOwn(next,key)){patch[key]=null;continue;}
+      let a=base[key];const b=next[key];
+      if(key==='marketProfiles'&&b){a={...a};for(const market of Object.keys(b))if(!Object.hasOwn(a,market))a[market]=base.indicators||{};}
+      patch[key]=a&&b&&typeof a==='object'&&typeof b==='object'&&!Array.isArray(a)&&!Array.isArray(b)?settingsDiff(a,b):b;
+    }
+    return patch;
+  }
+  function mergeSettings(base={},patch={}) {
+    const out={...base};
+    for(const [key,value] of Object.entries(patch)){
+      if(['__proto__','constructor','prototype'].includes(key))continue;
+      if(value===null){delete out[key];continue;}
+      let current=base[key]&&typeof base[key]==='object'?base[key]:{};
+      if(key==='marketProfiles'){current={...current};for(const market of Object.keys(value||{}))if(!Object.hasOwn(current,market))current[market]=out.indicators||base.indicators||{};}
+      out[key]=value&&typeof value==='object'&&!Array.isArray(value)?mergeSettings(current,value):value;
+    }
+    return out;
+  }
+  function watchSnapshot({symbol,interval,bars,model,blh,previousSignal,source,priority='Stop first',receivedAt=Date.now()}) {
+    const signalFor=(p,engine,outcome=null)=>{if(!p||!bars[p.index])return null;const time=bars[p.index].time;return {key:[symbol,interval,engine,time,p.direction].join('|'),engine,direction:p.direction===1?'buy':'sell',status:outcome?'historical':'active',time,confirmed:bars[p.index].closed!==false&&time+intervals[interval]<=receivedAt,entry:p.entry,stopLoss:p.stop,takeProfits:p.tps,targetHits:outcome?.reached||p.reached||[false,false,false],exitReason:outcome?.reason||null,closedAt:outcome?.closedAt||null};};
+    const transitions=(model.trades||[]).map(p=>signalFor(p,'planner',p)).filter(Boolean);
+    let blhPosition=blh?.plan,blhOutcome=null;
+    if(blhPosition)for(let i=blhPosition.index+1;i<bars.length;i++){
+      const step=advanceTrade(blhPosition,bars[i],{priority});
+      if(step.result){blhOutcome={...step.result,closedAt:bars[i].time};break;}
+      blhPosition=step.position;
+    }
+    if(blhOutcome)transitions.push(signalFor(blh.plan,'blh',blhOutcome));
+    if(previousSignal?.engine==='blh'&&previousSignal.time!==bars[blh?.plan?.index]?.time){
+      const index=bars.findIndex(b=>b.time===previousSignal.time);
+      if(index>=0){let position={index,direction:previousSignal.direction==='buy'?1:-1,entry:previousSignal.entry,stop:previousSignal.stopLoss,tps:previousSignal.takeProfits};const original=position;
+        for(let i=index+1;i<bars.length;i++){const step=advanceTrade(position,bars[i],{priority});if(step.result){transitions.push(signalFor(original,'blh',{...step.result,closedAt:bars[i].time}));break;}position=step.position;}
+      }
+    }
+    const useBlh=blh?.plan&&(!model.sides?.at(-1)||blh.plan.index>=model.sides.at(-1).index);
+    return {symbol,interval,source,receivedAt,price:bars.at(-1)?.close,bar:bars.at(-1),priority,transitions,signal:useBlh?(blhOutcome?null:signalFor(blhPosition,'blh')):signalFor(model.active,'planner')};
+  }
+  function alertGate(windowMs=300000,{now=()=>Date.now(),schedule=(fn,ms)=>setTimeout(fn,ms),clear=id=>clearTimeout(id)}={}) {
+    const updates=new Map();
+    const cancel=key=>{const record=updates.get(key);if(record?.timer)clear(record.timer);updates.delete(key);};
+    return {cancel,reset(){for(const key of updates.keys())cancel(key);},submit(detail,emit){
+      const time=now(),key=detail.key,previous=updates.get(key);
+      for(const [id,record] of updates)if(time-record.time>86400000)cancel(id);
+      if(!previous||time-previous.time>=windowMs){cancel(key);updates.set(key,{time});emit(detail);return;}
+      previous.latest=detail;previous.emit=emit;
+      if(!previous.timer)previous.timer=schedule(()=>{const value=previous.latest;previous.timer=null;previous.time=now();previous.latest=null;previous.emit(value);},windowMs-(time-previous.time));
+    }};
+  }
   function risk(input) {
     const errors = {};
     const limits = {balance:[1,1e12],riskPercent:[.01,100],entry:[.00000001,1e9],stop:[.00000001,1e9],contract:[.00000001,1e9],lotStep:[.00000001,1e7]};
@@ -18,6 +82,7 @@
     return {valid:true,errors:{},balance,riskPercent,distance,riskAmount,positionSize:Number(positionSize.toPrecision(12)),actualRisk:positionSize*distance*Number(input.contract)};
   }
   function advanceTrade(position, bar, {priority='Stop first',trailing=false,atr=0,multiplier=1.5}={}) {
+    if(!validTargets(position.tps?.map(price=>position.direction*(price-position.entry))))throw new RangeError('Targets must increase with distance from entry');
     const p={...position,reached:[...(position.reached||[false,false,false])]};
     const initialRisk=p.initialRisk||Math.abs(p.entry-(p.initialStop??p.stop));
     if(!Number.isFinite(initialRisk)||initialRisk<=0)throw new RangeError('Trade requires a positive initial risk');
@@ -66,16 +131,21 @@
   function settings(value) {
     const v=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
     const entries=Object.entries(v.indicators||{}).filter(([key,val])=>/^(show-|planner-|smart-|blh-|pa-|heat-|term$|rr$|valid$)/.test(key)&&key.length<80&&(typeof val==='boolean'||typeof val==='string'&&val.length<120)).slice(0,150);
+    const clean=Object.fromEntries(entries);
+    for(const [prefix,defaults] of Object.entries(targetDefaults))if(!validTargets(defaults.map((n,i)=>clean[prefix+(i+1)]??n)))defaults.forEach((n,i)=>clean[prefix+(i+1)]=String(n));
     const profiles={};
     for(const [key,profile] of Object.entries(v.marketProfiles||{}).slice(0,10))if(/^(XAU\/USD|BTC\/USD)\|(1min|5min|15min|30min|1h)$/.test(key))profiles[key]=settings({indicators:profile}).indicators;
     const presets=(Array.isArray(v.presets)?v.presets:[]).slice(0,20).filter(p=>p&&typeof p.name==='string').map(p=>({name:p.name.slice(0,50),indicators:settings({indicators:p.indicators}).indicators}));
-    return {version:1,timezone:validTimezone(v.timezone)?v.timezone:'UTC',confirmedOnly:v.confirmedOnly!==false,demo:!!v.demo,risk:{balance:numeric(v.risk?.balance)&&v.risk.balance>=1&&v.risk.balance<=1e12?Number(v.risk.balance):10000,percent:numeric(v.risk?.percent)&&v.risk.percent>=.01&&v.risk.percent<=100?Number(v.risk.percent):1},indicators:Object.fromEntries(entries),marketProfiles:profiles,presets,contract:numeric(v.contract)&&v.contract>0&&v.contract<=1e9?Number(v.contract):100,lotStep:numeric(v.lotStep)&&v.lotStep>0&&v.lotStep<=1e7?Number(v.lotStep):.01,btcContract:numeric(v.btcContract)&&v.btcContract>0?Number(v.btcContract):1,btcLotStep:numeric(v.btcLotStep)&&v.btcLotStep>0?Number(v.btcLotStep):.0001,goal:v.goal&&numeric(v.goal.targetR)&&v.goal.targetR>0&&numeric(v.goal.maxRisk)&&v.goal.maxRisk>0&&v.goal.maxRisk<=100?{targetR:Number(v.goal.targetR),maxRisk:Number(v.goal.maxRisk)}:null};
+    return {version:1,timezone:validTimezone(v.timezone)?v.timezone:'UTC',confirmedOnly:v.confirmedOnly!==false,demo:!!v.demo,risk:{balance:numeric(v.risk?.balance)&&v.risk.balance>=1&&v.risk.balance<=1e12?Number(v.risk.balance):10000,percent:numeric(v.risk?.percent)&&v.risk.percent>=.01&&v.risk.percent<=100?Number(v.risk.percent):1},indicators:clean,marketProfiles:profiles,presets,contract:numeric(v.contract)&&v.contract>0&&v.contract<=1e9?Number(v.contract):100,lotStep:numeric(v.lotStep)&&v.lotStep>0&&v.lotStep<=1e7?Number(v.lotStep):.01,btcContract:numeric(v.btcContract)&&v.btcContract>0?Number(v.btcContract):1,btcLotStep:numeric(v.btcLotStep)&&v.btcLotStep>0?Number(v.btcLotStep):.0001,goal:v.goal&&numeric(v.goal.targetR)&&v.goal.targetR>0&&numeric(v.goal.maxRisk)&&v.goal.maxRisk>0&&v.goal.maxRisk<=100?{targetR:Number(v.goal.targetR),maxRisk:Number(v.goal.maxRisk)}:null};
   }
   function tracker() {
     const markets=new Map();
     return {reset(){markets.clear();},update(snapshot,{confirmedOnly=true,now=Date.now()}={}) {
       const market=snapshot.symbol+'|'+snapshot.interval,signal=snapshot.signal,previous=markets.get(market),events=[];
       const emit=(kind,record)=>{const key=record.signal.key+'|'+kind;if(record.sent.has(key))return;record.sent.add(key);events.push({...record.signal,symbol:snapshot.symbol,interval:snapshot.interval,event:kind,eventKey:key});};
+      const finish=(outcome,record)=>{if(record.done||!outcome.exitReason||confirmedOnly&&!outcome.confirmed)return;record.signal={...outcome};for(let i=0;i<3;i++)if(outcome.targetHits?.[i])emit('tp'+(i+1),record);emit(outcome.exitReason==='tp3'?'tp3':'stop',record);record.done=true;};
+      const outcome=snapshot.transitions?.find(s=>s.key===previous?.signal.key);
+      if(previous&&outcome)finish(outcome,previous);
       if(previous&&(!signal||previous.signal.key!==signal.key)) {if(previous.announced&&!previous.done)emit('cancel',previous);markets.delete(market);}
       if(!signal||!numeric(signal.entry)||!numeric(signal.stopLoss)||!Array.isArray(signal.takeProfits))return events;
       const fresh=now-(signal.time||0)<=intervals[snapshot.interval]*2;
@@ -101,5 +171,5 @@
       return events;
     }};
   }
-  root.PIPVORIA_CORE=Object.freeze({intervals,closedStatuses,numeric,epoch,risk,advanceTrade,dateKey,periodContains,validTimezone,closeTime,summary,mergeRecords,settings,tracker});
+  root.PIPVORIA_CORE=Object.freeze({intervals,closedStatuses,numeric,epoch,risk,advanceTrade,dateKey,periodContains,validTimezone,closeTime,summary,mergeRecords,settings,tracker,validTargets,targetsValid,settingsTargetsValid,settingsDiff,mergeSettings,watchSnapshot,alertGate});
 })(globalThis);

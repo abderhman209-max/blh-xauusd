@@ -50,6 +50,9 @@
     ['signals','trade',3],['positions','positions',4],['news','calendar',5],['history','history',6]
   ].map(([route, glyph, label]) => `<a href="#${route}" data-dash-route="${route}">${icon(glyph)}<span data-dash-label="${label}"></span></a>`).join('') + `<button type="button" id="dash-more" aria-expanded="false" aria-controls="portal-sidebar">${icon('more')}<span data-dash-label="7"></span></button>`);
   main.append(tabs, views, bottom); shell.append(account, main); content.append(shell);
+  const goalPreferences = node('article', 'surface dashboard-goal-preferences');
+  goalPreferences.append(account.querySelector('.dash-goal-settings'));
+  $('#view-settings').append(goalPreferences);
   $('#dash-risk-limit').step = '0.01';
   for (const brand of document.querySelectorAll('.portal-brand')) {
     const wordmark = node('span', 'dash-wordmark', '<svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="m5 5 22 22M12 5l15 15M5 27 27 5M5 20 20 5" stroke="currentColor" stroke-width="1.6"/></svg><span>PIPVORIA</span>'); brand.append(wordmark);
@@ -62,11 +65,9 @@
     const option = document.createElement('option'); option.value = button.dataset.interval; option.textContent = button.textContent; option.selected = button.classList.contains('active'); interval.append(option);
   }
   interval.addEventListener('change', () => { $(`.frames [data-interval="${interval.value}"]`)?.click(); });
-  const indicatorButton = node('button', 'dash-square', icon('grid')); indicatorButton.type = 'button';
-  indicatorButton.onclick = () => $('#indicator-settings')?.click();
   const toolsButton = node('button', 'dash-square', icon('tools')); toolsButton.type = 'button'; toolsButton.setAttribute('aria-pressed','false');
   toolsButton.onclick = () => { const active = document.body.classList.toggle('dashboard-tools-open'); toolsButton.setAttribute('aria-pressed', String(active)); };
-  controls.append(interval, indicatorButton, toolsButton); toolbar?.append(controls);
+  controls.append(interval, toolsButton); toolbar?.append(controls);
   document.querySelectorAll('.frames [data-interval]').forEach(button => button.addEventListener('click', () => { interval.value = button.dataset.interval; }));
   $('#dash-more').onclick = () => $('#portal-menu')?.click();
   const sidebar = $('#portal-sidebar');
@@ -112,7 +113,7 @@
   function translate() {
     document.querySelectorAll('[data-dash-label]').forEach(el => { el.textContent = t(Number(el.dataset.dashLabel)); });
     tabs.setAttribute('aria-label', t(0)); bottom.setAttribute('aria-label', t(7)); interval.setAttribute('aria-label', $('.frames')?.getAttribute('aria-label') || 'Timeframe');
-    indicatorButton.title = t(30); indicatorButton.setAttribute('aria-label',t(30)); toolsButton.title = t(31); toolsButton.setAttribute('aria-label',t(31)); refreshAccount();
+    toolsButton.title = t(31); toolsButton.setAttribute('aria-label',t(31)); refreshAccount();
   }
   function route() {
     const key = location.hash.slice(1) || 'signals';

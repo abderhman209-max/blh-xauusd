@@ -25,21 +25,17 @@
     if (!meta) { meta = document.createElement("meta"); meta.name = name; document.head.append(meta); }
     meta.content = content;
   });
-  const themeMedia = window.matchMedia?.("(prefers-color-scheme: light)");
-  let siteTheme;
-  try { siteTheme = localStorage.getItem("pipvoria-theme"); } catch {}
-  if (!['dark','light'].includes(siteTheme)) siteTheme = themeMedia?.matches ? 'light' : 'dark';
-  function applyTheme(next, persist=true) {
-    siteTheme = next === 'light' ? 'light' : 'dark';
+  const siteTheme = 'dark';
+  function applyTheme(_next, persist=true) {
     document.documentElement.dataset.theme = siteTheme;
     document.documentElement.style.colorScheme = siteTheme;
     const themeMeta = document.head.querySelector('meta[name="theme-color"]');
-    if (themeMeta) themeMeta.content = siteTheme === 'light' ? '#f4f8fc' : '#06152f';
+    if (themeMeta) themeMeta.content = '#06152f';
     if (persist) try { localStorage.setItem("pipvoria-theme", siteTheme); } catch {}
     document.dispatchEvent(new CustomEvent('pipvoria-theme-change', { detail:{ theme:siteTheme } }));
   }
-  window.PIPVORIA_THEME = { get:()=>siteTheme, set:applyTheme, toggle:()=>applyTheme(siteTheme === 'dark' ? 'light' : 'dark') };
-  applyTheme(siteTheme, false);
+  window.PIPVORIA_THEME = { get:()=>siteTheme, set:applyTheme };
+  applyTheme(siteTheme);
   if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
   const originalLogo = document.querySelector(".logo");
   if (originalLogo) {
@@ -52,7 +48,7 @@
   document.head.append(authStyles);
   const futureStyles = document.createElement("link");
   futureStyles.rel = "stylesheet";
-  futureStyles.href = "future.css";
+  futureStyles.href = "future.css?v=20261005-profile";
   document.head.append(futureStyles);
   const marketFx = document.createElement("script");
   marketFx.src = "market-fx.js";
@@ -101,10 +97,6 @@
   authBrand.setAttribute("aria-label", "PIPVORIA");
   authBrand.innerHTML = '<img src="pipvoria-logo.png" alt="PIPVORIA">';
   document.body.append(gate);
-  const authThemeButton = document.createElement('button');
-  authThemeButton.type = 'button';
-  authThemeButton.className = 'auth-theme-toggle';
-  gate.querySelector('.auth-language').before(authThemeButton);
   const status = gate.querySelector("#auth-status");
   const header = gate.querySelector(".auth-card-header");
   const tabs = gate.querySelector(".auth-tabs");
@@ -159,18 +151,9 @@
     gate.querySelectorAll("[data-password-toggle]").forEach(node => node.setAttribute("aria-label", tr("show")));
     passwordRules.querySelectorAll("li b").forEach((node, index) => { node.textContent = passwordRuleCopy[language][index]; });
     confirmError.textContent = tr("mismatch");
-    renderThemeButton();
     syncPromoButton();
     renderMode();
     updateSignupValidation();
-  }
-  function renderThemeButton(){
-    const light = siteTheme === 'light';
-    authThemeButton.innerHTML = light
-      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z"/></svg>'
-      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M19 5l-1.5 1.5m-11 11L5 19"/></svg>';
-    authThemeButton.setAttribute('aria-label', tr(light ? 'darkMode' : 'lightMode'));
-    authThemeButton.title = authThemeButton.getAttribute('aria-label');
   }
   function startSignupCooldown(seconds=60){
     clearInterval(signupCooldownTimer);
@@ -231,18 +214,11 @@
   function unlock(nextUser){
     user = nextUser; window.BLH_AUTH.user = user; window.BLH_AUTH.authenticated = true;
     gate.hidden = true; promoVideo.pause(); document.body.classList.remove("auth-locked");
-    ensureBadge();
     document.dispatchEvent(new CustomEvent("blh-authenticated", { detail:{ user } }));
   }
   function lock(){
     user = null; window.BLH_AUTH.user = null; window.BLH_AUTH.authenticated = false;
     document.body.classList.add("auth-locked"); gate.hidden = false; if (!motionPreference?.matches) promoVideo.play().catch(() => {}); mode = "signin"; renderMode();
-    const badge = document.querySelector(".auth-badge"); if (badge) badge.hidden = true;
-  }
-  function ensureBadge(){
-    let badge = document.querySelector(".auth-badge");
-    if (!badge){ badge=document.createElement("div"); badge.className="auth-badge"; badge.innerHTML='<span id="user-name"></span><button id="logout" type="button"></button>'; document.querySelector(".chart-top")?.append(badge); badge.querySelector("#logout").onclick=logout; }
-    badge.hidden=false; badge.querySelector("#user-name").textContent=user.name; badge.querySelector("#logout").textContent=tr("logout");
   }
   async function logout(){ await request("auth/sign-out", { method:"POST", body:"{}" }).catch(()=>{}); lock(); }
   window.BLH_AUTH = { authenticated:false, user:null, logout };
@@ -254,8 +230,6 @@
     if (appSelect && appSelect.value !== language){ appSelect.value=language; appSelect.dispatchEvent(new Event("change",{bubbles:true})); }
   });
   document.addEventListener("blh-language-change",()=>{ const next=document.documentElement.lang; if(languages[next]&&next!==language){ language=next; languageSelect.value=next; applyLanguage(); } });
-  authThemeButton.addEventListener('click', () => window.PIPVORIA_THEME.toggle());
-  document.addEventListener('pipvoria-theme-change', event => { siteTheme=event.detail.theme; renderThemeButton(); });
   gate.querySelectorAll("[data-mode]").forEach(button=>button.onclick=()=>{mode=button.dataset.mode;renderMode();updateSignupValidation()});
   gate.querySelector("#forgot-password").onclick=()=>{forms.recovery.elements.email.value=forms.signin.elements.email.value;mode="recovery";renderMode();forms.recovery.elements.email.focus()};
   gate.querySelector("[data-back]").onclick=()=>{mode="signin";renderMode()};

@@ -819,8 +819,10 @@ html[data-theme="light"] .logo img {
 
 /* Reliable account and market-status menus */
 .portal-popover {
+  position: fixed;
+  max-height: calc(100dvh - 105px);
+  overflow-y: auto;
   z-index: 60;
-  overflow: visible;
   border-color: rgba(91, 220, 247, .22) !important;
   background: rgba(5, 12, 20, .96) !important;
   backdrop-filter: blur(28px) saturate(1.35);

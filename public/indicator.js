@@ -76,6 +76,7 @@ function renderIndicator(){
  let s=`<defs><clipPath id="plot-area"><rect width="${pw}" height="${H-bottom}"/></clipPath></defs><line x1="${pw}" x2="${pw}" y2="${H}" stroke="#333"/>`;
  for(let j=0;j<9;j++){const p=min+(max-min)*j/8;s+=`<text x="${pw+8}" y="${y(p)+4}" fill="#adadad" font-size="12">${p.toFixed(2)}</text>`}
  s+='<g clip-path="url(#plot-area)">';
+ if(document.body.dataset.dashboardLayout==='reference'){for(let j=0;j<=8;j++){const yy=top+j*(H-top-bottom)/8;s+=`<line x1="0" y1="${yy}" x2="${pw}" y2="${yy}" stroke="#27292e" stroke-width=".55"/>`}for(let j=0;j<=12;j++){const xx=j*pw/12;s+=`<line x1="${xx}" y1="${top}" x2="${xx}" y2="${H-bottom}" stroke="#27292e" stroke-width=".55"/>`}}
  if(heatOn&&!heat.error)s+=renderHeatmap(heat,x,y,heatOptions);
  s+=renderSmart(smart,x,y,pw,H-bottom,"shapes");
  if(blh)s+=renderBlhClean(blh,x,y,pw,H-bottom,"shapes");
@@ -84,13 +85,13 @@ function renderIndicator(){
  for(const z of model.setups){const c=z.direction===1?'#089981':'#f23645';s+=`<rect x="${x(z.origin.index)}" y="${y(z.top)}" width="${Math.max(2,x(z.end)-x(z.origin.index))}" height="${y(z.bottom)-y(z.top)}" fill="${c}" fill-opacity=".17" stroke="${c}" stroke-width=".65"/><line x1="${x(z.broken.index)}" y1="${y(z.broken.price)}" x2="${x(z.index)}" y2="${y(z.broken.price)}" stroke="${c}" stroke-width=".8" stroke-dasharray="5 3"/><text x="${x((z.broken.index+z.index)/2)}" y="${y(z.broken.price)-6}" fill="${c}" font-size="10">BOS</text>`;
  if(z.trade){const t=z.trade,xx=x(t.index),w=Math.max(step,x(t.end)-xx);for(const [a,b,c,label] of [[t.entry,t.sl,'#f23645','SL'],[t.entry,t.tp,'#089981','TP']])s+=`<rect x="${xx}" y="${y(Math.max(a,b))}" width="${w}" height="${Math.abs(y(a)-y(b))}" fill="${c}" fill-opacity=".20" stroke="${c}" stroke-width=".7"/><text x="${xx+3}" y="${y(b)-4}" fill="${c}" font-size="10">${label}</text>`;}
  }
- shown.forEach((b,j)=>{const i=start+j,c=b.close>=b.open?(document.body.dataset.palette==='gold'?'#18c7a1':'#089981'):(document.body.dataset.palette==='gold'?'#606771':'#f23645'),w=Math.max(1,step*.55);s+=`<line x1="${x(i)}" y1="${y(b.high)}" x2="${x(i)}" y2="${y(b.low)}" stroke="${c}" stroke-width=".8"/><rect x="${x(i)-w/2}" y="${y(Math.max(b.open,b.close))}" width="${w}" height="${Math.max(1,Math.abs(y(b.open)-y(b.close)))}" fill="${c}"/>`});
+ shown.forEach((b,j)=>{const i=start+j,c=document.body.dataset.dashboardLayout==='reference'?(b.close>=b.open?'#84ed43':'#ffe05b'):b.close>=b.open?(document.body.dataset.palette==='gold'?'#18c7a1':'#089981'):(document.body.dataset.palette==='gold'?'#606771':'#f23645'),w=Math.max(1,step*.55);s+=`<line x1="${x(i)}" y1="${y(b.high)}" x2="${x(i)}" y2="${y(b.low)}" stroke="${c}" stroke-width=".8"/><rect x="${x(i)-w/2}" y="${y(Math.max(b.open,b.close))}" width="${w}" height="${Math.max(1,Math.abs(y(b.open)-y(b.close)))}" fill="${c}"/>`});
  for(const p of model.pivots)if(p.index>=start-1&&p.index<=end+1)s+=`<text x="${x(p.index)-4}" y="${y(p.price)+(p.type==='high'?-7:14)}" fill="${p.type==='high'?'#087f71':'#a32b38'}" font-size="16">×</text>`;
  s+='</g>';
  s+=renderSmart(smart,x,y,pw,H-bottom,'labels');
  if(blh)s+=renderBlhClean(blh,x,y,pw,H-bottom,'labels');
  if(pa)s+=renderPALiquidity(pa,x,y,pw,'labels',paColors);
- const last=sourceBars.at(-1),lastColor=document.body.dataset.palette==='gold'?'#18c7a1':last.close>=last.open?'#089981':'#f23645';s+=`<line x1="0" y1="${y(last.close)}" x2="${pw}" y2="${y(last.close)}" stroke="${lastColor}" stroke-dasharray="2 3"/>`;
+ const last=sourceBars.at(-1),lastColor=document.body.dataset.dashboardLayout==='reference'?(last.close>=last.open?'#84ed43':'#ffe05b'):document.body.dataset.palette==='gold'?'#18c7a1':last.close>=last.open?'#089981':'#f23645';s+=`<line x1="0" y1="${y(last.close)}" x2="${pw}" y2="${y(last.close)}" stroke="${lastColor}" stroke-dasharray="2 3"/>`;
  for(const p of manualLevels[drawingKey()]||[])s+=`<line x1="0" y1="${y(p)}" x2="${pw}" y2="${y(p)}" stroke="#ff7900" stroke-width="3"/>`;
  const duration={'1min':60000,'5min':300000,'15min':900000,'30min':1800000,'1h':3600000}[selectedInterval];
 function timeX(t){let k=sourceBars.findIndex(b=>b.time>=t);if(k<0)k=sourceBars.length-1+(t-sourceBars.at(-1).time)/duration;else if(k>0&&sourceBars[k].time!==t)k=k-1+(t-sourceBars[k-1].time)/(sourceBars[k].time-sourceBars[k-1].time);return x(k)}

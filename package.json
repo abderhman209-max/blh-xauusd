@@ -7,7 +7,7 @@
     "node": "24.x"
   },
   "scripts": {
-    "check": "node --check api/index.js && node --check public/auth.js && node --check public/indicator.js && node --check public/i18n.js && node --check public/portal.js && node --check public/workspace.js && node --check public/admin.js",
+    "check": "node --check api/index.js && node --check public/auth.js && node --check public/indicator.js && node --check public/i18n.js && node --check public/portal.js && node --check public/workspace.js && node --check public/admin.js && node --check public/dashboard.js",
     "build": "npm run check"
   }
 }

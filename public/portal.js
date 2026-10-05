@@ -115,15 +115,15 @@ function syncToggles(){document.querySelectorAll('[data-toggle-indicator]').forE
 function menu(open){document.body.classList.toggle('menu-open',open);shade.hidden=!open;$('#portal-menu').setAttribute('aria-expanded',String(open));if(open)sidebar.querySelector('a[data-route]').focus();}
 function setPopover(panel,button,open){panel.hidden=!open;panel.setAttribute('aria-hidden',String(!open));button.setAttribute('aria-expanded',String(open));}
 function closePopovers(){setPopover(popover,$('#profile-toggle'),false);setPopover(feedPopover,$('#feed-toggle'),false);}
-let avatarObjectUrl=null;
-function showAvatar(blob){
-  if(avatarObjectUrl)URL.revokeObjectURL(avatarObjectUrl);
-  avatarObjectUrl=blob?URL.createObjectURL(blob):null;
+let avatarVersion=0;
+function showAvatar(available){
+  const avatarUrl=available?'/api?route=profile/avatar&v='+Date.now()+'-'+(++avatarVersion):null;
   for(const id of ['header-avatar','popover-avatar','settings-avatar']){
     const img=$('#'+id),fallback=img.previousElementSibling;
-    img.hidden=!avatarObjectUrl;
-    if(avatarObjectUrl)img.src=avatarObjectUrl;else img.removeAttribute('src');
-    fallback.hidden=!!avatarObjectUrl;
+    img.onerror=()=>{if(avatarUrl&&img.getAttribute('src')===avatarUrl){img.hidden=true;fallback.hidden=false}};
+    img.hidden=!avatarUrl;
+    if(avatarUrl)img.src=avatarUrl;else img.removeAttribute('src');
+    fallback.hidden=!!avatarUrl;
   }
 }
 async function loadAvatar(){
@@ -132,7 +132,7 @@ async function loadAvatar(){
   try{
     const response=await fetch('/api?route=profile/avatar',{credentials:'same-origin',cache:'no-store'});
     if(id!==window.BLH_AUTH?.user?.id)return;
-    showAvatar(response.ok?await response.blob():null);
+    showAvatar(response.ok);
   }catch{if(id===window.BLH_AUTH?.user?.id)showAvatar(null)}
 }
 async function avatarJpeg(file){
@@ -167,7 +167,7 @@ avatarInput.onchange=async()=>{
     if(!response.ok)throw new Error('upload '+response.status);
     const saved=await fetch('/api?route=profile/avatar',{credentials:'same-origin',cache:'no-store'});
     if(!saved.ok)throw new Error('verification '+saved.status);
-    if(id===window.BLH_AUTH?.user?.id){showAvatar(await saved.blob());avatarStatus(t('avatarSaved'))}
+    if(id===window.BLH_AUTH?.user?.id){showAvatar(true);avatarStatus(t('avatarSaved'))}
   }catch{if(id===window.BLH_AUTH?.user?.id)avatarStatus(t('avatarError'))}
   finally{buttons.forEach(button=>button.disabled=false)}
 };

@@ -66,9 +66,11 @@
     const option = document.createElement('option'); option.value = button.dataset.interval; option.textContent = button.textContent; option.selected = button.classList.contains('active'); interval.append(option);
   }
   interval.addEventListener('change', () => { $(`.frames [data-interval="${interval.value}"]`)?.click(); });
+  const indicatorButton = node('button', 'dash-indicators-button', icon('grid') + '<span data-dash-label="30"></span>'); indicatorButton.type = 'button'; indicatorButton.setAttribute('aria-haspopup','dialog');
+  indicatorButton.onclick = () => $('#open-chart-settings')?.click();
   const toolsButton = node('button', 'dash-square', icon('tools')); toolsButton.type = 'button'; toolsButton.setAttribute('aria-pressed','false');
   toolsButton.onclick = () => { const active = document.body.classList.toggle('dashboard-tools-open'); toolsButton.setAttribute('aria-pressed', String(active)); };
-  controls.append(interval, toolsButton); toolbar?.append(controls);
+  controls.append(interval, indicatorButton, toolsButton); toolbar?.append(controls);
   document.querySelectorAll('.frames [data-interval]').forEach(button => button.addEventListener('click', () => { interval.value = button.dataset.interval; }));
   $('#dash-more').onclick = () => $('#portal-menu')?.click();
   const sidebar = $('#portal-sidebar');
@@ -113,6 +115,7 @@
   function translate() {
     document.querySelectorAll('[data-dash-label]').forEach(el => { el.textContent = t(Number(el.dataset.dashLabel)); });
     tabs.setAttribute('aria-label', t(0)); bottom.setAttribute('aria-label', t(7)); interval.setAttribute('aria-label', $('.frames')?.getAttribute('aria-label') || 'Timeframe');
+    indicatorButton.title = t(30); indicatorButton.setAttribute('aria-label',t(30));
     toolsButton.title = t(31); toolsButton.setAttribute('aria-label',t(31)); refreshAccount();
   }
   function route() {

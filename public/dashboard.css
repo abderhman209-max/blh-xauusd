@@ -3,8 +3,8 @@ body.reference-dashboard:not(.auth-locked) { --gold:#ffe05b; --canvas:#090a0b; -
 body.reference-dashboard:not(.auth-locked) #market-atmosphere { display:none; }
 body.reference-dashboard .portal-header { height:76px; padding:0 30px; background:#090a0b!important; border:0; box-shadow:none; backdrop-filter:none; }
 body.reference-dashboard .header-tagline { display:none; }
-body.reference-dashboard .portal-brand>img { display:none; }
-.dash-wordmark { display:flex; align-items:center; gap:8px; color:#ffe05b; font-size:17px; font-weight:600; letter-spacing:2.5px; }
+body.reference-dashboard .portal-brand>img { display:block; }
+.dash-wordmark { display:none; align-items:center; gap:8px; color:#ffe05b; font-size:17px; font-weight:600; letter-spacing:2.5px; }
 .dash-wordmark svg { width:30px; height:30px; }
 body.reference-dashboard .portal-header .menu-toggle { display:none; }
 body.reference-dashboard .portal-header .theme-toggle { display:none; }

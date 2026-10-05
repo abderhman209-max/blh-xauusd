@@ -1,3 +1,4 @@
+import "../public/core.js";
 export const config = { runtime: "edge" };
 
 const ACCESS_COOKIE = "blh_access";
@@ -246,6 +247,9 @@ function journalPayload(value) {
   const status = ["snapshot", "planned", "active", "win", "loss", "breakeven", "cancelled"].includes(value.status) ? value.status : "snapshot";
   const direction = ["buy", "sell", "observation"].includes(value.direction) ? value.direction : "observation";
   if (!symbol || !interval) return null;
+  if (value.resultR != null && value.resultR !== '' && finite(value.resultR,-1000,1000) === null) return null;
+  if (value.closedAt != null && finite(value.closedAt,1,Date.now()+60000) === null) return null;
+  if (value.riskPercent != null && finite(value.riskPercent,.01,100) === null) return null;
   const payload = {
     symbol,
     interval,
@@ -253,6 +257,11 @@ function journalPayload(value) {
     direction,
     savedAt: finite(value.savedAt, 1, Date.now() + 86400000) || Date.now(),
     candleTime: finite(value.candleTime, 1, Date.now() + 86400000),
+    closedAt: finite(value.closedAt, 1, Date.now() + 60000),
+    clientUpdatedAt: finite(value.clientUpdatedAt, 1, Date.now() + 60000),
+    strategy: cleanText(value.strategy, 60),
+    confirmed: value.confirmed === true,
+    targetHits: [0,1,2].map(index => value.targetHits?.[index] === true),
     price: finite(value.price),
     entry: finite(value.entry),
     stopLoss: finite(value.stopLoss),
@@ -291,14 +300,21 @@ async function saveJournal(request) {
   const data = await body(request);
   const payload = journalPayload(data.payload);
   if (!uuid(data.id) || !payload) return json({ error: "invalid_journal_entry" }, 400);
-  const response = await supabaseData("analysis_snapshots", session.accessToken, {
+  const response = await supabaseData("analysis_snapshots?on_conflict=id", session.accessToken, {
     method: "POST",
-    headers: { prefer: "return=representation" },
+    headers: { prefer: "resolution=ignore-duplicates,return=representation" },
     body: JSON.stringify({ id: data.id, user_id: session.user.id, kind: data.kind === "trade" ? "trade" : "snapshot", payload }),
   });
   const result = await response.json().catch(() => []);
   if (!response.ok) return json({ error: "journal_save_failed" }, 400);
-  return sessionJson({ entry: result[0] || null }, 201, session);
+  if (!result.length) {
+    const existingResponse = await supabaseData(`analysis_snapshots?id=eq.${encodeURIComponent(data.id)}&user_id=eq.${encodeURIComponent(session.user.id)}&select=id,created_at,updated_at,kind,payload`, session.accessToken);
+    const existing = await existingResponse.json().catch(() => []);
+    if (!existingResponse.ok || !existing.length) return json({error:"journal_save_failed"},400);
+    if (existing[0].payload?.clientUpdatedAt !== payload.clientUpdatedAt) return sessionJson({error:"journal_conflict",entry:existing[0]},409,session);
+    return sessionJson({entry:existing[0]},200,session);
+  }
+  return sessionJson({ entry: result[0] }, 201, session);
 }
 
 async function updateJournal(request, url) {
@@ -308,15 +324,35 @@ async function updateJournal(request, url) {
   const data = await body(request);
   const payload = journalPayload(data.payload);
   if (!uuid(id) || !payload) return json({ error: "invalid_journal_entry" }, 400);
-  const path = `analysis_snapshots?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(session.user.id)}`;
+  const ownerPath = `analysis_snapshots?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(session.user.id)}`;
+  if (!data.baseUpdatedAt || !Number.isFinite(Date.parse(data.baseUpdatedAt))) return json({error:"missing_revision"},409);
+  const path = ownerPath + '&updated_at=eq.' + encodeURIComponent(data.baseUpdatedAt);
   const response = await supabaseData(path, session.accessToken, {
     method: "PATCH",
     headers: { prefer: "return=representation" },
     body: JSON.stringify({ kind: data.kind === "trade" ? "trade" : "snapshot", payload, updated_at: new Date().toISOString() }),
   });
   const result = await response.json().catch(() => []);
-  if (!response.ok || !result.length) return json({ error: "journal_update_failed" }, 400);
+  if (!response.ok) return json({error:"journal_update_failed"},400);
+  if (!result.length) {
+    const latestResponse=await supabaseData(ownerPath+'&select=id,created_at,updated_at,kind,payload',session.accessToken);
+    const latest=await latestResponse.json().catch(()=>[]);
+    return sessionJson({error:latest.length?'journal_conflict':'journal_not_found',entry:latest[0]||null},latest.length?409:404,session);
+  }
   return sessionJson({ entry: result[0] }, 200, session);
+}
+
+async function accountSettings(request) {
+  const session=await currentSession(request);
+  if(!session)return json({error:"authentication_required"},401);
+  if(request.method==='GET')return sessionJson({configured:!!session.user.user_metadata?.pipvoria_settings,settings:globalThis.PIPVORIA_CORE.settings(session.user.user_metadata?.pipvoria_settings)},200,session);
+  const data=await body(request);
+  if(!data.settings||typeof data.settings!=='object'||Array.isArray(data.settings))return json({error:"invalid_settings"},400);
+  if(JSON.stringify(data.settings).length>48000)return json({error:"settings_too_large"},400);
+  const settings=globalThis.PIPVORIA_CORE.settings(data.settings);
+  const response=await supabase('/user',{method:'PUT',headers:{authorization:`Bearer ${session.accessToken}`},body:JSON.stringify({data:{pipvoria_settings:settings}})});
+  if(!response.ok)return json({error:"settings_save_failed"},400);
+  return sessionJson({settings},200,session);
 }
 
 async function savePreferences(request) {
@@ -524,7 +560,7 @@ function normalizeGold(interval, values, source) {
 }
 
 async function goldFromYahoo(interval) {
-  const yahooInterval = interval === "1h" ? "60m" : interval;
+  const yahooInterval = {"1min":"1m","5min":"5m","15min":"15m","30min":"30m","1h":"60m"}[interval];
   const range = ["1min", "5min", "15min", "30min"].includes(interval) ? "5d" : "1mo";
   const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD=X?interval=${yahooInterval}&range=${range}`);
   const data = await response.json();
@@ -534,14 +570,6 @@ async function goldFromYahoo(interval) {
   return normalizeGold(interval, result.timestamp.map((time, index) => ({ time: time * 1000, open: quote.open?.[index], high: quote.high?.[index], low: quote.low?.[index], close: quote.close?.[index], volume: quote.volume?.[index] })), "Yahoo Finance");
 }
 
-async function goldFromBinance(interval) {
-  const binanceInterval = { "1min": "1m", "5min": "5m", "15min": "15m", "30min": "30m", "1h": "1h" }[interval];
-  const response = await fetch(`https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=${binanceInterval}&limit=1000`, { headers: { accept: "application/json" } });
-  if (!response.ok) throw new Error("secondary fallback unavailable");
-  const rows = await response.json();
-  if (!Array.isArray(rows) || rows.length < 41) throw new Error("secondary fallback unavailable");
-  return normalizeGold(interval, rows.map((row) => ({ time: Number(row[0]), open: row[1], high: row[2], low: row[3], close: row[4], volume: row[5] })), "Binance · PAXG/USDT fallback");
-}
 
 async function gold(interval) {
   const cached = marketCache.get(interval);
@@ -557,7 +585,7 @@ async function gold(interval) {
   if (!result) {
     try { result = await goldFromYahoo(interval); } catch {}
   }
-  if (!result) result = await goldFromBinance(interval);
+  if (!result || result.bars.length < 41) throw new Error("XAU/USD unavailable");
   marketCache.set(interval, result);
   return result;
 }
@@ -646,11 +674,12 @@ export default async function handler(request) {
   const url = new URL(request.url);
   const route = url.searchParams.get("route") || "";
   try {
-    if (route === "profile/avatar") return profileAvatar(request);
-    if (route === "gold" && request.method === "GET") return marketData(request, url);
-    if (route === "gold/price" && request.method === "GET") return goldPrice(request);
-    if (route === "workspace" && request.method === "GET") return workspaceData(request);
-    if (route === "admin/users" && request.method === "GET" && sameOrigin(request)) return listAdminUsers(request);
+    if (route === "settings" && (request.method === "GET" || request.method === "POST" && sameOrigin(request))) return await accountSettings(request);
+    if (route === "profile/avatar") return await profileAvatar(request);
+    if (route === "gold" && request.method === "GET") return await marketData(request, url);
+    if (route === "gold/price" && request.method === "GET") return await goldPrice(request);
+    if (route === "workspace" && request.method === "GET") return await workspaceData(request);
+    if (route === "admin/users" && request.method === "GET" && sameOrigin(request)) return await listAdminUsers(request);
     if (route === "auth/session" && request.method === "GET") {
       const session = await currentSession(request);
       if (!session) return json({ user: null }, 401);
@@ -658,18 +687,18 @@ export default async function handler(request) {
       return new Response(JSON.stringify({ user: publicUser(session.user) }), { status: 200, headers });
     }
     if (request.method !== "POST" || !sameOrigin(request)) return json({ error: "not_found" }, 404);
-    if (route === "auth/sign-in") return signIn(request);
-    if (route === "auth/sign-up") return signUp(request);
-    if (route === "auth/recover") return recover(request);
-    if (route === "auth/import-session") return importSession(request);
-    if (route === "auth/update-password") return updatePassword(request);
-    if (route === "auth/sign-out") return signOut(request);
-    if (route === "journal/create") return saveJournal(request);
-    if (route === "journal/update") return updateJournal(request, url);
-    if (route === "preferences") return savePreferences(request);
-    if (route === "notifications/create") return createNotification(request);
-    if (route === "notifications/read") return readNotifications(request);
-    if (route === "admin/user-action") return adminUserAction(request);
+    if (route === "auth/sign-in") return await signIn(request);
+    if (route === "auth/sign-up") return await signUp(request);
+    if (route === "auth/recover") return await recover(request);
+    if (route === "auth/import-session") return await importSession(request);
+    if (route === "auth/update-password") return await updatePassword(request);
+    if (route === "auth/sign-out") return await signOut(request);
+    if (route === "journal/create") return await saveJournal(request);
+    if (route === "journal/update") return await updateJournal(request, url);
+    if (route === "preferences") return await savePreferences(request);
+    if (route === "notifications/create") return await createNotification(request);
+    if (route === "notifications/read") return await readNotifications(request);
+    if (route === "admin/user-action") return await adminUserAction(request);
     return json({ error: "not_found" }, 404);
   } catch (error) {
     if (error?.message === "invalid_content_type" || error?.message === "invalid_body") return json({ error: "invalid_request" }, 400);

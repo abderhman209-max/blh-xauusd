@@ -15,6 +15,33 @@
   const t = index => (labels[document.documentElement.lang === 'ary' ? 'ar' : document.documentElement.lang] || labels.fr)[index];
   const format = value => new Intl.NumberFormat(document.documentElement.lang === 'ary' ? 'ar-MA' : document.documentElement.lang, {maximumFractionDigits: 2}).format(value);
   const lang = () => document.documentElement.lang === 'ary' ? 'ar' : document.documentElement.lang;
+  const accountLabels = {
+    choose:['Résultats de','Results for','Resultados de','Ergebnisse für','نتائج'],
+    journal:['Toutes les opérations du journal','All journal trades','Todas las operaciones del diario','Alle Journal-Trades','كل صفقات السجل'],
+    title:['Résultats de l’indicateur','Indicator results','Resultados del indicador','Indikator-Ergebnisse','نتائج المؤشر'],
+    structure:['Structure de marché','Market structure','Estructura de mercado','Marktstruktur','بنية السوق'],
+    test:['Test historique · simulation','Historical test · simulation','Prueba histórica · simulación','Historischer Test · Simulation','اختبار تاريخي · محاكاة'],
+    off:['Désactivé','Disabled','Desactivado','Ausgeschaltet','مطفأ'],
+    unavailable:['Données insuffisantes','Not enough data','Datos insuficientes','Zu wenige Daten','بيانات غير كافية'],
+    unsupported:['XAU/USD · 5m uniquement','XAU/USD · 5m only','Solo XAU/USD · 5m','Nur XAU/USD · 5m','الذهب XAU/USD · 5 دقائق فقط'],
+    invalid:['Paramètres à corriger','Check settings','Revisar parámetros','Einstellungen prüfen','راجع الإعدادات'],
+    ready:['Calculé','Calculated','Calculado','Berechnet','محسوب'],
+    stale:['Données anciennes','Older data','Datos antiguos','Ältere Daten','بيانات قديمة'],
+    signals:['Signaux','Signals','Señales','Signale','الإشارات'],
+    open:['Non clôturés','Not closed','Sin cerrar','Nicht geschlossen','غير مغلقة'],
+    rate:['Réussite','Win rate','Acierto','Gewinnquote','نسبة النجاح'],
+    excluded:['Non résolus / exclus','Unresolved / excluded','Sin resolver / excluidos','Ungeklärt / ausgeschlossen','غير محسومة / مستثناة'],
+    candles:['bougies clôturées','closed candles','velas cerradas','geschlossene Kerzen','شموع مغلقة'],
+    rule:['Risque réel non évalué','Actual risk not assessed','Riesgo real sin evaluar','Reales Risiko nicht bewertet','المخاطرة الفعلية غير مقيّمة'],
+    note:['Calculé sur les bougies chargées, sans frais. BLH/PA : sortie au TP final ou au SL. Les bougies ambiguës sont exclues. Planner suit ses paramètres. Aucun trade réel exécuté.','Calculated from loaded candles, excluding fees. BLH/PA exit at the final TP or SL; ambiguous candles are excluded. Planner follows its settings. No real trades executed.','Calculado con las velas cargadas, sin comisiones. BLH/PA salen en el TP final o SL; se excluyen velas ambiguas. Planner sigue sus ajustes. No ejecuta operaciones reales.','Aus geladenen Kerzen, ohne Gebühren. BLH/PA schließen am letzten TP oder SL; uneindeutige Kerzen sind ausgeschlossen. Planner folgt seinen Einstellungen. Keine echten Trades.','محسوب من الشموع المحمّلة، بدون رسوم. BLH/PA ينتهيان عند الهدف الأخير أو الستوب؛ الشموع غير المحسومة مستثناة. Planner يتبع إعداداته. لا تُنفّذ صفقات حقيقية.'],
+    shared:['Le progrès utilise votre objectif commun en R.','Progress uses your shared target in R.','El progreso usa tu objetivo común en R.','Fortschritt nutzt Ihr gemeinsames R-Ziel.','التقدم يستعمل هدفك المشترك بوحدة R.'],
+    method:['Détails du calcul','Calculation details','Detalles del cálculo','Berechnungsdetails','تفاصيل الحساب'],
+    enable:['Activer cet indicateur','Enable this indicator','Activar este indicador','Diesen Indikator aktivieren','تشغيل هذا المؤشر']
+  };
+  const at = key => accountLabels[key][({fr:0,en:1,es:2,de:3,ar:4})[lang()] ?? 0];
+  const resultKeys = ['journal','structure','planner','blh','pa'];
+  const resultName = key => key === 'journal' || key === 'structure' ? at(key) : ({planner:'Signal Trade Planner',blh:'BLH XAUUSD M5 CLEAN',pa:'Price Action & Liquidity Map'})[key];
+  const resultInput = {structure:'show-structure',planner:'show-smart',blh:'show-blh-clean',pa:'show-pa-liquidity'};
   const paths = {
     trade: '<path d="M5 7h14M15 3l4 4-4 4M19 17H5m4-4-4 4 4 4"/>',
     positions: '<rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3h6v2M9 10h6m-6 4h6m-6 4h3"/>',
@@ -29,7 +56,7 @@
   const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.grid}</svg>`;
   const node = (tag, className, html) => { const el = document.createElement(tag); el.className = className; if (html) el.innerHTML = html; return el; };
   const stylesheet = document.createElement('link');
-  stylesheet.rel = 'stylesheet'; stylesheet.href = 'dashboard.css?v=20261005a'; document.head.append(stylesheet);
+  stylesheet.rel = 'stylesheet'; stylesheet.href = 'dashboard.css?v=20261007'; document.head.append(stylesheet);
   document.body.classList.add('reference-dashboard');
   document.body.dataset.dashboardLayout = 'reference';
 
@@ -37,6 +64,14 @@
   const account = node('aside', 'dashboard-account');
   account.innerHTML = `<h1 data-dash-label="8"></h1><div class="dash-account-section dash-status"><span data-dash-label="9"></span><strong id="dash-account-status"></strong></div><div class="dash-account-section dash-progress"><span data-dash-label="11"></span><strong id="dash-progress-value">—</strong><div class="dash-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i></i></div><small id="dash-progress-detail"></small></div><div class="dash-account-section dash-rule-row"><div><span data-dash-label="12"></span><strong id="dash-goal-status"></strong></div>${icon('shield')}</div><div class="dash-account-section dash-rule-row"><div><span data-dash-label="13"></span><strong id="dash-rule-status"></strong></div>${icon('shield')}</div><div class="dash-account-metrics"><div><span data-dash-label="24"></span><b id="dash-closed-count">0</b></div><div><span data-dash-label="25"></span><b id="dash-net-result">—</b></div></div><details class="dash-goal-settings"><summary>${icon('settings')}<span data-dash-label="20"></span></summary><form id="dash-goal-form"><label><span data-dash-label="21"></span><input id="dash-target-r" type="number" min="0.1" max="10000" step="0.1" inputmode="decimal" required></label><label><span data-dash-label="22"></span><input id="dash-risk-limit" type="number" min="0.01" max="100" step="0.1" inputmode="decimal" value="2" required></label><button type="submit" data-dash-label="23"></button></form></details><p class="dash-account-note" data-dash-label="29"></p>`;
   const main = node('main', 'dashboard-main');
+  const resultSelector = node('div','dash-result-selector', '<label for="dash-result-indicator" data-account-label="choose"></label><select id="dash-result-indicator"></select><p id="dash-result-source"></p><button type="button" id="dash-result-enable" hidden data-account-label="enable"></button>');
+  resultSelector.id = 'dash-result-selector';
+  account.querySelector('h1').after(resultSelector);
+  const resultDetail = node('p','dash-result-detail'); resultDetail.id = 'dash-result-detail';
+  account.querySelector('.dash-account-metrics').after(resultDetail);
+  const resultMetrics = node('div','dash-indicator-metrics'); resultMetrics.id = 'dash-indicator-metrics';
+  resultDetail.before(resultMetrics);
+  const resultMethod = node('details','dash-result-method','<summary data-account-label="method"></summary><p></p>'); account.append(resultMethod);
   const tabs = node('nav', 'dashboard-tabs', `<a href="#signals" data-dash-route="signals" data-dash-label="0"></a><a href="#performance" data-dash-route="performance" data-dash-label="1"></a><a href="#positions" data-dash-route="positions" data-dash-label="2"></a>`);
   const views = node('div', 'dashboard-views');
   views.append(...content.children);
@@ -79,6 +114,21 @@
   syncMenu();
 
   let snapshot = window.PIPVORIA_WORKSPACE?.getSnapshot() || {journal:[],loaded:false};
+  let chartSnapshot = window.PIPVORIA_CHART_STATE || null, selectedResult = 'planner';
+  const resultKey = () => 'pipvoria-dashboard-indicator:' + (window.BLH_AUTH?.user?.id || 'local');
+  function loadResult() {
+    let saved = null; try { saved = localStorage.getItem(resultKey()); } catch {}
+    selectedResult = resultKeys.includes(saved) ? saved : Object.keys(resultInput).find(key => $('#'+resultInput[key])?.checked) || 'planner';
+    renderResultOptions();
+  }
+  function renderResultOptions() {
+    $('#dash-result-indicator').innerHTML = resultKeys.map(key=>`<option value="${key}" ${key===selectedResult?'selected':''}>${esc(resultName(key))}</option>`).join('');
+  }
+  function selectResult(key) { if (!resultKeys.includes(key)) return; selectedResult = key; $('#dash-result-indicator').value = key; try { localStorage.setItem(resultKey(),key); } catch {} refreshAccount(); }
+  $('#dash-result-indicator').addEventListener('change',event=>selectResult(event.target.value));
+  $('#dash-result-enable').onclick = () => { const input = $('#'+resultInput[selectedResult]); if (input) { input.checked = true; input.dispatchEvent(new Event('input',{bubbles:true})); } };
+  document.addEventListener('click',event=>{const tab=event.target.closest('[data-indicator-tab]');if(tab)selectResult(tab.dataset.indicatorTab==='smart'?'planner':tab.dataset.indicatorTab);});
+  document.addEventListener('pipvoria-chart-state',event=>{chartSnapshot=event.detail;refreshAccount();});
   let goal = null;document.addEventListener('pipvoria-settings-state',()=>{const saved=window.PIPVORIA_SETTINGS?.get().goal;goal=saved||null;$('#dash-target-r').value=goal?.targetR||'';$('#dash-risk-limit').value=goal?.maxRisk||2;refreshAccount()});
   const goalKey = () => 'pipvoria-dashboard-goal:' + (window.BLH_AUTH?.user?.id || 'local');
   function loadGoal() {
@@ -87,25 +137,39 @@
     $('#dash-target-r').value = goal?.targetR || ''; $('#dash-risk-limit').value = goal?.maxRisk || 2;
   }
   function refreshAccount() {
+    const simulated = selectedResult !== 'journal', stats = chartSnapshot?.indicatorResults?.[selectedResult];
+    const available = simulated ? stats?.status === 'ready' : snapshot.loaded || snapshot.journal?.length > 0;
     const trades = (snapshot.journal || []).filter(row => row.kind === 'trade');
     const closed = trades.filter(row => ['win','loss','breakeven'].includes(row.status));
     const results = closed.filter(row => row.resultR !== null && row.resultR !== '' && Number.isFinite(Number(row.resultR)));
-    const net = results.reduce((sum,row) => sum + Number(row.resultR),0);
-    const progress = goal ? Math.max(0,Math.min(100,net / goal.targetR * 100)) : null;
-    $('#dash-account-status').textContent = t(window.BLH_AUTH?.authenticated ? 10 : 32);
+    const net = simulated ? stats?.netR || 0 : results.reduce((sum,row) => sum + Number(row.resultR),0);
+    const progress = goal && available ? Math.max(0,Math.min(100,net / goal.targetR * 100)) : null;
+    account.querySelector('h1').textContent = simulated ? at('title') : t(8);
+    const stateLabel = stats?.status === 'ready' ? chartSnapshot.stale ? 'stale' : 'ready' : stats?.status === 'disabled' ? 'off' : stats?.status || 'unavailable';
+    $('#dash-account-status').textContent = !window.BLH_AUTH?.authenticated ? t(32) : simulated ? at(stateLabel) : t(10);
+    $('#dash-account-status').classList.toggle('dash-muted',simulated && (stats?.status !== 'ready' || chartSnapshot.stale));
+    $('#dash-result-source').textContent = simulated ? at('test')+(stateLabel==='ready'?'':' · '+at(stateLabel)) : t(29);
+    $('#dash-result-enable').hidden = !simulated || stats?.status !== 'disabled';
     $('#dash-progress-value').textContent = progress === null ? '—' : format(Math.round(progress)) + '%';
     const track = $('.dash-progress-track'); track.setAttribute('aria-label',t(11)); track.firstElementChild.style.width = (progress || 0) + '%';
     if (progress === null) track.removeAttribute('aria-valuenow'); else track.setAttribute('aria-valuenow',String(progress));
-    $('#dash-progress-detail').textContent = goal ? `${format(net)} R / ${format(goal.targetR)} R` : t(14);
-    const goalStatus = $('#dash-goal-status'); goalStatus.textContent = t(!goal ? 14 : progress >= 100 ? 16 : 15); goalStatus.classList.toggle('dash-positive',!!goal);
+    $('#dash-progress-detail').textContent = !goal ? t(14) : available ? `${format(net)} R / ${format(goal.targetR)} R` : '—';
+    const goalStatus = $('#dash-goal-status'); goalStatus.textContent = !goal ? t(14) : !available ? '—' : t(progress >= 100 ? 16 : 15); goalStatus.classList.toggle('dash-positive',!!goal && available);
     const assessed = trades.filter(row => row.riskPercent !== null && row.riskPercent !== '' && Number.isFinite(Number(row.riskPercent)) && Number(row.riskPercent) > 0);
     const breached = !!goal && assessed.some(row => Number(row.riskPercent) > goal.maxRisk);
     const complete = !!goal && trades.length > 0 && assessed.length === trades.length;
-    const ruleStatus = $('#dash-rule-status'); ruleStatus.textContent = t(breached ? 19 : complete ? 17 : 18); ruleStatus.classList.toggle('dash-positive',complete && !breached); ruleStatus.classList.toggle('dash-negative',breached);
-    $('.dash-rule-row:last-of-type')?.classList.toggle('breached',breached);
-    $('#dash-closed-count').textContent = String(closed.length);
-    $('#dash-net-result').textContent = results.length ? (net > 0 ? '+' : '') + format(net) + ' R' : '—';
-    $('#dash-net-result').classList.toggle('dash-negative',net < 0);
+    const ruleStatus = $('#dash-rule-status'); ruleStatus.textContent = simulated ? at('rule') : t(breached ? 19 : complete ? 17 : 18); ruleStatus.classList.toggle('dash-positive',!simulated && complete && !breached); ruleStatus.classList.toggle('dash-negative',!simulated && breached);
+    ruleStatus.closest('.dash-rule-row').classList.toggle('unassessed',simulated || !complete);
+    goalStatus.closest('.dash-rule-row').classList.toggle('unassessed',!goal || !available);
+    $('#dash-closed-count').textContent = simulated ? available ? String(stats.closed) : '—' : String(closed.length);
+    $('#dash-net-result').textContent = (simulated ? available : results.length) ? (net > 0 ? '+' : '') + format(net) + ' R' : '—';
+    $('#dash-net-result').classList.toggle('dash-negative',available && net < 0);
+    resultMetrics.hidden = !simulated;
+    resultMetrics.innerHTML = simulated ? [['signals',stats?.signals],['open',stats?.active],['rate',stats?.winRate]].map(([key,value])=>`<div><span>${esc(at(key))}</span><b>${available && value !== null && value !== undefined ? esc(format(value))+(key==='rate'?'%':'') : '—'}</b></div>`).join('') : '';
+    resultDetail.hidden = !simulated;
+    resultDetail.textContent = simulated && available ? `${chartSnapshot.symbol} · ${chartSnapshot.interval.replace('min','m')} · ${format(stats.barCount)} ${at('candles')} · ${format(stats.excluded)} ${at('excluded')}\n${new Date(stats.from).toLocaleString(lang())} → ${new Date(stats.to).toLocaleString(lang())}` : '';
+    $('.dash-account-note').hidden = simulated; $('.dash-account-note').textContent = t(29);
+    resultMethod.hidden = !simulated; resultMethod.querySelector('p').textContent = at('note')+' '+at('shared');
     renderPositions();
   }
   const positionFilter={market:'all',status:'all',strategy:'all'};
@@ -114,6 +178,7 @@
   }
   function translate() {
     document.querySelectorAll('[data-dash-label]').forEach(el => { el.textContent = t(Number(el.dataset.dashLabel)); });
+    document.querySelectorAll('[data-account-label]').forEach(el => { el.textContent = at(el.dataset.accountLabel); }); renderResultOptions();
     tabs.setAttribute('aria-label', t(0)); bottom.setAttribute('aria-label', t(7)); interval.setAttribute('aria-label', $('.frames')?.getAttribute('aria-label') || 'Timeframe');
     indicatorButton.title = t(30); indicatorButton.setAttribute('aria-label',t(30));
     toolsButton.title = t(31); toolsButton.setAttribute('aria-label',t(31)); refreshAccount();
@@ -134,11 +199,11 @@
     $('.dash-goal-settings').open = false; refreshAccount();
   });
   document.addEventListener('pipvoria-workspace-state', event => { snapshot = event.detail; refreshAccount(); });
-  document.addEventListener('blh-authenticated', () => { window.PIPVORIA_THEME?.set('dark',false); snapshot = window.PIPVORIA_WORKSPACE?.getSnapshot() || {journal:[],loaded:false}; loadGoal(); refreshAccount(); });
-  document.addEventListener('blh-session-expired', () => { snapshot = {journal:[],loaded:false}; goal = null; refreshAccount(); });
+  document.addEventListener('blh-authenticated', () => { window.PIPVORIA_THEME?.set('dark',false); snapshot = window.PIPVORIA_WORKSPACE?.getSnapshot() || {journal:[],loaded:false}; loadGoal(); loadResult(); refreshAccount(); });
+  document.addEventListener('blh-session-expired', () => { snapshot = {journal:[],loaded:false}; goal = null; chartSnapshot = null; selectedResult = 'planner'; renderResultOptions(); refreshAccount(); });
   document.addEventListener('blh-language-change', translate);
   window.addEventListener('hashchange',route);
   window.addEventListener('storage',event => { if (event.key === goalKey()) { loadGoal(); refreshAccount(); } });
   if (window.BLH_AUTH?.authenticated) window.PIPVORIA_THEME?.set('dark',false);
-  loadGoal(); translate(); route();
+  loadGoal(); loadResult(); translate(); route();
 })();

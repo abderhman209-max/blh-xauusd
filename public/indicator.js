@@ -19,48 +19,61 @@ let lastWorkspaceStateKey='';
 const feedMeta={receivedAt:0,error:true};
 const modelMemo=new Map();
 function analyzeCached(name,options,run){const controls=JSON.stringify([...document.querySelectorAll('#indicator-controls input,#indicator-controls select')].map(n=>[n.id,n.type==='checkbox'?n.checked:n.value]));const key=JSON.stringify([selectedSymbol,selectedInterval,options,controls,window.PIPVORIA_SETTINGS?.get().confirmedOnly]);const cached=modelMemo.get(name);if(cached?.bars===sourceBars&&cached.key===key)return cached.value;const value=run();modelMemo.set(name,{bars:sourceBars,key,value});return value;}
-function resetWorkspaceState(){window.PIPVORIA_CHART_STATE={symbol:selectedSymbol,interval:selectedInterval,source:marketSources[selectedSymbol],signal:null,price:null,stale:true,receivedAt:0};document.dispatchEvent(new CustomEvent('pipvoria-chart-state',{detail:window.PIPVORIA_CHART_STATE}));}
+function performanceEnabled(){return Object.fromEntries([['structure','show-structure'],['planner','show-smart'],['blh','show-blh-clean'],['pa','show-pa-liquidity']].map(([key,id])=>[key,!!document.getElementById(id)?.checked]));}
+function resetWorkspaceState(){window.PIPVORIA_CHART_STATE={symbol:selectedSymbol,interval:selectedInterval,source:marketSources[selectedSymbol],signal:null,price:null,stale:true,receivedAt:0,indicatorResults:PIPVORIA_INDICATOR_PERFORMANCE.build({enabled:performanceEnabled(),symbol:selectedSymbol,interval:selectedInterval})};document.dispatchEvent(new CustomEvent('pipvoria-chart-state',{detail:window.PIPVORIA_CHART_STATE}));}
 
 try{const saved=JSON.parse(localStorage.getItem('blh-drawings')||'{}');manualLevels=saved.levels||{};trendLines=saved.trends||{}}catch{}
 const drawingKey=()=>selectedSymbol+'|'+selectedInterval;
 function saveDrawings(){try{localStorage.setItem('blh-drawings',JSON.stringify({levels:manualLevels,trends:trendLines}))}catch{document.querySelector('#tool-status').textContent='Speicher nicht verfügbar: Zeichnungen bleiben für diese Sitzung erhalten.'}}
 const svgNode=document.querySelector('#structure-chart');
-function publishWorkspaceState(smart,blh,bars){
+function publishWorkspaceState(smart,blh,bars,indicatorResults){
  const smartPlan=smart?.sides?.at(-1)||null,blhPlan=blh?.plan||null,last=bars.at(-1)||null;
  const useBlh=!!blhPlan&&(!smartPlan||blhPlan.index>=smartPlan.index);
  const plan=useBlh?blhPlan:smartPlan,latestSignal=useBlh?blh?.signals?.at(-1):smart?.signals?.at(-1);
  const signalTime=plan?(latestSignal?.time||plan.time||bars[plan.index]?.time||null):null;
  const engine=useBlh?'blh':'planner',finished=!useBlh&&plan?smart?.trades?.find(t=>t.index===plan.index):null;
  const initialRisk=useBlh?Math.abs(plan?.entry-plan?.stop):smart?.active?.initialRisk||finished?.initialRisk||Math.abs(plan?.entry-plan?.stop);const live=sourceBars.at(-1)||last,duration=PIPVORIA_CORE.intervals[selectedInterval];const state={symbol:selectedSymbol,interval:selectedInterval,source:marketSources[selectedSymbol],price:live?.close??null,bar:live,priority:document.querySelector('#planner-priority')?.value||'Stop first',receivedAt:feedMeta.receivedAt,stale:feedMeta.error||Date.now()-feedMeta.receivedAt>120000,updatedAt:Date.now(),stats:smart?.stats||null,signal:plan?{key:[selectedSymbol,selectedInterval,engine,signalTime||plan.index,plan.direction].join('|'),engine,direction:plan.direction===1?'buy':'sell',status:useBlh?(plan.index>=bars.length-2?'active':'historical'):smart?.active&&smart.active.index===plan.index?'active':'historical',confirmed:!!bars[plan.index]&&bars[plan.index].closed!==false&&bars[plan.index].time+duration<=Date.now(),targetHits:useBlh?[false,false,false]:smart?.active?.index===plan?.index?smart.active.reached:finished?.reached||[false,false,false],exitReason:finished?.reason||null,closedAt:finished?.closedAt||null,time:signalTime,entry:plan.entry,stopLoss:plan.stop,takeProfits:plan.tps.slice(0,3),riskReward:initialRisk>0?Math.abs((plan.tps.at(-1)-plan.entry)/initialRisk):null}:null};
+ state.indicatorResults=indicatorResults;
  window.PIPVORIA_CHART_STATE=state;
- const nextKey=JSON.stringify([state.symbol,state.interval,state.price&&Number(state.price).toFixed(2),state.signal?.key,state.signal?.status,state.signal?.stopLoss,state.signal?.confirmed,state.stale,state.receivedAt,state.bar?.high,state.bar?.low,state.signal?.targetHits,state.signal?.exitReason]);
+ const nextKey=JSON.stringify([state.symbol,state.interval,state.price&&Number(state.price).toFixed(2),state.signal?.key,state.signal?.status,state.signal?.stopLoss,state.signal?.confirmed,state.stale,state.receivedAt,state.bar?.high,state.bar?.low,state.signal?.targetHits,state.signal?.exitReason,state.indicatorResults]);
  if(nextKey!==lastWorkspaceStateKey){lastWorkspaceStateKey=nextKey;document.dispatchEvent(new CustomEvent('pipvoria-chart-state',{detail:state}))}
 }
 function renderIndicator(){
- if(sourceBars.length<41){chartScale=null;return {mode:'unavailable'}}
+ if(sourceBars.length<41){chartScale=null;publishWorkspaceState(null,null,[],PIPVORIA_INDICATOR_PERFORMANCE.build({enabled:performanceEnabled(),symbol:selectedSymbol,interval:selectedInterval}));return {mode:'unavailable'}}
  const term=document.querySelector('#term').value,rr=Number(document.querySelector('#rr').value),onlyValid=document.querySelector('#valid').checked;
- if(document.querySelector('#show-structure').checked&&(!Number.isFinite(rr)||rr<=0)){document.querySelector('#indicator-status').textContent='Das CRV muss größer als null sein.';return}
+ if(document.querySelector('#show-structure').checked&&(!Number.isFinite(rr)||rr<=0)){document.querySelector('#indicator-status').textContent='Das CRV muss größer als null sein.';resetWorkspaceState();return}
  const closedBars=sourceBars.filter(b=>b.closed!==false);
  const structureOn=document.querySelector('#show-structure').checked,smartOn=document.querySelector('#show-smart').checked;
  const model=structureOn?analyzeCached('structure',{term,rr,onlyValid},()=>StructureEngine.analyze(closedBars,{term,rr,onlyValid})):{setups:[],pivots:[],len:0};
  const number=(id,fallback,min,max=100)=>{const n=Number(document.querySelector(id).value);return Number.isFinite(n)&&n>=min&&n<=max?n:fallback};
  const smartBars=sourceBars.filter(b=>!b.partial&&(window.PIPVORIA_SETTINGS?.get().confirmedOnly===false||b.closed!==false&&b.time+PIPVORIA_CORE.intervals[selectedInterval]<=Date.now()));
- const smart=smartOn?analyzeCached('smart',{},()=>SmartEngine.analyze(smartBars,{swing:Math.floor(number('#smart-swing',5,2)),atrLength:Math.floor(number('#smart-atr',14,1)),zone:number('#smart-zone',.5,.1),rr:[1,2,3].map(i=>number('#smart-tp'+i,i,.1))})):{sides:[],signals:[]};
+ const smartOptions={swing:Math.floor(number('#smart-swing',5,2)),atrLength:Math.floor(number('#smart-atr',14,1)),zone:number('#smart-zone',.5,.1),rr:[1,2,3].map(i=>number('#smart-tp'+i,i,.1))};
+ const smart=smartOn?analyzeCached('smart',{},()=>SmartEngine.analyze(smartBars,smartOptions)):{sides:[],signals:[]};
  const blhOn=document.querySelector('#show-blh-clean')?.checked&&selectedSymbol==='XAU/USD'&&selectedInterval==='5min';
- const blh=blhOn?analyzeCached('blh',{},()=>BlhClean.analyze(smartBars,{
+ const blhOptions={
   swing:Math.floor(number('#blh-swing',4,2,20)),atrLength:Math.floor(number('#blh-atr',14,1,100)),
   emaLength:Math.floor(number('#blh-ema-length',50,1,200)),sweepWindow:Math.floor(number('#blh-sweep',5,1,50)),
   zoneBars:Math.floor(number('#blh-zone',30,1,100)),rr:[1,2,3].map(i=>number('#blh-rr'+i,i,.25,100))
- })):null;
+ };
+ const blh=blhOn?analyzeCached('blh',{},()=>BlhClean.analyze(smartBars,blhOptions)):null;
  const paOn=document.querySelector('#show-pa-liquidity')?.checked;
- const pa=paOn?analyzeCached('pa',{},()=>PALiquidity.analyze(closedBars,{
+ const paOptions={
   pivotLength:Math.floor(number('#pa-pivot',5,2,50)),atrLength:Math.floor(number('#pa-atr',14,1,100)),
   tolerance:number('#pa-tolerance',.10,.01,1),rr:number('#pa-rr',2,.25,10),
   structure:document.querySelector('#pa-structure').checked,sweeps:document.querySelector('#pa-sweeps').checked,
   equalLevels:document.querySelector('#pa-equal').checked,tradeLevels:document.querySelector('#pa-levels').checked
- })):null;
+ };
+ const pa=paOn?analyzeCached('pa',{},()=>PALiquidity.analyze(closedBars,paOptions)):null;
  const paColors=paOn?{bull:document.querySelector('#pa-bull').value,bear:document.querySelector('#pa-bear').value,equal:document.querySelector('#pa-color').value}:null;
- publishWorkspaceState(smart,blh,smartBars);
+ const performanceBars=sourceBars.filter(b=>!b.partial&&b.closed!==false&&b.time+PIPVORIA_CORE.intervals[selectedInterval]<=Date.now());
+ const performanceKey={last:performanceBars.at(-1)?.time,count:performanceBars.length};
+ const resultModels={
+  structure:structureOn?(performanceBars.length===closedBars.length&&!onlyValid?model:analyzeCached('structure-results',performanceKey,()=>StructureEngine.analyze(performanceBars,{term,rr,onlyValid:false}))):null,
+  planner:smartOn?(performanceBars.length===smartBars.length?smart:analyzeCached('planner-results',performanceKey,()=>SmartEngine.analyze(performanceBars,smartOptions))):null,
+  blh:blhOn?(performanceBars.length===smartBars.length?blh:analyzeCached('blh-results',performanceKey,()=>BlhClean.analyze(performanceBars,blhOptions))):null,
+  pa:paOn?(performanceBars.length===closedBars.length?pa:analyzeCached('pa-results',performanceKey,()=>PALiquidity.analyze(performanceBars,paOptions))):null
+ };
+ publishWorkspaceState(smart,blh,smartBars,PIPVORIA_INDICATOR_PERFORMANCE.build({models:resultModels,bars:performanceBars,enabled:performanceEnabled(),symbol:selectedSymbol,interval:selectedInterval}));
  const demo=document.body.classList.contains('desk-demo'),demoSignal=window.PIPVORIA_CHART_STATE?.signal;
  const heatOn=document.querySelector('#show-heatmap').checked,heatOptions={source:document.querySelector('#heat-source').value};
  for(const input of document.querySelectorAll('[id^="heat-"]')){if(input.type==='checkbox')heatOptions[input.id.slice(5)]=input.checked;else if(input.type==='number'){const v=Number(input.value);heatOptions[input.id.slice(5)]=Number.isFinite(v)?Math.max(Number(input.min),Math.min(Number(input.max),v)):Number(input.defaultValue)}}

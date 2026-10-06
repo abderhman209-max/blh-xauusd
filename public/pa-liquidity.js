@@ -8,7 +8,7 @@ const PALiquidity = {
     const atrLength = Math.max(1, Math.floor(options.atrLength ?? 14));
     const tolerance = Math.max(.01, Math.min(1, Number(options.tolerance ?? .10)));
     const rr = Math.max(.25, Math.min(10, Number(options.rr ?? 2)));
-    const result = { events: [], equalHigh: null, equalLow: null, plan: null, bias: 0 };
+    const result = { events: [], plans: [], equalHigh: null, equalLow: null, plan: null, bias: 0 };
     let lastHigh = null, lastLow = null, priorHigh = null, priorLow = null;
     let highBroken = false, lowBroken = false, highSwept = false, lowSwept = false;
     let atr = null, trSum = 0;
@@ -68,7 +68,10 @@ const PALiquidity = {
         const direction = bullBreak ? 1 : -1;
         const entry = bar.close, stop = direction === 1 ? lastLow.price : lastHigh.price;
         const risk = Math.abs(entry - stop);
-        if (Number.isFinite(risk) && risk > 0) result.plan = { index: i, direction, entry, stop, target: entry + direction * risk * rr, rr, time: bar.time };
+        if (Number.isFinite(risk) && risk > 0) {
+          result.plan = { index: i, direction, entry, stop, target: entry + direction * risk * rr, rr, time: bar.time };
+          result.plans.push(result.plan);
+        }
       }
     }
     return result;

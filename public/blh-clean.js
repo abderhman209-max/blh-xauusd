@@ -8,7 +8,7 @@ const BlhClean = {
     const sweepWindow = Math.max(1, Math.floor(options.sweepWindow ?? 5));
     const zoneBars = Math.max(1, Math.floor(options.zoneBars ?? 30));
     const rr = options.rr ?? [1, 2, 3];
-    const result = { ema: [], signals: [], structure: null, zone: null, plan: null };
+    const result = { ema: [], signals: [], plans: [], structure: null, zone: null, plan: null };
     if (!PIPVORIA_CORE.validTargets(rr)) return {...result,error:'invalid_targets'};
     if (!bars.length) return result;
     let ema = bars[0].close, atr = 0, lastHigh = null, lastLow = null;
@@ -59,6 +59,7 @@ const BlhClean = {
       const stop = stopBase - direction * atr * .25, risk = Math.abs(entry - stop);
       if (!Number.isFinite(risk) || risk <= 0) continue;
       result.plan = { index: i, end: i + 30, direction, entry, stop, tps: rr.map(r => entry + direction * risk * r), time: bar.time };
+      result.plans.push(result.plan);
       result.signals.push({ index: i, direction, price: direction === 1 ? bar.low - atr * .3 : bar.high + atr * .3, entry, time: bar.time });
     }
     return result;

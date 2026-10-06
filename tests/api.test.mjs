@@ -54,5 +54,15 @@ test('different retry revision yields conflict, never overwrites',async()=>{mock
 test('unknown results stay null and closure timestamp is saved',async()=>{mock((url,init)=>{const data=JSON.parse(init.body);assert.equal(data.payload.resultR,null);assert.equal(data.payload.closedAt,payload.closedAt);return response([{id,payload:data.payload}])});assert.equal((await handler(request('journal/create',{id,payload:{...payload,resultR:null}}))).status,201)});
 test('logout confirms cookie clearing even if upstream is unavailable',async()=>{mock(()=>{throw Error('offline')});const r=await handler(request('auth/sign-out',{}));assert.equal(r.status,200);assert.equal((await r.json()).signedOut,true);assert.ok(r.headers.get('set-cookie').includes('Max-Age=0'))});
 test('gold failure never calls PAXG fallback and Yahoo uses 1m',async()=>{const calls=[];mock(url=>{calls.push(url);return response({error:'unavailable'},503)});const r=await handler(request('gold&interval=1min'));assert.equal(r.status,503);assert.ok(calls.some(u=>u.includes('interval=1m&')));assert.ok(calls.every(u=>!u.includes('PAXG')&&!u.includes('binance')))});
+test('gold failure distinguishes a missing provider connection without leaking credentials',async()=>{
+ const previous=process.env.TWELVEDATA_API_KEY;
+ try {
+  delete process.env.TWELVEDATA_API_KEY;mock(()=>response({error:'unavailable'},503));
+  assert.equal((await(await handler(request('gold&interval=5min'))).json()).reason,'provider_not_configured');
+  assert.equal((await(await handler(request('gold/price'))).json()).reason,'provider_not_configured');
+  process.env.TWELVEDATA_API_KEY='private-fixture-key';mock(()=>response({status:'error',message:'private-fixture-key'},503));
+  const data=await(await handler(request('gold&interval=5min'))).json();assert.equal(data.reason,'provider_unavailable');assert.ok(!JSON.stringify(data).includes('private-fixture-key'));
+ } finally {if(previous===undefined)delete process.env.TWELVEDATA_API_KEY;else process.env.TWELVEDATA_API_KEY=previous;}
+});
 test('invalid dates, results and risk are rejected rather than silently discarded',async()=>{mock(()=>assert.fail('must not write'));for(const bad of [{closedAt:Date.now()+86400000},{riskPercent:200},{resultR:1001}])assert.equal((await handler(request('journal/create',{id,payload:{...payload,...bad}}))).status,400)});
 test('unavailable provider yields structured response, not an unhandled rejection',async()=>{globalThis.fetch=async()=>{throw Error('offline')};const r=await handler(request('settings'));assert.equal(r.status,500);assert.equal((await r.json()).error,'server_error')});

@@ -617,14 +617,14 @@ async function marketData(request, url) {
     const headers = session.refreshed ? sessionHeaders(session.refreshed) : JSON_HEADERS;
     return new Response(JSON.stringify(await gold(interval)), { status: 200, headers });
   } catch {
-    return json({ error: "market_data_unavailable" }, 503);
+    return json({ error: "market_data_unavailable", reason: process.env.TWELVEDATA_API_KEY ? "provider_unavailable" : "provider_not_configured" }, 503);
   }
 }
 
 async function goldPrice(request) {
   const session = await currentSession(request);
   if (!session) return json({ error: "authentication_required" }, 401);
-  if (!process.env.TWELVEDATA_API_KEY) return json({ error: "price_feed_unavailable" }, 503);
+  if (!process.env.TWELVEDATA_API_KEY) return json({ error: "price_feed_unavailable", reason: "provider_not_configured" }, 503);
   try {
     if (!goldPriceCache || Date.now() - goldPriceCache.receivedAt >= 15000) {
       const response = await fetch("https://api.twelvedata.com/price?symbol=XAU%2FUSD", {

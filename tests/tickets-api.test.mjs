@@ -7,7 +7,7 @@ const user={id:owner,user_metadata:{full_name:'Member'},app_metadata:{}};
 const row={id:tid,number:7,user_id:owner,user_name:'Member',subject:'Question',status:'open',created_at:'2026-10-07T12:00:00Z',updated_at:'2026-10-07T12:00:00.000123Z',last_message_at:'2026-10-07T12:00:00Z',last_sender_role:'customer',last_message_preview:'Hello'};
 const message={id:mid,seq:1,sender_role:'customer',body:'Hello',created_at:'2026-10-07T12:00:00Z',sender_id:owner};
 const reply=(v,status=200)=>new Response(JSON.stringify(v),{status});
-const request=(route,data,origin='https://site.invalid')=>new Request('https://site.invalid/api?route='+route,{method:data?'POST':'GET',headers:{cookie:'blh_access='+fixtureToken(owner),origin,'content-type':'application/json'},...(data?{body:JSON.stringify(data)}:{})});
+const request=(route,data,origin='https://site.invalid')=>new Request('https://site.invalid/api?route='+route,{method:data?'POST':'GET',headers:{cookie:'blh_access='+(route.startsWith('admin/')?fixtureToken(owner,undefined,{aal:'aal2'}):fixtureToken(owner)),origin,'content-type':'application/json'},...(data?{body:JSON.stringify(data)}:{})});
 function mock(account,run,active=true){globalThis.fetch=async(url,init={})=>String(url).endsWith('/auth/v1/user')?reply(account,account?200:401):sessionRpc(url)?reply(active):run(String(url),init)}
 test('tickets reject anonymous, foreign-origin, replaced sessions and forged administrator metadata',async()=>{
   mock(null,()=>assert.fail('no data'));assert.equal((await handler(request('support/tickets'))).status,401);

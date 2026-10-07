@@ -2,8 +2,14 @@ import "../public/core.js";
 import { ticketApi } from '../lib/support-tickets.js';
 export const config = { runtime: "edge" };
 
-const ACCESS_COOKIE = "blh_access";
-const REFRESH_COOKIE = "blh_refresh";
+// __Host- cookies cannot be set or overwritten by a subdomain. The legacy names
+// are still read once so existing sessions survive the rename, then cleared.
+const ACCESS_COOKIE = "__Host-blh_access";
+const REFRESH_COOKIE = "__Host-blh_refresh";
+const LEGACY_ACCESS_COOKIE = "blh_access";
+const LEGACY_REFRESH_COOKIE = "blh_refresh";
+const UPSTREAM_TIMEOUT_MS = 8000;
+const MARKET_TIMEOUT_MS = 5000;
 const JSON_BYTES_LIMIT = 256 * 1024;
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -46,29 +52,42 @@ function cookie(name, value, maxAge) {
 }
 
 function cookieToken(values, name) {
-  try { return decodeURIComponent(values[name] || ""); }
+  const legacy = { [ACCESS_COOKIE]: LEGACY_ACCESS_COOKIE, [REFRESH_COOKIE]: LEGACY_REFRESH_COOKIE }[name];
+  try { return decodeURIComponent(values[name] || (legacy && values[legacy]) || ""); }
   catch { return ""; }
+}
+
+function clearLegacyCookies(headers) {
+  headers.append("set-cookie", cookie(LEGACY_ACCESS_COOKIE, "", 0));
+  headers.append("set-cookie", cookie(LEGACY_REFRESH_COOKIE, "", 0));
+  return headers;
 }
 
 function sessionHeaders(session) {
   const headers = new Headers(JSON_HEADERS);
   headers.append("set-cookie", cookie(ACCESS_COOKIE, session.access_token, Math.max(60, session.expires_in || 3600)));
   headers.append("set-cookie", cookie(REFRESH_COOKIE, session.refresh_token, 60 * 60 * 24 * 30));
-  return headers;
+  return clearLegacyCookies(headers);
 }
 
 function clearSessionHeaders() {
   const headers = new Headers(JSON_HEADERS);
   headers.append("set-cookie", cookie(ACCESS_COOKIE, "", 0));
   headers.append("set-cookie", cookie(REFRESH_COOKIE, "", 0));
-  return headers;
+  return clearLegacyCookies(headers);
 }
 
 function sameOrigin(request) {
   const site = request.headers.get("sec-fetch-site");
-  if (site === "cross-site") return false;
+  if (site && site !== "same-origin") return false;
   const origin = request.headers.get("origin");
-  return !origin || origin === new URL(request.url).origin;
+  if (origin) return origin === new URL(request.url).origin;
+  // Browsers send Origin on every POST/PUT; a write without either header is not ours.
+  return site === "same-origin" || request.method === "GET";
+}
+
+function timed(init = {}, ms = UPSTREAM_TIMEOUT_MS) {
+  return { ...init, signal: init.signal || AbortSignal.timeout(ms) };
 }
 
 async function requestBytes(request, limit, error = "request_too_large") {
@@ -115,7 +134,7 @@ async function supabase(path, init = {}) {
   const headers = new Headers(init.headers);
   headers.set("apikey", key);
   headers.set("content-type", "application/json");
-  return fetch(`${url}/auth/v1${path}`, { ...init, headers });
+  return fetch(`${url}/auth/v1${path}`, timed({ ...init, headers }));
 }
 
 async function supabaseData(path, accessToken, init = {}) {
@@ -124,7 +143,7 @@ async function supabaseData(path, accessToken, init = {}) {
   headers.set("apikey", key);
   headers.set("authorization", `Bearer ${accessToken}`);
   headers.set("content-type", "application/json");
-  return fetch(`${url}/rest/v1/${path}`, { ...init, headers });
+  return fetch(`${url}/rest/v1/${path}`, timed({ ...init, headers }));
 }
 
 async function supabaseAdmin(path, init = {}) {
@@ -133,7 +152,7 @@ async function supabaseAdmin(path, init = {}) {
   headers.set("apikey", secret);
   headers.set("authorization", `Bearer ${secret}`);
   headers.set("content-type", "application/json");
-  return fetch(`${url}/auth/v1${path}`, { ...init, headers });
+  return fetch(`${url}/auth/v1${path}`, timed({ ...init, headers }));
 }
 
 async function supabaseAdminData(path, init = {}) {
@@ -142,7 +161,7 @@ async function supabaseAdminData(path, init = {}) {
   headers.set("apikey", secret);
   headers.set("authorization", `Bearer ${secret}`);
   headers.set("content-type", "application/json");
-  return fetch(`${url}/rest/v1/${path}`, { ...init, headers });
+  return fetch(`${url}/rest/v1/${path}`, timed({ ...init, headers }));
 }
 
 async function userForToken(token) {
@@ -152,14 +171,55 @@ async function userForToken(token) {
   return response.json();
 }
 
-function validatedSessionId(token, user) {
+function tokenClaims(token, user) {
   // Supabase must validate/issue the token first; decoding alone never authenticates it.
   try {
     const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
     const claims = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(payload), c => c.charCodeAt(0))));
-    if (claims.sub === user?.id && uuid(claims.session_id)) return claims.session_id;
+    if (claims.sub === user?.id) return claims;
   } catch {}
+  return null;
+}
+
+function validatedSessionId(token, user) {
+  const claims = tokenClaims(token, user);
+  if (uuid(claims?.session_id)) return claims.session_id;
   throw new Error('session_replaced');
+}
+
+function verifiedTotpFactors(user) {
+  return (user?.factors || []).filter(factor => factor.factor_type === "totp" && factor.status === "verified");
+}
+
+// Best-effort limiter per edge instance. Supabase only sees Vercel's IPs, so
+// without it one client can exhaust the shared auth limits for everybody.
+const RATE_LIMITS = {
+  "sign-in": { max: 10, windowMs: 5 * 60000 },
+  "sign-up": { max: 5, windowMs: 60 * 60000 },
+  "recover-ip": { max: 5, windowMs: 60 * 60000 },
+  "recover-email": { max: 3, windowMs: 60 * 60000 },
+  "mfa": { max: 10, windowMs: 5 * 60000 },
+};
+const rateBuckets = new Map();
+
+function clientIp(request) {
+  return request.headers.get("x-real-ip") || request.headers.get("x-forwarded-for")?.split(",")[0].trim() || "";
+}
+
+function rateLimited(kind, key) {
+  if (!key) return false;
+  const { max, windowMs } = RATE_LIMITS[kind];
+  const now = Date.now();
+  if (rateBuckets.size > 10000) for (const [id, bucket] of rateBuckets) if (bucket.resetAt <= now) rateBuckets.delete(id);
+  const id = `${kind}:${key}`;
+  const bucket = rateBuckets.get(id);
+  if (!bucket || bucket.resetAt <= now) { rateBuckets.set(id, { count: 1, resetAt: now + windowMs }); return false; }
+  bucket.count += 1;
+  return bucket.count > max;
+}
+
+function tooManyRequests(error = "request_rate_limit") {
+  return json({ error }, 429, { "retry-after": "60" });
 }
 
 async function sessionControl(action, token, user) {
@@ -215,6 +275,8 @@ async function requireSuperAdmin(request) {
   const session = await currentSession(request);
   if (!session) return { error: json({ error: "authentication_required" }, 401) };
   if (session.user.app_metadata?.role !== "super_admin") return { error: json({ error: "admin_required" }, 403) };
+  // Admin power over every account requires a verified second factor on this session.
+  if (tokenClaims(session.accessToken, session.user)?.aal !== "aal2") return { error: json({ error: "admin_mfa_required", enrolled: verifiedTotpFactors(session.user).length > 0 }, 403) };
   return { session };
 }
 
@@ -250,13 +312,20 @@ async function auditAdminAction(session, target, action, details = {}) {
 async function listAdminUsers(request) {
   const authorization = await requireSuperAdmin(request);
   if (authorization.error) return authorization.error;
-  const response = await supabaseAdmin("/admin/users?page=1&per_page=1000");
-  if (!response.ok) return json({ error: "admin_users_unavailable" }, 503);
-  const result = await response.json();
-  const users = (result.users || []).map(adminUser);
+  const users = [];
+  let total = null;
+  for (let page = 1; page <= 20; page++) {
+    const response = await supabaseAdmin(`/admin/users?page=${page}&per_page=1000`);
+    if (!response.ok) return json({ error: "admin_users_unavailable" }, 503);
+    const result = await response.json();
+    const batch = result.users || [];
+    users.push(...batch.map(adminUser));
+    total = result.total ?? total;
+    if (batch.length < 1000) break;
+  }
   const auditResponse = await supabaseAdminData("admin_audit_logs?select=id,created_at,action,target_email,details&order=created_at.desc&limit=30");
   const audit = auditResponse.ok ? await auditResponse.json() : [];
-  return sessionJson({ users, audit, total: result.total ?? users.length }, 200, authorization.session);
+  return sessionJson({ users, audit, total: total ?? users.length }, 200, authorization.session);
 }
 
 async function adminUserAction(request) {
@@ -269,7 +338,7 @@ async function adminUserAction(request) {
   const lookup = await supabaseAdmin(`/admin/users/${encodeURIComponent(data.userId)}`);
   if (!lookup.ok) return json({ error: "user_not_found" }, 404);
   const target = await lookup.json();
-  if (target.app_metadata?.role === "super_admin" && action !== "recovery") return json({ error: "protected_super_admin" }, 409);
+  if (target.app_metadata?.role === "super_admin" && (action !== "recovery" || target.id !== authorization.session.user.id)) return json({ error: "protected_super_admin" }, 409);
 
   let response;
   if (action === "recovery") {
@@ -510,6 +579,7 @@ function strongPassword(value) {
 }
 
 async function signIn(request) {
+  if (rateLimited("sign-in", clientIp(request))) return tooManyRequests();
   const data = await body(request);
   if (!validEmail(data.email) || typeof data.password !== "string" || !data.password) return json({ error: "invalid_credentials" }, 400);
   const response = await supabase("/token?grant_type=password", {
@@ -533,6 +603,7 @@ async function signIn(request) {
 }
 
 async function signUp(request) {
+  if (rateLimited("sign-up", clientIp(request))) return tooManyRequests("email_rate_limit");
   const data = await body(request);
   const name = typeof data.name === "string" ? data.name.trim().replace(/\s+/g, " ") : "";
   if (name.length < 2 || name.length > 80 || !validEmail(data.email)) return json({ error: "invalid_signup" }, 400);
@@ -567,6 +638,7 @@ async function signUp(request) {
 async function recover(request) {
   const data = await body(request);
   if (!validEmail(data.email)) return json({ error: "invalid_email" }, 400);
+  if (rateLimited("recover-ip", clientIp(request)) || rateLimited("recover-email", data.email.trim().toLowerCase())) return tooManyRequests("email_rate_limit");
   const redirectTo = `${new URL(request.url).origin}/`;
   const response = await supabase(`/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
     method: "POST",
@@ -639,6 +711,67 @@ async function signOut(request) {
   return new Response(JSON.stringify({ signedOut: true }), { status: 200, headers: clearSessionHeaders() });
 }
 
+async function requireAdminAccount(request) {
+  const session = await currentSession(request);
+  if (!session) return { error: json({ error: "authentication_required" }, 401) };
+  if (session.user.app_metadata?.role !== "super_admin") return { error: json({ error: "admin_required" }, 403) };
+  return { session };
+}
+
+async function mfaStatus(request) {
+  const authorization = await requireAdminAccount(request);
+  if (authorization.error) return authorization.error;
+  const { session } = authorization;
+  const factor = verifiedTotpFactors(session.user)[0];
+  return sessionJson({ enrolled: !!factor, factorId: factor?.id || null, aal: tokenClaims(session.accessToken, session.user)?.aal || "aal1" }, 200, session);
+}
+
+async function mfaEnroll(request) {
+  const authorization = await requireAdminAccount(request);
+  if (authorization.error) return authorization.error;
+  const { session } = authorization;
+  if (verifiedTotpFactors(session.user).length) return json({ error: "mfa_already_enrolled" }, 409);
+  const auth = { authorization: `Bearer ${session.accessToken}` };
+  // Abandoned enrolments would otherwise block a new one.
+  for (const factor of session.user.factors || []) {
+    if (factor.factor_type === "totp" && factor.status !== "verified" && uuid(factor.id)) {
+      await supabase(`/factors/${encodeURIComponent(factor.id)}`, { method: "DELETE", headers: auth }).catch(() => {});
+    }
+  }
+  const response = await supabase("/factors", {
+    method: "POST", headers: auth,
+    body: JSON.stringify({ factor_type: "totp", issuer: "PIPVORIA", friendly_name: `PIPVORIA admin ${Date.now()}` }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !uuid(result.id) || typeof result.totp?.secret !== "string") return json({ error: "mfa_unavailable" }, 503);
+  const qrCode = typeof result.totp.qr_code === "string" && result.totp.qr_code.startsWith("data:image/svg+xml") ? result.totp.qr_code : null;
+  return sessionJson({ factorId: result.id, qrCode, secret: result.totp.secret }, 200, session);
+}
+
+async function mfaVerify(request) {
+  const authorization = await requireAdminAccount(request);
+  if (authorization.error) return authorization.error;
+  const { session } = authorization;
+  if (rateLimited("mfa", session.user.id)) return tooManyRequests();
+  const data = await body(request);
+  const code = typeof data.code === "string" ? data.code.replace(/\s/g, "") : "";
+  const factor = (session.user.factors || []).find(item => item.id === data.factorId && item.factor_type === "totp");
+  if (!uuid(data.factorId) || !factor || !/^\d{6}$/.test(code)) return json({ error: "mfa_invalid_code" }, 400);
+  const auth = { authorization: `Bearer ${session.accessToken}` };
+  const challengeResponse = await supabase(`/factors/${encodeURIComponent(factor.id)}/challenge`, { method: "POST", headers: auth, body: "{}" });
+  const challenge = await challengeResponse.json().catch(() => ({}));
+  if (!challengeResponse.ok || !uuid(challenge.id)) return json({ error: "mfa_unavailable" }, 503);
+  const verifyResponse = await supabase(`/factors/${encodeURIComponent(factor.id)}/verify`, {
+    method: "POST", headers: auth, body: JSON.stringify({ challenge_id: challenge.id, code }),
+  });
+  const verified = await verifyResponse.json().catch(() => ({}));
+  if (!verifyResponse.ok || !verified.access_token || !verified.refresh_token) return json({ error: verifyResponse.status === 429 ? "request_rate_limit" : "mfa_invalid_code" }, verifyResponse.status === 429 ? 429 : 400);
+  const user = verified.user || await userForToken(verified.access_token);
+  if (!user || user.id !== session.user.id) return json({ error: "mfa_unavailable" }, 503);
+  await enforceSession("claim", verified.access_token, user);
+  return new Response(JSON.stringify({ user: publicUser(user), aal: "aal2" }), { status: 200, headers: sessionHeaders(verified) });
+}
+
 const durations = { "1min": 60000, "5min": 300000, "15min": 900000, "30min": 1800000, "1h": 3600000 };
 const marketCache = new Map();
 let goldPriceCache = null;
@@ -666,7 +799,7 @@ function normalizeGold(interval, values, source) {
 async function goldFromYahoo(interval) {
   const yahooInterval = {"1min":"1m","5min":"5m","15min":"15m","30min":"30m","1h":"60m"}[interval];
   const range = ["1min", "5min", "15min", "30min"].includes(interval) ? "5d" : "1mo";
-  const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD=X?interval=${yahooInterval}&range=${range}`);
+  const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD=X?interval=${yahooInterval}&range=${range}`, timed({}, MARKET_TIMEOUT_MS));
   const data = await response.json();
   const result = data.chart?.result?.[0];
   const quote = result?.indicators?.quote?.[0];
@@ -681,7 +814,7 @@ async function gold(interval) {
   let result;
   try {
     if (process.env.TWELVEDATA_API_KEY) {
-      const response = await fetch(`https://api.twelvedata.com/time_series?symbol=XAU%2FUSD&interval=${interval}&outputsize=1000&timezone=UTC`, { headers: { authorization: `apikey ${process.env.TWELVEDATA_API_KEY}` } });
+      const response = await fetch(`https://api.twelvedata.com/time_series?symbol=XAU%2FUSD&interval=${interval}&outputsize=1000&timezone=UTC`, timed({ headers: { authorization: `apikey ${process.env.TWELVEDATA_API_KEY}` } }, MARKET_TIMEOUT_MS));
       const data = await response.json();
       if (data.status === "ok" && Array.isArray(data.values)) result = normalizeGold(interval, data.values.map((bar) => ({ time: Date.parse(`${bar.datetime.replace(" ", "T")}Z`), ...bar })), "Twelve Data");
     }
@@ -715,6 +848,7 @@ async function goldPrice(request) {
     if (!goldPriceCache || Date.now() - goldPriceCache.receivedAt >= 15000) {
       const response = await fetch("https://api.twelvedata.com/price?symbol=XAU%2FUSD", {
         headers: { authorization: `apikey ${process.env.TWELVEDATA_API_KEY}` },
+        signal: AbortSignal.timeout(MARKET_TIMEOUT_MS),
       });
       const data = await response.json();
       const price = Number(data.price);
@@ -818,7 +952,7 @@ async function avatarStorage(path, accessToken, init = {}) {
   const headers = new Headers(init.headers);
   headers.set("apikey", key);
   headers.set("authorization", `Bearer ${accessToken}`);
-  return fetch(`${url}/storage/v1/${path}`, { ...init, headers });
+  return fetch(`${url}/storage/v1/${path}`, timed({ ...init, headers }));
 }
 
 async function profileAvatar(request) {
@@ -874,6 +1008,7 @@ export default async function handler(request) {
       const action = ticketRoute[2] === 'tickets' ? 'list' : ticketRoute[3];
       if (request.method === (['list','messages'].includes(action) ? 'GET' : 'POST')) return await handleTickets(request,url,!!ticketRoute[1],action);
     }
+    if (route === "auth/mfa/status" && request.method === "GET" && sameOrigin(request)) return await mfaStatus(request);
     if (route === "auth/session" && request.method === "GET") {
       const session = await currentSession(request);
       if (!session) return json({ user: null }, 401);
@@ -887,6 +1022,8 @@ export default async function handler(request) {
     if (route === "auth/import-session") return await importSession(request);
     if (route === "auth/update-password") return await updatePassword(request);
     if (route === "auth/sign-out") return await signOut(request);
+    if (route === "auth/mfa/enroll") return await mfaEnroll(request);
+    if (route === "auth/mfa/verify") return await mfaVerify(request);
     if (route === "journal/create") return await saveJournal(request);
     if (route === "journal/update") return await updateJournal(request, url);
     if (route === "preferences") return await savePreferences(request);

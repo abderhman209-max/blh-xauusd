@@ -82,6 +82,13 @@
     ar: { requiredEmail:"أدخل بريدك الإلكتروني.", requiredPassword:"أدخل كلمة المرور.", requiredName:"أدخل اسمك الكامل.", emailNotConfirmed:"أكّد بريدك الإلكتروني قبل تسجيل الدخول. تحقق أيضاً من البريد غير المرغوب فيه.", accountDisabled:"هذا الحساب معطّل. اتصل بالدعم.", unavailable:"الخدمة غير متاحة مؤقتاً. حاول لاحقاً.", recoveryUnavailable:"تعذّر إرسال الرابط الآن. حاول لاحقاً.", expiredLink:"رابط إعادة التعيين غير صالح أو انتهت صلاحيته. اطلب رابطاً جديداً.", updateFailed:"تعذّر تغيير كلمة المرور. حاول برابط جديد.", samePassword:"اختر كلمة مرور مختلفة.", sending:"جارٍ إرسال الرابط…", signingIn:"جارٍ تسجيل الدخول…", creating:"جارٍ إنشاء الحساب…", updating:"جارٍ تحديث كلمة المرور…" }
   };
   Object.keys(copy).forEach(code => Object.assign(copy[code], feedbackCopy[code]));
+  const linkCopy = {
+    fr: { linkTitle:"Confirmer le compte", linkSub:"Ce lien ouvre une session sur le compte ci-dessous. Continuez uniquement si c’est le vôtre.", linkContinue:"Continuer avec ce compte", linkCancel:"Ce n’est pas mon compte", linkUnknown:"Compte inconnu" },
+    en: { linkTitle:"Confirm the account", linkSub:"This link signs you in to the account below. Continue only if it is yours.", linkContinue:"Continue with this account", linkCancel:"This is not my account", linkUnknown:"Unknown account" },
+    es: { linkTitle:"Confirmar la cuenta", linkSub:"Este enlace inicia sesión en la cuenta indicada. Continúa solo si es la tuya.", linkContinue:"Continuar con esta cuenta", linkCancel:"No es mi cuenta", linkUnknown:"Cuenta desconocida" },
+    ar: { linkTitle:"تأكيد الحساب", linkSub:"يفتح هذا الرابط جلسة على الحساب أدناه. تابع فقط إذا كان حسابك.", linkContinue:"المتابعة بهذا الحساب", linkCancel:"هذا ليس حسابي", linkUnknown:"حساب غير معروف" }
+  };
+  Object.keys(copy).forEach(code => Object.assign(copy[code], linkCopy[code]));
   let language = "fr";
   try { language = localStorage.getItem("blh-language") || "fr"; } catch {}
   if (!languages[language]) language = "fr";
@@ -100,7 +107,15 @@
   const status = gate.querySelector("#auth-status");
   const header = gate.querySelector(".auth-card-header");
   const tabs = gate.querySelector(".auth-tabs");
-  const forms = Object.fromEntries(["signin","signup","recovery","reset"].map(name => [name, gate.querySelector(`#${name}-form`)]));
+  // A link carrying session tokens is never imported silently: someone could send
+  // a link holding their own tokens to sign a victim into the sender's account.
+  const linkForm = document.createElement("form");
+  linkForm.className = "auth-form auth-recovery";
+  linkForm.id = "link-form";
+  linkForm.hidden = true;
+  linkForm.innerHTML = '<p class="auth-field"><strong id="link-account"></strong></p><button class="auth-primary" type="submit" data-auth="linkContinue"></button><button class="auth-link" type="button" id="link-cancel" data-auth="linkCancel"></button>';
+  gate.querySelector("#reset-form").after(linkForm);
+  const forms = Object.fromEntries(["signin","signup","recovery","reset","link"].map(name => [name, gate.querySelector(`#${name}-form`)]));
   const languageSelect = gate.querySelector(".auth-language select");
   const signupPassword = forms.signup.elements.password;
   const signupConfirm = forms.signup.elements.confirm;
@@ -207,13 +222,13 @@
     return Object.values(checks).every(Boolean) && !mismatch;
   }
   function renderMode(){
-    const recovering = mode === "recovery" || mode === "reset";
+    const recovering = mode === "recovery" || mode === "reset" || mode === "link";
     tabs.hidden = recovering;
     for (const [name, form] of Object.entries(forms)) form.hidden = name !== mode;
     forms[mode].append(status);
     gate.querySelectorAll("[data-mode]").forEach(button => button.setAttribute("aria-selected", String(button.dataset.mode === mode)));
-    header.querySelector("h1").textContent = tr(mode === "signup" ? "create" : mode === "recovery" ? "recoverTitle" : mode === "reset" ? "resetTitle" : "welcome");
-    header.querySelector("p").textContent = tr(mode === "signup" ? "createSub" : mode === "recovery" ? "recoverSub" : mode === "reset" ? "resetSub" : "welcomeSub");
+    header.querySelector("h1").textContent = tr(mode === "signup" ? "create" : mode === "recovery" ? "recoverTitle" : mode === "reset" ? "resetTitle" : mode === "link" ? "linkTitle" : "welcome");
+    header.querySelector("p").textContent = tr(mode === "signup" ? "createSub" : mode === "recovery" ? "recoverSub" : mode === "reset" ? "resetSub" : mode === "link" ? "linkSub" : "welcomeSub");
     setStatus("");
   }
   async function request(route, options={}){
@@ -337,15 +352,34 @@
       lock();mode='recovery';renderMode();setStatus(tr('expiredLink'));return;
     }
     if(hash.get("access_token")&&hash.get("refresh_token")){
-      const type=hash.get("type");
+      pendingLink={accessToken:hash.get("access_token"),refreshToken:hash.get("refresh_token"),expiresIn:hash.get("expires_in"),type:hash.get("type")};
       history.replaceState(null,"",location.pathname+location.search);
-      try {
-        const {response,result}=await request("auth/import-session",{method:"POST",body:JSON.stringify({accessToken:hash.get("access_token"),refreshToken:hash.get("refresh_token"),expiresIn:hash.get("expires_in")})});
-        if(response.ok){user=result.user;if(type==="recovery"){window.BLH_AUTH.user=user;window.BLH_AUTH.authenticated=true;mode="reset";renderMode();return}unlock(user);return}
-        if (['session_replaced', 'session_control_unavailable'].includes(result.error)) { lock();setStatus(authError(result.error));return; }
-      } catch {}
-      if(type==='recovery'){lock();mode='recovery';renderMode();setStatus(tr('expiredLink'));return}
+      lock();mode="link";renderMode();
+      gate.querySelector("#link-account").textContent=linkEmail(pendingLink.accessToken)||tr("linkUnknown");
+      return;
     }
+    await restoreSession();
+  }
+  let pendingLink=null;
+  function linkEmail(token){
+    // Display only: the server validates the tokens before any session is created.
+    try{const part=token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");const claims=JSON.parse(decodeURIComponent(escape(atob(part))));return typeof claims.email==="string"?claims.email.slice(0,254):""}catch{return ""}
+  }
+  forms.link.addEventListener("submit",async event=>{
+    event.preventDefault();
+    const link=pendingLink;pendingLink=null;
+    if(!link){mode="signin";renderMode();return}
+    setBusy(forms.link,true);
+    try {
+      const {response,result}=await request("auth/import-session",{method:"POST",body:JSON.stringify({accessToken:link.accessToken,refreshToken:link.refreshToken,expiresIn:link.expiresIn})});
+      if(response.ok){user=result.user;if(link.type==="recovery"){window.BLH_AUTH.user=user;window.BLH_AUTH.authenticated=true;mode="reset";renderMode();return}unlock(user);return}
+      if (['session_replaced', 'session_control_unavailable'].includes(result.error)) { lock();setStatus(authError(result.error));return; }
+    } catch {} finally { setBusy(forms.link,false); }
+    if(link.type==='recovery'){lock();mode='recovery';renderMode();setStatus(tr('expiredLink'));return}
+    lock();
+  });
+  gate.querySelector("#link-cancel").onclick=()=>{pendingLink=null;restoreSession()};
+  async function restoreSession(){
     try{const {response,result}=await request("auth/session",{method:"GET",headers:{}});if(response.ok){unlock(result.user);return}if(result.error==='session_replaced'){lock();sessionStatusKey='sessionReplaced';setStatus(tr(sessionStatusKey));return}if(result.error==='session_control_unavailable'){lock();setStatus(tr('unavailable'));return}}catch{}
     lock();
   }

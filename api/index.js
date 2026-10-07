@@ -3,6 +3,7 @@ export const config = { runtime: "edge" };
 
 const ACCESS_COOKIE = "blh_access";
 const REFRESH_COOKIE = "blh_refresh";
+const JSON_BYTES_LIMIT = 256 * 1024;
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
   "cache-control": "no-store",
@@ -43,6 +44,11 @@ function cookie(name, value, maxAge) {
   return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 }
 
+function cookieToken(values, name) {
+  try { return decodeURIComponent(values[name] || ""); }
+  catch { return ""; }
+}
+
 function sessionHeaders(session) {
   const headers = new Headers(JSON_HEADERS);
   headers.append("set-cookie", cookie(ACCESS_COOKIE, session.access_token, Math.max(60, session.expires_in || 3600)));
@@ -64,11 +70,41 @@ function sameOrigin(request) {
   return !origin || origin === new URL(request.url).origin;
 }
 
+async function requestBytes(request, limit, error = "request_too_large") {
+  if (Number(request.headers.get("content-length") || 0) > limit) {
+    await request.body?.cancel().catch(() => {});
+    throw new Error(error);
+  }
+  if (!request.body) return new Uint8Array();
+  const reader = request.body.getReader();
+  const chunks = [];
+  let length = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > limit) {
+        await reader.cancel().catch(() => {});
+        throw new Error(error);
+      }
+      chunks.push(value);
+    }
+  } finally { reader.releaseLock(); }
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return bytes;
+}
+
 async function body(request) {
-  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+  if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") {
     throw new Error("invalid_content_type");
   }
-  const parsed = await request.json();
+  const bytes = await requestBytes(request, JSON_BYTES_LIMIT);
+  let parsed;
+  try { parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); }
+  catch { throw new Error("invalid_body"); }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("invalid_body");
   return parsed;
 }
@@ -117,8 +153,8 @@ async function userForToken(token) {
 
 async function currentSession(request) {
   const values = cookies(request);
-  const accessToken = decodeURIComponent(values[ACCESS_COOKIE] || "");
-  const refreshToken = decodeURIComponent(values[REFRESH_COOKIE] || "");
+  const accessToken = cookieToken(values, ACCESS_COOKIE);
+  const refreshToken = cookieToken(values, REFRESH_COOKIE);
   let user = await userForToken(accessToken);
   if (user) return { user, accessToken, refreshed: null };
   if (!refreshToken) return null;
@@ -548,7 +584,7 @@ async function updatePassword(request) {
 
 async function signOut(request) {
   const values = cookies(request);
-  const token = decodeURIComponent(values[ACCESS_COOKIE] || "");
+  const token = cookieToken(values, ACCESS_COOKIE);
   if (token) await supabase("/logout", { method: "POST", headers: { authorization: `Bearer ${token}` } }).catch(() => {});
   return new Response(JSON.stringify({ signedOut: true }), { status: 200, headers: clearSessionHeaders() });
 }
@@ -653,6 +689,7 @@ async function avatarStorage(path, accessToken, init = {}) {
 }
 
 async function profileAvatar(request) {
+  if (!["GET", "PUT"].includes(request.method) || request.method === "PUT" && !sameOrigin(request)) return json({ error: "not_found" }, 404);
   const session = await currentSession(request);
   if (!session) return json({ error: "authentication_required" }, 401);
   const path = `object/${AVATAR_BUCKET}/${session.user.id}/avatar.jpg`;
@@ -673,11 +710,8 @@ async function profileAvatar(request) {
     headers.set("x-content-type-options", "nosniff");
     return new Response(response.body, { status: 200, headers });
   }
-  if (request.method !== "PUT" || !sameOrigin(request)) return json({ error: "not_found" }, 404);
   if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "image/jpeg") return json({ error: "invalid_avatar_type" }, 415);
-  const declared = Number(request.headers.get("content-length") || 0);
-  if (declared > AVATAR_BYTES_LIMIT) return json({ error: "avatar_too_large" }, 413);
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  const bytes = await requestBytes(request, AVATAR_BYTES_LIMIT, "avatar_too_large");
   if (bytes.length < 4 || bytes.length > AVATAR_BYTES_LIMIT || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes.at(-2) !== 0xff || bytes.at(-1) !== 0xd9) return json({ error: "invalid_avatar" }, 400);
   const response = await avatarStorage(path, session.accessToken, {
     method: "POST",
@@ -719,9 +753,11 @@ export default async function handler(request) {
     if (route === "admin/user-action") return await adminUserAction(request);
     return json({ error: "not_found" }, 404);
   } catch (error) {
+    if (["request_too_large", "avatar_too_large"].includes(error?.message)) return json({ error: error.message }, 413);
     if (error?.message === "invalid_content_type" || error?.message === "invalid_body") return json({ error: "invalid_request" }, 400);
     if (error?.message === "Supabase is not configured") return json({ error: "service_not_configured" }, 503);
     if (error?.message === "Supabase admin is not configured") return json({ error: "admin_not_configured" }, 503);
     return json({ error: "server_error" }, 500);
   }
 }
+

@@ -141,7 +141,15 @@
   motionPreference?.addEventListener?.("change", event => { if (event.matches) promoVideo.pause(); });
   syncPromoButton();
 
-  function tr(key){ return copy[language][key] || key; }
+  const sessionCopy = {
+    fr: { sessionReplaced: 'Ce compte a été ouvert sur un autre appareil. Reconnectez-vous pour reprendre ici.', sessionEnded: 'Votre session a pris fin. Reconnectez-vous pour continuer.' },
+    en: { sessionReplaced: 'This account was opened on another device. Sign in again to continue here.', sessionEnded: 'Your session has ended. Sign in again to continue.' },
+    es: { sessionReplaced: 'Esta cuenta se abrió en otro dispositivo. Inicia sesión para continuar aquí.', sessionEnded: 'Tu sesión ha terminado. Inicia sesión para continuar.' },
+    ar: { sessionReplaced: 'تم فتح هذا الحساب على جهاز آخر. سجّل الدخول مجدداً للمتابعة هنا.', sessionEnded: 'انتهت الجلسة. سجّل الدخول مجدداً للمتابعة.' }
+  };
+  let sessionStatusKey = '';
+  let sessionEpoch = 0;
+  function tr(key){ return copy[language][key] || sessionCopy[language]?.[key] || key; }
   function applyLanguage(){
     document.documentElement.lang = language;
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
@@ -153,6 +161,7 @@
     confirmError.textContent = tr("mismatch");
     syncPromoButton();
     renderMode();
+    if (sessionStatusKey) setStatus(tr(sessionStatusKey));
     updateSignupValidation();
   }
   function startSignupCooldown(seconds=60){
@@ -166,11 +175,12 @@
     tick(); signupCooldownTimer = setInterval(tick, 1000);
   }
   function signupErrorMessage(code){
+    if (['session_replaced', 'session_control_unavailable'].includes(code)) return authError(code);
     return tr({ weak_password:'weak', invalid_email:'invalidEmail', email_rate_limit:'emailRate', request_rate_limit:'requestRate', account_exists:'accountExists', signup_disabled:'signupDisabled', email_provider_disabled:'emailProvider', email_not_authorized:'emailUnauthorized', service_not_configured:'service' }[code] || 'invalidSignup');
   }
   function setStatus(message, success=false){ status.textContent = message; status.classList.toggle("success", success); status.hidden = !message; }
   function authError(code, fallback='unavailable'){
-    return tr({ invalid_credentials:'invalid', invalid_email:'invalidEmail', email_not_confirmed:'emailNotConfirmed', account_disabled:'accountDisabled', request_rate_limit:'requestRate', email_rate_limit:'emailRate', email_not_authorized:'emailUnauthorized', service_not_configured:'service', same_password:'samePassword', weak_password:'weak', authentication_required:'expiredLink', password_update_failed:'updateFailed', recovery_unavailable:'recoveryUnavailable' }[code] || fallback);
+    return tr({ session_replaced:'sessionReplaced', session_control_unavailable:'unavailable', invalid_credentials:'invalid', invalid_email:'invalidEmail', email_not_confirmed:'emailNotConfirmed', account_disabled:'accountDisabled', request_rate_limit:'requestRate', email_rate_limit:'emailRate', email_not_authorized:'emailUnauthorized', service_not_configured:'service', same_password:'samePassword', weak_password:'weak', authentication_required:'expiredLink', password_update_failed:'updateFailed', recovery_unavailable:'recoveryUnavailable' }[code] || fallback);
   }
   function setBusy(form, busy){ form.querySelectorAll("button,input").forEach(node => node.disabled = busy); }
   function passwordChecks(value){
@@ -212,11 +222,13 @@
     return { response, result };
   }
   function unlock(nextUser){
+    sessionStatusKey = ''; sessionEpoch++;
     user = nextUser; window.BLH_AUTH.user = user; window.BLH_AUTH.authenticated = true;
     gate.hidden = true; promoVideo.pause(); document.body.classList.remove("auth-locked");
     document.dispatchEvent(new CustomEvent("blh-authenticated", { detail:{ user } }));
   }
   function lock(){
+    sessionEpoch++;
     user = null; window.BLH_AUTH.user = null; window.BLH_AUTH.authenticated = false;
     document.body.classList.add("auth-locked"); gate.hidden = false; if (!motionPreference?.matches) promoVideo.play().catch(() => {}); mode = "signin"; renderMode();
   }
@@ -235,7 +247,27 @@
   gate.addEventListener('submit',event=>{if(pendingLogout()){event.preventDefault();event.stopImmediatePropagation();setStatus((logoutCopy[language]||logoutCopy.en)[0]);}},true);
 
   window.BLH_AUTH = { authenticated:false, user:null, logout };
-  document.addEventListener("blh-session-expired", lock);
+  document.addEventListener("blh-session-expired", event => {
+    lock();
+    if (!pendingLogout()) {
+      sessionStatusKey = event.detail?.reason === 'session_replaced' || sessionStatusKey === 'sessionReplaced' ? 'sessionReplaced' : 'sessionEnded';
+      setStatus(tr(sessionStatusKey));
+    }
+  });
+  let sessionCheckPending = false;
+  async function checkSession(){
+    if (!user || !window.BLH_AUTH.authenticated || document.hidden || sessionCheckPending || pendingLogout()) return;
+    const epoch = sessionEpoch;
+    sessionCheckPending = true;
+    try {
+      const { response, result } = await request('auth/session', { method:'GET' });
+      if (epoch === sessionEpoch && response.status === 401) {
+        document.dispatchEvent(new CustomEvent('blh-session-expired', { detail:{ reason:result.error } }));
+      }
+    } catch {} finally { sessionCheckPending = false; }
+  }
+  setInterval(checkSession, 15000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkSession(); });
 
   languageSelect.addEventListener("change", () => {
     language = languageSelect.value; try { localStorage.setItem("blh-language", language); } catch {} applyLanguage();
@@ -310,10 +342,11 @@
       try {
         const {response,result}=await request("auth/import-session",{method:"POST",body:JSON.stringify({accessToken:hash.get("access_token"),refreshToken:hash.get("refresh_token"),expiresIn:hash.get("expires_in")})});
         if(response.ok){user=result.user;if(type==="recovery"){window.BLH_AUTH.user=user;window.BLH_AUTH.authenticated=true;mode="reset";renderMode();return}unlock(user);return}
+        if (['session_replaced', 'session_control_unavailable'].includes(result.error)) { lock();setStatus(authError(result.error));return; }
       } catch {}
       if(type==='recovery'){lock();mode='recovery';renderMode();setStatus(tr('expiredLink'));return}
     }
-    try{const {response,result}=await request("auth/session",{method:"GET",headers:{}});if(response.ok){unlock(result.user);return}}catch{}
+    try{const {response,result}=await request("auth/session",{method:"GET",headers:{}});if(response.ok){unlock(result.user);return}if(result.error==='session_replaced'){lock();sessionStatusKey='sessionReplaced';setStatus(tr(sessionStatusKey));return}if(result.error==='session_control_unavailable'){lock();setStatus(tr('unavailable'));return}}catch{}
     lock();
   }
   if(pendingLogout()){applyLanguage();logout();}else bootstrap();

@@ -21,7 +21,7 @@ const tx=key=>extra[lang()][key]||extra.en[key]||key;
 async function api(route,options={}){
  const response=await fetch('/api?route='+encodeURIComponent(route)+(options.query||''),{credentials:'same-origin',method:options.method||'GET',headers:options.body?{'content-type':'application/json'}:{},body:options.body?JSON.stringify(options.body):undefined});
  const result=await response.json().catch(()=>({error:'server_error'}));
- if(!response.ok){const error=Error(result.error||'request_failed');error.status=response.status;error.entry=result.entry;error.code=result.error;if(response.status===401)document.dispatchEvent(new Event('blh-session-expired'));throw error;}
+ if(!response.ok){const error=Error(result.error||'request_failed');error.status=response.status;error.entry=result.entry;error.code=result.error;if(response.status===401)document.dispatchEvent(new CustomEvent('blh-session-expired',{detail:{reason:result.error}}));throw error;}
  return result;
 }
 function cacheKey(accountId=window.BLH_AUTH?.user?.id){return 'blh-analysis-journal:'+(accountId||'local')}

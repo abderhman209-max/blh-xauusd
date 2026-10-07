@@ -1,9 +1,11 @@
 import {test,after} from 'node:test';import assert from 'node:assert/strict';import handler from '../api/index.js';
+import {fixtureToken,sessionRpc} from './auth-fixture.mjs';
 const originalFetch=globalThis.fetch;after(()=>{globalThis.fetch=originalFetch});process.env.SUPABASE_URL='https://fixture.invalid';process.env.SUPABASE_PUBLISHABLE_KEY='test-public-key';
 const user={id:'11111111-1111-4111-8111-111111111111',user_metadata:{pipvoria_settings:{timezone:'Europe/Paris',confirmedOnly:true}}};const id='22222222-2222-4222-8222-222222222222';const payload={symbol:'XAU/USD',interval:'5min',status:'win',closedAt:Date.now(),resultR:2,clientUpdatedAt:Date.now()};
 const response=(v,status=200)=>new Response(JSON.stringify(v),{status});
-const request=(route,data,method=data?'POST':'GET')=>new Request('https://site.invalid/api?route='+route,{method,headers:{cookie:'blh_access=test-token',origin:'https://site.invalid','content-type':'application/json'},body:data?JSON.stringify(data):undefined});
-function mock(run){globalThis.fetch=async(url,init={})=>String(url).endsWith('/auth/v1/user')&&(!init.method||init.method==='GET')?response(user):run(String(url),init)}
+process.env.SUPABASE_SECRET_KEY='fixture-secret';
+const request=(route,data,method=data?'POST':'GET')=>new Request('https://site.invalid/api?route='+route,{method,headers:{cookie:'blh_access='+fixtureToken(user.id),origin:'https://site.invalid','content-type':'application/json'},body:data?JSON.stringify(data):undefined});
+function mock(run){globalThis.fetch=async(url,init={})=>String(url).endsWith('/auth/v1/user')&&(!init.method||init.method==='GET')?response(user):sessionRpc(url)?response(true):run(String(url),init)}
 test('settings migrate legacy metadata to an owner-scoped CAS document',async()=>{
  let row=null;
  mock((url,init)=>{assert.ok(url.includes('/rest/v1/analysis_snapshots'));if(!init.method){assert.ok(url.includes('id=eq.'+user.id)&&url.includes('user_id=eq.'+user.id)&&url.includes('kind=eq.settings'));return response(row?[row]:[])}

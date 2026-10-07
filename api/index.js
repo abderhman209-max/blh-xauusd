@@ -151,12 +151,43 @@ async function userForToken(token) {
   return response.json();
 }
 
+function validatedSessionId(token, user) {
+  // Supabase must validate/issue the token first; decoding alone never authenticates it.
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const claims = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(payload), c => c.charCodeAt(0))));
+    if (claims.sub === user?.id && uuid(claims.session_id)) return claims.session_id;
+  } catch {}
+  throw new Error('session_replaced');
+}
+
+async function sessionControl(action, token, user) {
+  const sessionId = validatedSessionId(token, user);
+  try {
+    const rpc = action === 'active' ? 'pipvoria_session_active' : `pipvoria_${action}_session`;
+    const response = await supabaseAdminData(`rpc/${rpc}`, {
+      method: 'POST', body: JSON.stringify({ p_user_id: user.id, p_session_id: sessionId }),
+    });
+    if (!response.ok) throw new Error('session_control_unavailable');
+    const accepted = await response.json();
+    if (typeof accepted !== 'boolean') throw new Error('session_control_unavailable');
+    return accepted;
+  } catch { throw new Error('session_control_unavailable'); }
+}
+
+async function enforceSession(action, token, user) {
+  if (!await sessionControl(action, token, user)) throw new Error('session_replaced');
+}
+
 async function currentSession(request) {
   const values = cookies(request);
   const accessToken = cookieToken(values, ACCESS_COOKIE);
   const refreshToken = cookieToken(values, REFRESH_COOKIE);
   let user = await userForToken(accessToken);
-  if (user) return { user, accessToken, refreshed: null };
+  if (user) {
+    await enforceSession('active', accessToken, user);
+    return { user, accessToken, refreshed: null };
+  }
   if (!refreshToken) return null;
 
   const response = await supabase("/token?grant_type=refresh_token", {
@@ -166,6 +197,7 @@ async function currentSession(request) {
   if (!response.ok) return null;
   const session = await response.json();
   user = session.user || (await userForToken(session.access_token));
+  if (user) await enforceSession('active', session.access_token, user);
   return user ? { user, accessToken: session.access_token, refreshed: session } : null;
 }
 
@@ -495,6 +527,7 @@ async function signIn(request) {
     return json({ error }, response.status === 429 ? 429 : response.status >= 500 ? 503 : 401);
   }
   const session = await response.json();
+  await enforceSession('claim', session.access_token, session.user);
   return new Response(JSON.stringify({ user: publicUser(session.user) }), { status: 200, headers: sessionHeaders(session) });
 }
 
@@ -526,6 +559,7 @@ async function signUp(request) {
     return json({ error, ...(error === "email_rate_limit" ? { retryAfter: 60 } : {}) }, response.status === 429 ? 429 : 400);
   }
   if (!result.access_token) return json({ confirmationRequired: true }, 202);
+  await enforceSession('claim', result.access_token, result.user);
   return new Response(JSON.stringify({ user: publicUser(result.user) }), { status: 201, headers: sessionHeaders(result) });
 }
 
@@ -562,6 +596,7 @@ async function importSession(request) {
   if (!response.ok) return json({ error: "invalid_session" }, 401);
   const session = await response.json();
   if (!session.user || session.user.id !== user.id) return json({ error: "invalid_session" }, 401);
+  await enforceSession('claim', session.access_token, session.user);
   return new Response(JSON.stringify({ user: publicUser(session.user) }), { status: 200, headers: sessionHeaders(session) });
 }
 
@@ -584,8 +619,22 @@ async function updatePassword(request) {
 
 async function signOut(request) {
   const values = cookies(request);
-  const token = cookieToken(values, ACCESS_COOKIE);
-  if (token) await supabase("/logout", { method: "POST", headers: { authorization: `Bearer ${token}` } }).catch(() => {});
+  let token = cookieToken(values, ACCESS_COOKIE);
+  let user = await userForToken(token);
+  const refreshToken = cookieToken(values, REFRESH_COOKIE);
+  if (!user && refreshToken) {
+    const refreshed = await supabase('/token?grant_type=refresh_token', { method: 'POST', body: JSON.stringify({ refresh_token: refreshToken }) });
+    if (refreshed.ok) {
+      const session = await refreshed.json();
+      token = session.access_token;
+      user = session.user || await userForToken(token);
+    }
+  }
+  if (token) {
+    if (user) await sessionControl('release', token, user);
+    // An old device signing out must never revoke the newer device's provider session.
+    await supabase("/logout?scope=local", { method: "POST", headers: { authorization: `Bearer ${token}` } }).catch(() => {});
+  }
   return new Response(JSON.stringify({ signedOut: true }), { status: 200, headers: clearSessionHeaders() });
 }
 
@@ -753,6 +802,8 @@ export default async function handler(request) {
     if (route === "admin/user-action") return await adminUserAction(request);
     return json({ error: "not_found" }, 404);
   } catch (error) {
+    if (error?.message === 'session_replaced') return new Response(JSON.stringify({ error: 'session_replaced' }), { status: 401, headers: clearSessionHeaders() });
+    if (error?.message === 'session_control_unavailable') return json({ error: 'session_control_unavailable' }, 503);
     if (["request_too_large", "avatar_too_large"].includes(error?.message)) return json({ error: error.message }, 413);
     if (error?.message === "invalid_content_type" || error?.message === "invalid_body") return json({ error: "invalid_request" }, 400);
     if (error?.message === "Supabase is not configured") return json({ error: "service_not_configured" }, 503);
@@ -760,4 +811,3 @@ export default async function handler(request) {
     return json({ error: "server_error" }, 500);
   }
 }
-

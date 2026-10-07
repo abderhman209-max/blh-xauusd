@@ -14,7 +14,7 @@ const user = { id: userId, user_metadata: { full_name: 'Test member' }, app_meta
 const admin = { ...user, app_metadata: { role: 'super_admin' } };
 const reply = (data, status = 200) => new Response(JSON.stringify(data), { status });
 const request = (route, data, options = {}) => new Request('https://site.invalid/api?route=' + route, {
-  method: data ? 'POST' : 'GET', headers: { cookie: 'blh_access=' + fixtureToken(userId),
+  method: data ? 'POST' : 'GET', headers: { cookie: 'blh_access=' + (route.startsWith('admin/') ? fixtureToken(userId, undefined, { aal: 'aal2' }) : fixtureToken(userId)),
     origin: options.origin || 'https://site.invalid', 'content-type': 'application/json' },
   ...(data ? { body: JSON.stringify(data) } : {}),
 });

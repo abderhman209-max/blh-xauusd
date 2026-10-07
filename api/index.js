@@ -726,6 +726,89 @@ async function goldPrice(request) {
   }
 }
 
+const SUPPORT_PAGE_SIZE = 50;
+const SUPPORT_MESSAGE_FIELDS = 'id,seq,user_id,sender_role,body,created_at';
+const SUPPORT_THREAD_FIELDS = 'user_id,user_name,last_message_at,last_message_seq,last_sender_role,last_message_preview';
+
+function supportMessage(row) {
+  return { id: row.id, seq: Number(row.seq), role: row.sender_role, text: row.body, createdAt: row.created_at };
+}
+
+function supportThread(row) {
+  return row ? { userId: row.user_id, name: row.user_name, lastMessageAt: row.last_message_at,
+    lastSeq: Number(row.last_message_seq), awaitingReply: row.last_sender_role === 'customer',
+    preview: row.last_message_preview } : null;
+}
+
+function supportCursor(value) {
+  if (value === null) return null;
+  if (!/^[1-9]\d{0,15}$/.test(value) || !Number.isSafeInteger(Number(value))) return false;
+  return Number(value);
+}
+
+async function supportMessages(request, url, admin = false) {
+  const authorization = admin ? await requireSuperAdmin(request) : { session: await currentSession(request) };
+  if (authorization.error) return authorization.error;
+  const session = authorization.session;
+  if (!session) return json({ error: 'authentication_required' }, 401);
+  const userId = admin ? url.searchParams.get('userId') : session.user.id;
+  if (!uuid(userId)) return json({ error: 'invalid_support_thread' }, 400);
+  if (!admin && url.searchParams.has('userId') && url.searchParams.get('userId') !== userId) return json({ error: 'support_thread_not_found' }, 404);
+  const before = supportCursor(url.searchParams.get('before'));
+  const after = supportCursor(url.searchParams.get('after'));
+  if (before === false || after === false || before !== null && after !== null) return json({ error: 'invalid_support_cursor' }, 400);
+  const read = (path) => admin ? supabaseAdminData(path) : supabaseData(path, session.accessToken);
+  const threadResponse = await read(`support_threads?select=${SUPPORT_THREAD_FIELDS}&user_id=eq.${userId}&limit=1`);
+  if (!threadResponse.ok) return json({ error: 'support_unavailable' }, 503);
+  const threads = await threadResponse.json();
+  if (admin && !threads.length) return json({ error: 'support_thread_not_found' }, 404);
+  const filter = before !== null ? `&seq=lt.${before}` : after !== null ? `&seq=gt.${after}` : '';
+  const response = await read(`support_messages?select=${SUPPORT_MESSAGE_FIELDS}&user_id=eq.${userId}${filter}&order=seq.${after !== null ? 'asc' : 'desc'}&limit=${SUPPORT_PAGE_SIZE + 1}`);
+  if (!response.ok) return json({ error: 'support_unavailable' }, 503);
+  const rows = await response.json();
+  const messages = rows.slice(0, SUPPORT_PAGE_SIZE).map(supportMessage);
+  if (after === null) messages.reverse();
+  return sessionJson({ thread: supportThread(threads[0]), messages, hasMore: rows.length > SUPPORT_PAGE_SIZE }, 200, session);
+}
+
+async function supportInbox(request, url) {
+  const authorization = await requireSuperAdmin(request);
+  if (authorization.error) return authorization.error;
+  const value = url.searchParams.get('offset') || '0';
+  if (!/^\d{1,5}$/.test(value) || Number(value) > 10000) return json({ error: 'invalid_support_cursor' }, 400);
+  const response = await supabaseAdminData(`support_threads?select=${SUPPORT_THREAD_FIELDS}&order=last_message_at.desc,user_id.asc&limit=${SUPPORT_PAGE_SIZE + 1}&offset=${Number(value)}`);
+  if (!response.ok) return json({ error: 'support_unavailable' }, 503);
+  const rows = await response.json();
+  return sessionJson({ threads: rows.slice(0, SUPPORT_PAGE_SIZE).map(supportThread), hasMore: rows.length > SUPPORT_PAGE_SIZE }, 200, authorization.session);
+}
+
+async function sendSupportMessage(request, admin = false) {
+  const authorization = admin ? await requireSuperAdmin(request) : { session: await currentSession(request) };
+  if (authorization.error) return authorization.error;
+  const session = authorization.session;
+  if (!session) return json({ error: 'authentication_required' }, 401);
+  const data = await body(request);
+  const text = typeof data.text === 'string' ? data.text.trim() : '';
+  const userId = admin ? data.userId : session.user.id;
+  if (!uuid(userId) || !uuid(data.id) || !text || Array.from(text).length > 2000 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(text)) return json({ error: 'invalid_support_message' }, 400);
+  if (!admin && data.userId && data.userId !== userId) return json({ error: 'support_thread_not_found' }, 404);
+  // Never accept sender IDs or roles from the browser; use the validated account.
+  const response = await supabaseAdminData('rpc/pipvoria_support_send', {
+    method: 'POST', body: JSON.stringify({ p_user_id: userId, p_sender_id: session.user.id,
+      p_session_id: validatedSessionId(session.accessToken, session.user), p_id: data.id,
+      p_sender_role: admin ? 'admin' : 'customer', p_body: text,
+      p_user_name: String(publicUser(session.user).name).replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 80) }),
+  });
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    if (result.message === 'session_replaced') throw new Error('session_replaced');
+    const errors = { support_rate_limit: 429, support_message_conflict: 409, support_thread_not_found: 404, invalid_support_message: 400 };
+    if (Object.hasOwn(errors, result.message)) return json({ error: result.message }, errors[result.message]);
+    return json({ error: 'support_unavailable' }, 503);
+  }
+  return sessionJson({ message: supportMessage(await response.json()) }, 200, session);
+}
+
 const AVATAR_BUCKET = "profile-avatars";
 const AVATAR_BYTES_LIMIT = 1024 * 1024;
 
@@ -781,6 +864,9 @@ export default async function handler(request) {
     if (route === "gold/price" && request.method === "GET") return await goldPrice(request);
     if (route === "workspace" && request.method === "GET") return await workspaceData(request);
     if (route === "admin/users" && request.method === "GET" && sameOrigin(request)) return await listAdminUsers(request);
+    if (route === 'support/messages' && request.method === 'GET' && sameOrigin(request)) return await supportMessages(request, url);
+    if (route === 'admin/support/messages' && request.method === 'GET' && sameOrigin(request)) return await supportMessages(request, url, true);
+    if (route === 'admin/support/inbox' && request.method === 'GET' && sameOrigin(request)) return await supportInbox(request, url);
     if (route === "auth/session" && request.method === "GET") {
       const session = await currentSession(request);
       if (!session) return json({ user: null }, 401);
@@ -800,6 +886,8 @@ export default async function handler(request) {
     if (route === "notifications/create") return await createNotification(request);
     if (route === "notifications/read") return await readNotifications(request);
     if (route === "admin/user-action") return await adminUserAction(request);
+    if (route === 'support/send') return await sendSupportMessage(request);
+    if (route === 'admin/support/send') return await sendSupportMessage(request, true);
     return json({ error: "not_found" }, 404);
   } catch (error) {
     if (error?.message === 'session_replaced') return new Response(JSON.stringify({ error: 'session_replaced' }), { status: 401, headers: clearSessionHeaders() });

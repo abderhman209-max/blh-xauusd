@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const copy={
-    title:['Support tickets','Support-Anfragen','Demandes de support','Solicitudes de soporte','طلبات الدعم','طلبات الدعم'],
+    title:['Support tickets','Support-Tickets','Tickets de support','Tickets de soporte','تذاكر الدعم','تذاكر الدعم'],
     sub:['Follow your requests and the team’s replies here.','Anfragen und Antworten des Teams verfolgen.','Retrouvez vos demandes et les réponses de l’équipe.','Consulta tus solicitudes y las respuestas del equipo.','تابع طلباتك وردود الفريق هنا.','تابع الطلبات ديالك وجواب الفريق هنا.'],
     new:['New request','Neue Anfrage','Nouvelle demande','Nueva solicitud','طلب جديد','طلب جديد'],
     subject:['Subject','Betreff','Objet','Asunto','الموضوع','الموضوع'],
@@ -59,7 +59,7 @@
     box.querySelector('[data-ticket-older]').onclick=()=>messages(s,'older');
     box.querySelector('[data-ticket-new]')?.addEventListener('click',()=>{if(s.sending)return;s.version++;s.loading=false;s.creating=true;render(s);s.subject.focus()});
     box.querySelector('[data-ticket-cancel]').onclick=()=>{s.creating=false;render(s)};
-    box.querySelector('[data-ticket-back]').onclick=()=>{if(s.sending)return;s.version++;s.loading=false;s.creating=false;s.selected=null;s.messages=[];render(s)};
+    box.querySelector('[data-ticket-back]').onclick=()=>{if(s.sending)return;const previous=s.selected?.id;s.version++;s.loading=false;s.creating=false;s.selected=null;s.messages=[];status(s,'');render(s);([...box.querySelectorAll('.ticket-thread')].find(n=>n.dataset.ticketId===previous)||box.querySelector('[data-ticket-filter]')).focus()};
     box.querySelector('[data-ticket-filter]').onchange=event=>{s.filter=event.target.value;s.listEpoch++;s.listing=false;list(s)};
     box.querySelector('.support-compose').onsubmit=event=>{event.preventDefault();send(s,false)};
     s.createForm.onsubmit=event=>{event.preventDefault();send(s,true)};
@@ -89,10 +89,9 @@
     if(!s.rows.length)list.append(node('p','support-empty',t('empty')));
     for(const row of s.rows){
       const button=node('button','ticket-thread'+(s.selected?.id===row.id?' selected':''));button.type='button';button.dataset.ticketId=row.id;
-      button.setAttribute('aria-pressed',String(s.selected?.id===row.id));
       const top=node('div','ticket-thread-top');top.append(node('small','ticket-reference',row.reference),node('span','ticket-status ticket-status-'+row.status,t(row.status)));
-      button.append(top,node('strong','',row.subject));if(s.admin)button.append(node('small','ticket-member',row.name||t('member')));
-      button.append(node('p','support-thread-preview',row.preview));const time=node('time','',t('last')+' · '+date(row.lastMessageAt));time.dateTime=row.lastMessageAt;button.append(time);
+      const subject=node('div','ticket-row-subject');subject.append(node('strong','',row.subject));if(s.admin)subject.append(node('small','ticket-member',row.name||t('member')));
+      button.append(subject,top);const time=node('time','',date(row.lastMessageAt));time.setAttribute('aria-label',t('last')+' · '+date(row.lastMessageAt));time.dateTime=row.lastMessageAt;button.append(time);
       button.onclick=()=>choose(s,row);list.append(button);
     }
     controls(s);
@@ -122,12 +121,12 @@
     renderList(s);renderMessages(s);count(s);
   }
   function choose(s,row){if(s.sending)return;s.version++;s.creating=false;s.loading=false;s.selected=row;s.messages=[];s.hasOlder=false;
-    s.input.value=s.drafts.get(row.id)?.text||'';status(s,'');render(s);messages(s,'initial')}
+    s.input.value=s.drafts.get(row.id)?.text||'';status(s,'');render(s);s.box.querySelector('[data-ticket-back]').focus();messages(s,'initial')}
   function merge(s,rows){const map=new Map(s.messages.map(m=>[m.id,m]));for(const row of rows)map.set(row.id,row);s.messages=[...map.values()].sort((a,b)=>a.seq-b.seq)}
   async function list(s,more=false){
     if(s.listing||!active(s))return;const currentEpoch=epoch,listEpoch=s.listEpoch;s.listing=true;controls(s);
     try{const result=await api(s,'list',{offset:more?s.rows.length:0,status:s.filter});if(epoch!==currentEpoch||listEpoch!==s.listEpoch)return;
-      if(result.configured===false){s.box.hidden=true;s.old.hidden=false;return}
+      if(result.configured===false){s.box.hidden=true;s.old.hidden=false;document.dispatchEvent(new CustomEvent('blh-tickets-unavailable'));return}
       capability=true;window.PIPVORIA_TICKETS_ACTIVE=true;for(const state of states){state.old.hidden=true;state.box.hidden=false}
       s.rows=more?[...new Map([...s.rows,...result.tickets].map(row=>[row.id,row])).values()]:result.tickets;s.hasMore=result.hasMore;
       renderList(s);if(s.status==='error')status(s,'');

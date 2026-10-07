@@ -5,6 +5,11 @@
   if (!customerPage || !adminPage) return;
   const languages = { en: 0, de: 1, fr: 2, es: 3, ar: 4, ary: 5 };
   const copy = {
+    tickets: ['Support tickets','Support-Tickets','Tickets de support','Tickets de soporte','تذاكر الدعم','تذاكر الدعم'],
+    history: ['Support history','Support-Verlauf','Historique du support','Historial de soporte','سجل الدعم','سجل الدعم'],
+    back: ['All requests','Alle Anfragen','Liste des tickets','Lista de tickets','قائمة التذاكر','قائمة التذاكر'],
+    initial: ['Initial conversation','Erste Unterhaltung','Conversation initiale','Conversación inicial','المحادثة الأصلية','المحادثة الأولى'],
+    unavailable: ['Creating new tickets is temporarily unavailable. Your support history remains accessible.','Neue Tickets sind vorübergehend nicht verfügbar. Der Support-Verlauf bleibt zugänglich.','La création de tickets est momentanément indisponible. Votre historique reste accessible.','La creación de tickets no está disponible temporalmente. Tu historial sigue accesible.','إنشاء تذاكر جديدة غير متاح مؤقتاً. يبقى سجل الدعم متاحاً.','إنشاء تذاكر جديدة ما متاحش مؤقتاً. سجل الدعم باقي متاح.'],
     title: ['Contact support', 'Support kontaktieren', 'Contacter le support', 'Contactar con soporte', 'تواصل مع الدعم', 'هضر مع الدعم'],
     sub: ['A private conversation with the site team. Replies appear here.', 'Eine private Unterhaltung mit dem Team. Antworten erscheinen hier.', 'Une conversation privée avec l’équipe du site. Les réponses apparaissent ici.', 'Una conversación privada con el equipo. Las respuestas aparecen aquí.', 'محادثة خاصة مع فريق الموقع. تظهر الردود هنا.', 'محادثة خاصة مع فريق الموقع. الجواب كيبان هنا.'],
     inbox: ['Support inbox', 'Support-Postfach', 'Messages du support', 'Bandeja de soporte', 'رسائل الدعم', 'رسائل الدعم'],
@@ -43,7 +48,7 @@
   };
   const span = key => `<span data-support-copy="${key}"></span>`;
   function panel(admin) {
-    const node = el('section', `support-panel surface${admin ? ' support-admin' : ''}`);
+    const node = el('section', `support-panel support-legacy surface${admin ? ' support-admin' : ''}`);
     node.innerHTML = `<header class="support-heading"><div><h2>${span(admin ? 'inbox' : 'title')}</h2><p>${span(admin ? 'inboxSub' : 'sub')}</p></div><button type="button" class="support-refresh">↻ ${span('refresh')}</button></header>
       ${admin ? '<div class="support-admin-grid"><aside class="support-inbox-list" aria-label=""></aside><div class="support-chat-pane">' : ''}
       <h3 class="support-conversation-title" ${admin ? '' : 'hidden'}></h3>
@@ -62,6 +67,12 @@
     state.statusNode = node.querySelector('.support-status');
     state.list = node.querySelector('.support-inbox-list');
     state.more = node.querySelector('.support-more');
+    state.opened = false;
+    state.notice = el('p', 'support-legacy-notice', t('unavailable'));state.notice.hidden=true;node.querySelector('.support-heading').after(state.notice);
+    state.back = el('button', 'support-list-back', t('back'));state.back.type='button';state.back.hidden=true;
+    state.log.before(state.back);
+    state.back.onclick=()=>{if(state.sending)return;state.opened=false;renderView(state);(state.admin?state.list.querySelector('button'):state.entry)?.focus()};
+    if(!admin){state.entry=el('button','support-history-entry');state.entry.type='button';state.entry.onclick=()=>{state.opened=true;renderView(state);state.back.focus()};state.notice.after(state.entry)}
     state.input.addEventListener('input', () => {
       node.querySelector('.support-count').textContent = `${state.input.value.length} / 2000`;
       state.retry = null;
@@ -84,6 +95,7 @@
     state.status = key;
     state.statusNode.textContent = key ? t(key) : '';
     state.statusNode.classList.toggle('support-error', failure);
+    state.statusNode.hidden=!state.opened&&!failure;
   }
   async function api(route, params = {}, data) {
     const epoch = authEpoch;
@@ -102,6 +114,20 @@
     state.older.hidden = !state.hasOlder;
     state.older.disabled = state.loading;
     if (state.more) { state.more.hidden = !state.hasMore; state.more.disabled = state.inboxLoading; }
+    renderView(state);
+  }
+  function renderView(state) {
+    state.node.classList.toggle('support-detail-open',state.opened);
+    state.back.textContent=t('back');state.back.hidden=!state.opened;state.back.disabled=state.sending;
+    state.log.hidden=!state.opened;state.form.hidden=!state.opened;state.older.hidden=!state.opened||!state.hasOlder;
+    state.statusNode.hidden=!state.opened&&!state.statusNode.classList.contains('support-error');
+    const title=state.node.querySelector('.support-conversation-title');title.hidden=!state.opened;title.textContent=state.admin?(state.thread?.name||t('customer')):t('initial');
+    if(state.admin){state.node.querySelector('.support-chat-pane').hidden=!state.opened;state.list.hidden=state.opened;if(state.more)state.more.hidden=state.opened||!state.hasMore}
+    else {state.entry.hidden=state.opened;state.entry.replaceChildren();state.entry.append(el('strong','',t('initial')));
+      const last=state.messages.at(-1);state.entry.disabled=state.sending||!last;
+      if(last){state.entry.append(el('span','support-thread-state',t(last.role==='customer'?'awaiting':'answered')));const time=el('time','',date(last.createdAt));time.dateTime=last.createdAt;state.entry.append(time)}
+      else state.entry.append(el('small','',t(state.initialized?'empty':'loading')));
+    }
   }
   function date(value) {
     return new Date(value).toLocaleString(document.documentElement.lang === 'ary' ? 'ar-MA' : document.documentElement.lang, { dateStyle: 'short', timeStyle: 'short' });
@@ -163,15 +189,16 @@
       button.setAttribute('aria-pressed', String(state.userId === thread.userId));
       button.append(el('strong', '', thread.name || t('customer')),
         el('small', 'support-thread-id', thread.userId.slice(0, 8)),
-        el('p', 'support-thread-preview', thread.preview),
         el('span', `support-thread-state${thread.awaitingReply ? ' pending' : ''}`, t(thread.awaitingReply ? 'awaiting' : 'answered')),
         el('time', '', date(thread.lastMessageAt)));
       button.onclick = () => {
-        if (state.userId === thread.userId || state.sending) return;
+        if (state.sending) return;
+        if(state.userId===thread.userId){state.opened=true;renderView(state);state.back.focus();return}
         state.version++; state.userId = thread.userId; state.thread = thread; state.messages = [];
+        state.opened=true;
         state.initialized = false; state.loading = false; state.hasOlder = false; state.retry = null;
         state.input.value = ''; state.node.querySelector('.support-count').textContent = '0 / 2000';
-        status(state, ''); renderInbox(state); renderMessages(state); loadMessages(state);
+        status(state, ''); renderInbox(state); renderMessages(state); state.back.focus();loadMessages(state);
       };
       state.list.append(button);
     }
@@ -211,6 +238,7 @@
     } finally { if (version === state.version) { state.sending = false; updateControls(state); if (state.admin) renderInbox(state); } }
   }
   function reset(state) {
+    state.opened=false;
     state.version++; state.messages = []; state.threads = []; state.thread = null; state.userId = null;
     state.loading = false; state.sending = false; state.initialized = false; state.inboxLoading = false;
     state.hasOlder = false; state.hasMore = false; state.retry = null; state.input.value = '';
@@ -220,6 +248,7 @@
   function translate() {
     for (const state of [customer, admin]) {
       state.node.querySelectorAll('[data-support-copy]').forEach(node => node.textContent = t(node.dataset.supportCopy));
+      state.node.querySelector('.support-heading h2').textContent=t('tickets');state.node.querySelector('.support-heading p').textContent=t('history');state.notice.textContent=t('unavailable');
       state.input.placeholder = t('placeholder');
       state.node.querySelector('.support-refresh').setAttribute('aria-label', t('refresh'));
       state.statusNode.textContent = state.status ? t(state.status) : '';
@@ -236,6 +265,8 @@
   document.addEventListener('blh-session-expired', () => { authEpoch++; accountId = null; reset(customer); reset(admin); });
   document.addEventListener('blh-language-change', translate);
   window.addEventListener('hashchange', refresh);
+  window.addEventListener('hashchange',()=>{for(const state of [customer,admin]){state.opened=false;renderView(state)}});
+  document.addEventListener('blh-tickets-unavailable',()=>{for(const state of [customer,admin])state.notice.hidden=false});
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
   setInterval(refresh, 15000);
   accountId = window.BLH_AUTH?.user?.id || null;

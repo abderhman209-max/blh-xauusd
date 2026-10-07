@@ -14,3 +14,12 @@ Messages persist in Supabase. The browser checks for new messages every 15 secon
 - Text is trimmed, limited to 2,000 characters and rejects unsafe control characters at the API. Ten messages per minute per conversation and sender role are permitted; successful retries are still accepted after the rate limit. There are no attachments, email sends, new staff permissions or external chat dependencies.
 
 The migration was applied as `20261007121308_pipvoria_private_support_messaging`. `supabase/tests/support_messaging.sql` runs real database checks inside a rollback-only transaction, using temporary sessions for existing owners without creating users, sending emails or leaving fixture messages behind. API tests verify owner/admin authorization, session replacement, validation, pagination, retry/error mapping and response privacy. Browser testing uses a separate local synthetic fixture that is never deployed.
+# Ticket workspace
+
+`20261007145628_pipvoria_support_tickets.sql` adds separate tickets with an object, a unique `PV-` reference and `open`, `in_progress`, `resolved` states. It imports every existing conversation and mirrors subsequent writes from older open browser tabs. Existing storage and APIs are retained.
+
+Apply this additive migration to the **same Supabase project as the production site's `SUPABASE_URL`**. The migration locks legacy support writes briefly while copying their history and installing the mirroring trigger. Never apply it to an unrelated connected project. The `/api?route=support/tickets` capability response keeps the previous support conversation visible until the new tables exist; a missing migration does not block support.
+
+The browser cannot mutate ticket tables directly. Current accepted sessions, owner RLS, verified administrator roles, idempotent message IDs, account-wide message limits and status version checks protect reads and writes. Customer replies reopen a resolved ticket. An administrator reply moves it to in progress. A stale status change returns a conflict so a newer reply is not silently closed.
+
+Run `npm ci && npm run build` for API and isolated Postgres tests (PGlite). `supabase/tests/support_tickets.sql` also runs against Supabase inside a rollback-only transaction with synthetic users and sessions. After migration, verify the ticket list and a complete member/admin flow against the target deployment. Local tests do not establish that the production migration has been applied.

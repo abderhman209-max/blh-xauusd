@@ -44,13 +44,15 @@
   const resultInput = {structure:'show-structure',planner:'show-smart',blh:'show-blh-clean',pa:'show-pa-liquidity'};
   const paths = {
     trade: '<path d="M5 7h14M15 3l4 4-4 4M19 17H5m4-4-4 4 4 4"/>',
+    chart: '<path d="M5 5v14m-2-9h4M12 3v18m-2-15h4M19 7v12m-2-6h4"/>',
+    performance: '<path d="M4 20h16M7 16v-5m5 5V5m5 11V8"/>',
     positions: '<rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3h6v2M9 10h6m-6 4h6m-6 4h3"/>',
     calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 4h2m3 0h2m3 0h1m-11 4h2m3 0h2"/>',
     history: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
     more: '<path d="M5 6h14M5 12h14M5 18h14"/>',
     shield: '<path d="m12 3 8 3v6c0 5-8 9-8 9S4 17 4 12V6z"/><path d="m8 12 3 3 5-6"/>',
     grid: '<rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/>',
-    tools: '<path d="M4 17 17 4M4 4h5m-5 0v5m16 11h-5m5 0v-5"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="7" r="2"/>',
+    tools: '<path d="m16 3 5 5-12 12-6 1 1-6L16 3Z"/><path d="m13 6 5 5M4 16l4 4"/>',
     settings: '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/>'
   };
   const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.grid}</svg>`;
@@ -83,9 +85,9 @@
   if (toolkit) positions.append(toolkit);
   views.append(positions);
   const bottom = node('nav', 'dashboard-bottom', [
-    ['signals','trade',3],['positions','positions',4],['news','calendar',5],['history','history',6]
+    ['signals','chart',0],['positions','positions',4],['performance','performance',1],['news','calendar',5],['history','history',6]
   ].map(([route, glyph, label]) => `<a href="#${route}" data-dash-route="${route}">${icon(glyph)}<span data-dash-label="${label}"></span></a>`).join('') + `<button type="button" id="dash-more" aria-expanded="false" aria-controls="portal-sidebar">${icon('more')}<span data-dash-label="7"></span></button>`);
-  main.append(tabs, views, bottom); shell.append(account, main); content.append(shell);
+  main.append(bottom, views); shell.append(account, main); content.append(shell);
   const goalPreferences = node('article', 'surface dashboard-goal-preferences');
   goalPreferences.append(account.querySelector('.dash-goal-settings'));
   $('#view-settings').append(goalPreferences);
@@ -106,6 +108,7 @@
   const toolsButton = node('button', 'dash-square', icon('tools')); toolsButton.type = 'button'; toolsButton.setAttribute('aria-pressed','false');
   toolsButton.onclick = () => { const active = document.body.classList.toggle('dashboard-tools-open'); toolsButton.setAttribute('aria-pressed', String(active)); };
   controls.append(interval, indicatorButton, toolsButton); toolbar?.append(controls);
+  const fullscreen = $('#full-screen'); if (fullscreen) controls.append(fullscreen);
   document.querySelectorAll('.frames [data-interval]').forEach(button => button.addEventListener('click', () => { interval.value = button.dataset.interval; }));
   $('#dash-more').onclick = () => $('#portal-menu')?.click();
   const sidebar = $('#portal-sidebar');
@@ -185,10 +188,13 @@
   }
   function route() {
     const key = location.hash.slice(1) || 'signals';
+    document.body.dataset.page = key;
+    account.hidden = !['signals','performance'].includes(key);
+    shell.classList.toggle('dashboard-wide', account.hidden);
     const isPositions = key === 'positions';
     if (isPositions) { for (const view of views.querySelectorAll('.portal-view')) view.hidden = true; }
     positions.hidden = !isPositions;
-    document.querySelectorAll('[data-dash-route]').forEach(link => { const active = link.dataset.dashRoute === key; link.classList.toggle('selected',active); if (active) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current'); });
+    document.querySelectorAll('[data-dash-route], .portal-sidebar [data-route]').forEach(link => { const active = (link.dataset.dashRoute || link.dataset.route) === key; link.classList.toggle('selected',active); if (active) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current'); });
     if (isPositions) renderPositions();
     if (key === 'signals') requestAnimationFrame(() => { if (typeof renderIndicator === 'function') renderIndicator(); });
   }

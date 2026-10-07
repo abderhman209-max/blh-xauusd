@@ -77,7 +77,7 @@
   adminPage.querySelector('.admin-stats').after(admin.node);
   let accountId = null, authEpoch = 0;
   function active(state) {
-    return !!accountId && window.BLH_AUTH?.user?.id === accountId && !document.hidden &&
+    return !window.PIPVORIA_TICKETS_ACTIVE && !!accountId && window.BLH_AUTH?.user?.id === accountId && !document.hidden &&
       (state.admin ? location.hash === '#admin' && window.BLH_AUTH.user.isAdmin : location.hash === '#support');
   }
   function status(state, key, failure = false) {

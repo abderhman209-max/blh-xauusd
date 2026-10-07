@@ -1,0 +1,68 @@
+/* A single navigation and shared surface/control system. Trading level colors are unchanged. */
+body.reference-dashboard:not(.auth-locked){--ui-accent:#4edbc4;--ui-border:#2b353c;--ui-muted:#9cabb5;--ui-surface:#11171c;--ui-input:#0b1116;--gold:var(--ui-accent);color-scheme:dark}
+body.reference-dashboard [hidden]{display:none!important}
+.dashboard-shell.dashboard-wide{grid-template-columns:minmax(0,1fr)}
+body.reference-dashboard .dashboard-bottom{position:static;inset:auto;display:flex;justify-content:flex-start;gap:6px;padding:5px;margin:0 0 18px;border-radius:12px;background:var(--ui-surface);border-color:var(--ui-border);box-shadow:none}
+body.reference-dashboard .dashboard-bottom a,body.reference-dashboard .dashboard-bottom button{flex-direction:row;gap:8px;min-height:42px;min-width:0;padding:9px 14px;font-size:13px;color:var(--ui-muted);border-radius:8px}
+body.reference-dashboard .dashboard-bottom svg{width:18px;height:18px;flex-shrink:0}
+body.reference-dashboard .dashboard-bottom .selected{color:var(--ui-accent);background:#4edbc413}
+body.reference-dashboard .dashboard-bottom a:hover,body.reference-dashboard .dashboard-bottom button:hover{background:#ffffff08;color:#eef5f6}
+body.reference-dashboard .dashboard-account{margin-top:0;background:var(--ui-surface);border-color:var(--ui-border);border-radius:12px;padding:20px}
+body[data-page="signals"] .dashboard-account :is(.dash-progress,.dash-rule-row,.dash-result-detail,.dash-result-method,.dash-status){display:none}
+body[data-page="performance"] .dash-performance-link{display:none}
+.dash-performance-link{display:block;border-top:1px solid var(--ui-border);padding-top:14px;margin-top:16px;color:var(--ui-accent);font-size:12px}
+body.reference-dashboard :is(.dash-result-selector p,#dash-result-enable,.gold-icon,.gold-button,.gold-button:hover,.quiet-link,.dash-goal-settings form button){color:var(--ui-accent)}
+body.reference-dashboard :is(.surface,.portal-popover,.support-panel){background:var(--ui-surface);border-color:var(--ui-border);border-radius:12px;box-shadow:none}
+body.reference-dashboard :is(.support-send,.gold-button){background:var(--ui-accent)!important;color:#06221e!important;border:1px solid var(--ui-accent);border-radius:8px;font-weight:600;min-height:42px}
+body.reference-dashboard :is(.period-buttons button.selected,.period-buttons button[aria-pressed=true],.workspace-period button.selected){border-color:var(--ui-accent);color:var(--ui-accent);background:#4edbc413}
+body.reference-dashboard :is(.detail-view input,.detail-view textarea,.detail-view select){background:var(--ui-input);border-color:#394650;color:#eef5f6;border-radius:8px}
+body.reference-dashboard .chart-top{gap:10px;align-items:center;padding:12px}
+.dashboard-chart-controls{flex-wrap:wrap;gap:6px}
+body.reference-dashboard .dashboard-chart-controls :is(button,select){height:36px!important;min-height:36px;border:1px solid var(--ui-border);border-radius:8px;background:#172128;color:#dce7ec;padding:8px 10px}
+body.reference-dashboard .dashboard-chart-controls #full-screen{width:36px!important;min-width:36px;padding:6px;order:0}
+.dashboard-chart-controls #desk-demo{font-size:12px;color:var(--ui-accent)}
+body.reference-dashboard #desk-feed{flex-basis:100%;font-size:10px;line-height:1.5}
+.settings-tabs{display:flex;gap:6px;border-bottom:1px solid var(--ui-border);padding-bottom:12px;margin:0 0 24px}
+.settings-tabs button{flex:0 1 auto;min-height:42px;padding:10px 18px;border:1px solid transparent;border-radius:8px;color:var(--ui-muted);background:transparent;font:inherit;cursor:pointer}
+.settings-tabs button[aria-selected=true]{color:var(--ui-accent);background:#4edbc413;border-color:#4edbc444}
+.settings-group{display:grid;gap:16px;max-width:1040px}
+.settings-group>.surface{margin:0!important;padding:24px}
+.settings-group .desk-actions{gap:8px}
+.settings-group :is(button,select,input:not([type=checkbox])){min-height:42px}
+.desk-advanced{border-top:1px solid var(--ui-border);padding-top:16px;margin-top:20px}
+#desk-settings>.desk-advanced{border:0;padding-top:0;margin-top:0}
+.settings-group .desk-settings input,.settings-group .desk-settings select{background:var(--ui-input);border:1px solid #394650;border-radius:8px;padding:10px;color:#eef5f6;min-width:0}
+.desk-advanced summary,.support-help>summary{color:#d9e7ee;cursor:pointer;font-size:13px;line-height:1.6}
+.desk-advanced[open]>summary{margin-bottom:16px}
+.support-help{padding:18px;margin-top:20px}.support-help>.help-item{background:transparent!important;border:0!important;margin:12px 0 0!important;padding:8px!important}
+.support-send{background:var(--ui-accent)!important;color:#06221e!important;border-radius:8px!important}
+.support-panel{border-radius:12px!important}.support-message{border-radius:10px}.support-messages{background:var(--ui-input);border-color:var(--ui-border);border-radius:10px}
+.support-thread-state.pending{color:var(--ui-accent)}
+.ticket-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.ticket-workspace button:not(.ticket-thread):not(.support-send),.ticket-workspace select{min-height:40px;padding:8px 12px;border-radius:8px;color:#d9e7ee;background:#172128;border:1px solid var(--ui-border);font:inherit;cursor:pointer}
+.ticket-grid{display:grid;grid-template-columns:minmax(220px,32%) minmax(0,1fr);gap:22px}.ticket-list-pane,.ticket-chat-pane{min-width:0}.ticket-filter-label{display:grid;gap:8px;color:var(--ui-muted);font-size:12px;margin-bottom:14px}.ticket-list{display:grid;gap:8px;max-height:620px;overflow:auto;padding:2px}
+.ticket-thread{display:grid;gap:9px;text-align:start;padding:14px;background:#131c23;border:1px solid var(--ui-border);border-radius:10px;width:100%;color:#e5eef2;min-width:0}.ticket-thread.selected{border-color:#4edbc488;background:#4edbc40d}.ticket-thread strong{font-size:14px;overflow-wrap:anywhere}.ticket-thread-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}.ticket-reference,.ticket-member,.ticket-thread time{color:var(--ui-muted);font-size:10px}.ticket-reference{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.ticket-status{font-size:11px;padding:3px 7px;border:1px solid #3a4852;border-radius:5px;color:#c8d7df;white-space:nowrap}.ticket-status-in_progress{color:#4edbc4;border-color:#4edbc444;background:#4edbc40d}.ticket-status-resolved{color:#a3b1bb;background:#ffffff05}.ticket-selected-header h3{font-size:18px;margin:7px 0 14px;overflow-wrap:anywhere}.ticket-heading-state{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;margin-bottom:16px}.ticket-status-edit{font-size:11px!important}.ticket-empty{color:var(--ui-muted);font-size:14px;padding:70px 20px;text-align:center;line-height:1.7}.ticket-has-selection .ticket-empty{display:none}
+body.reference-dashboard .ticket-workspace .ticket-thread p{font-size:12px;line-height:1.5;margin:0;color:#bdcbd4}
+body.reference-dashboard .detail-view .support-panel .support-message-body{font-size:14px;line-height:1.6;margin:7px 0 0;color:#d5e0e8}
+body.reference-dashboard .detail-view .support-panel .support-status{font-size:12px;line-height:1.5;margin:12px 0 5px}
+body.reference-dashboard .detail-view .support-panel .support-privacy{font-size:11px;line-height:1.5;margin:8px 0 0}
+.ticket-create{display:grid;gap:18px}.ticket-create label{display:grid;gap:8px;font-size:13px}.ticket-create input,.ticket-create textarea{width:100%;padding:12px;font:inherit;background:var(--ui-input);border:1px solid #394650;border-radius:8px;color:#e5eef2}.ticket-create textarea{resize:vertical;min-height:140px}.ticket-create footer{display:flex;justify-content:flex-end;gap:8px}.ticket-back{display:none}.ticket-workspace .support-messages{height:330px}.ticket-workspace [data-ticket-more]{margin-top:12px}
+body.reference-dashboard :is(button,a,summary){touch-action:manipulation}
+body.reference-dashboard :is(button,a,input,textarea,select,summary):focus-visible{outline:2px solid var(--ui-accent);outline-offset:3px}
+@media(max-width:1050px){body.reference-dashboard .dashboard-bottom a,body.reference-dashboard .dashboard-bottom button{padding-inline:9px;font-size:12px}}
+@media(max-width:760px){
+ body.reference-dashboard .portal-content{padding-bottom:88px!important}
+ body.reference-dashboard .dashboard-bottom{position:fixed;inset-inline:10px;bottom:calc(8px + env(safe-area-inset-bottom));margin:0;justify-content:center;z-index:24;gap:0;padding:5px;border-radius:12px;box-shadow:0 6px 24px #0008}
+ body.reference-dashboard .dashboard-bottom a,body.reference-dashboard .dashboard-bottom button{flex:1;flex-direction:column;gap:4px;min-width:0;min-height:52px;padding:6px 2px;font-size:10px}
+ body.reference-dashboard .dashboard-bottom [data-dash-route=news]{display:none}
+ body.reference-dashboard .dashboard-bottom svg{width:20px;height:20px}
+ .settings-tabs{gap:3px;margin-bottom:16px}.settings-tabs button{flex:1;padding-inline:5px;font-size:12px}
+ .settings-group>.surface{padding:18px}.dashboard-chart-controls{margin-inline-start:0;flex:1;justify-content:flex-end}
+ body.reference-dashboard .dashboard-chart-controls :is(button,select){min-height:40px!important;height:40px!important;padding-inline:8px}
+ body.reference-dashboard .dashboard-chart-controls #full-screen{min-height:40px!important;height:40px!important}
+ body.reference-dashboard .chart-top .symbol-switcher{flex-basis:100%}
+ body.reference-dashboard .dash-account-metrics{margin-top:0!important}
+ body.reference-dashboard .dashboard-account .dash-performance-link{display:block!important}
+ .ticket-grid{grid-template-columns:minmax(0,1fr)}.ticket-has-selection .ticket-list-pane{display:none}.ticket-workspace:not(.ticket-has-selection) .ticket-chat-pane{display:none}.ticket-back{display:inline-flex;margin-bottom:18px}.ticket-list{max-height:none}.ticket-actions{justify-content:flex-start}.ticket-workspace .support-heading{flex-wrap:wrap}.ticket-workspace .support-messages{height:310px}.ticket-workspace .support-heading h2{font-size:18px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:0s!important;animation-duration:0s!important}}

@@ -1,4 +1,5 @@
 import "../public/core.js";
+import { ticketApi } from '../lib/support-tickets.js';
 export const config = { runtime: "edge" };
 
 const ACCESS_COOKIE = "blh_access";
@@ -854,6 +855,7 @@ async function profileAvatar(request) {
   return sessionJson({ updated: true }, 200, session);
 }
 
+const handleTickets = ticketApi({currentSession,requireSuperAdmin,supabaseData,supabaseAdminData,sessionJson,json,body,uuid,publicUser,validatedSessionId});
 export default async function handler(request) {
   const url = new URL(request.url);
   const route = url.searchParams.get("route") || "";
@@ -867,6 +869,11 @@ export default async function handler(request) {
     if (route === 'support/messages' && request.method === 'GET' && sameOrigin(request)) return await supportMessages(request, url);
     if (route === 'admin/support/messages' && request.method === 'GET' && sameOrigin(request)) return await supportMessages(request, url, true);
     if (route === 'admin/support/inbox' && request.method === 'GET' && sameOrigin(request)) return await supportInbox(request, url);
+    const ticketRoute = /^(admin\/)?support\/(tickets|ticket\/(messages|create|send|status))$/.exec(route);
+    if (ticketRoute && sameOrigin(request)) {
+      const action = ticketRoute[2] === 'tickets' ? 'list' : ticketRoute[3];
+      if (request.method === (['list','messages'].includes(action) ? 'GET' : 'POST')) return await handleTickets(request,url,!!ticketRoute[1],action);
+    }
     if (route === "auth/session" && request.method === "GET") {
       const session = await currentSession(request);
       if (!session) return json({ user: null }, 401);

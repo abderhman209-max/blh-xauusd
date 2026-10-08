@@ -1,0 +1,109 @@
+/* PIPVORIA: dark violet interface inspired by the supplied design reference. */
+body.reference-dashboard:not(.auth-locked){--ui-accent:#b3a0ff;--ui-border:#282b3f;--ui-muted:#a4a8bd;--ui-surface:#121521;--ui-input:#0b0e18;--gold:var(--ui-accent);--canvas:#0b0d17;--surface:var(--ui-surface);--line:var(--ui-border);--muted:var(--ui-muted);background:#0b0d17!important;color:#eef0f8}
+body.reference-dashboard:not(.auth-locked) .portal-header{height:76px;max-width:1504px;margin:auto;padding:0 32px;background:#0b0d17!important;border-bottom:1px solid #202335}
+body.reference-dashboard .portal-brand>img{width:144px;height:auto;max-height:42px;object-fit:contain}
+.studio-session{display:inline-flex;align-items:center;gap:6px;margin-inline-start:14px;padding:5px 9px;border:1px solid #4edbb338;border-radius:20px;color:#77dfbe;background:#4edbb308;font-size:11px;font-weight:600;white-space:nowrap}
+.studio-session::before{content:'';width:5px;height:5px;background:currentColor;border-radius:50%}
+body.reference-dashboard .header-actions{gap:10px}
+body.reference-dashboard #feed-toggle{display:inline-flex;gap:7px;align-items:center;justify-content:center;width:auto;min-width:44px;min-height:44px;padding:10px 12px;background:#151826;border:1px solid var(--ui-border);border-radius:10px;color:#c5bee9}
+body.reference-dashboard #feed-toggle svg{width:17px;height:17px}.studio-feed-label{font-size:12px}
+body.reference-dashboard .profile-toggle{min-height:44px;padding:5px 9px;border:1px solid var(--ui-border);background:#151826;border-radius:10px;font-size:12px;color:#d9dcea}
+body.reference-dashboard .avatar{width:30px;height:30px;border-color:#6d5cc448;background:#292143;color:#c8bbff}
+body.reference-dashboard .portal-content{max-width:1504px;margin:auto!important;padding:22px 32px 36px!important}
+body.reference-dashboard .dashboard-bottom{padding:5px;margin-bottom:24px;border-radius:12px;background:#121521;border-color:var(--ui-border)}
+body.reference-dashboard .dashboard-bottom a,body.reference-dashboard .dashboard-bottom button{min-height:44px;color:#a4a8bd;font-size:12px}
+body.reference-dashboard .dashboard-bottom .selected{background:#8b70ed1c;color:#c4b5ff}
+body.reference-dashboard .dashboard-bottom a:hover,body.reference-dashboard .dashboard-bottom button:hover{background:#8b70ed12}
+.dashboard-shell{grid-template-columns:300px minmax(0,1fr);gap:20px}
+.studio-markets,.studio-tabs{grid-column:1/-1}
+.studio-markets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:720px;width:100%}
+.studio-market{display:grid;gap:9px;min-height:108px;padding:17px 18px;color:#edf0fa;border:1px solid var(--ui-border);border-radius:12px;background:#131622;text-align:start;cursor:pointer;min-width:0;transition:border-color .18s,background .18s}
+.studio-market:hover{background:#1a1b30;border-color:#696079}
+.studio-market.selected{border-color:#a994ff;background:#1a1830;box-shadow:inset 0 0 0 1px #a994ff1f}
+.studio-market-heading{display:flex;gap:10px;justify-content:space-between;align-items:center;font-size:12px}
+.studio-market-heading strong{font-weight:600;letter-spacing:.1px}.studio-market-change{color:var(--ui-muted);font-size:11px;font-variant-numeric:tabular-nums}
+.studio-market-change.positive{color:#70dfb8}.studio-market-change.negative{color:#ff92a6}
+.studio-market-price{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:22px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.studio-market-source{font-size:11px;color:var(--ui-muted);line-height:1.5;overflow-wrap:anywhere}.studio-market-stale .studio-market-price{color:#b2b4c3}
+body.reference-dashboard .studio-tabs{display:flex;margin:0;border-bottom:1px solid var(--ui-border);gap:28px;min-height:44px}
+body.reference-dashboard .studio-tabs a{min-height:44px;font-size:13px;padding:12px 5px;color:var(--ui-muted)}
+body.reference-dashboard .studio-tabs a.selected{color:#eeebff;font-weight:600}.studio-tabs a.selected::after{background:#ad95ff}
+body.reference-dashboard .dashboard-account{display:block;margin:0;padding:22px;background:#131622;border:1px solid var(--ui-border);border-radius:16px}
+body.reference-dashboard .dashboard-account h1{font-size:17px;font-weight:600;line-height:1.4;margin-bottom:18px;color:#eef0f8}
+body.reference-dashboard .dash-result-selector label{font-size:11px;color:var(--ui-muted)}
+body.reference-dashboard .dash-result-selector select{min-height:44px;padding:10px;border-radius:9px;background:#0c0f1a;border-color:#272b3d;color:#e0e3f2;font-size:12px}
+body.reference-dashboard .dash-result-selector p{color:#ddbc79;font-size:11px;line-height:1.6;margin-top:10px}
+body.reference-dashboard #dash-result-enable{min-height:44px;color:#c4b5ff;border-color:#625391;background:#8b70ed15}
+body.reference-dashboard .dashboard-account .dash-status{display:block;border:0;margin:0 0 18px;padding:0}
+body.reference-dashboard .dash-status strong{font-size:22px;font-weight:600;color:#70dfb8}
+body.reference-dashboard .dash-account-section>span{color:var(--ui-muted);font-size:11px;margin-bottom:6px}
+body.reference-dashboard .dashboard-account .dash-progress{display:grid;grid-template-columns:1fr auto;gap:8px;border:0;margin-bottom:18px;padding:0}
+body.reference-dashboard .dash-progress>strong{font-size:14px;letter-spacing:0;line-height:1.4;margin:0;color:#ece7ff}
+body.reference-dashboard .dash-progress-track{grid-column:1/-1;height:6px;background:#080b14}.dash-progress-track i{background:#a28aef}
+body.reference-dashboard .dash-progress small{grid-column:1/-1;color:var(--ui-muted);font-size:11px;margin:0}
+body.reference-dashboard .dashboard-account .dash-rule-row{display:flex;border:0;padding:0;margin-bottom:15px}
+body.reference-dashboard .dash-rule-row strong{font-size:12px;color:#c7cada}.dash-rule-row>svg{width:18px;height:18px;color:#9b85dc}
+body.reference-dashboard .dash-account-metrics{background:#0e111d;border-radius:10px;padding:14px;margin:20px 0 0;gap:16px}
+body.reference-dashboard .dash-account-metrics span{font-size:11px;color:var(--ui-muted);line-height:1.5}.dash-account-metrics b{font-variant-numeric:tabular-nums;color:#71dfb9}
+body.reference-dashboard .dash-indicator-metrics{background:#0e111d;margin:0;padding:0 14px 14px;border-radius:0 0 10px 10px;gap:10px}
+body.reference-dashboard .dashboard-account:has(.dash-indicator-metrics:not([hidden])) .dash-account-metrics{border-radius:10px 10px 0 0}
+body.reference-dashboard .dash-indicator-metrics span{font-size:11px;line-height:1.5;color:var(--ui-muted)}.dash-indicator-metrics b{font-size:14px;line-height:1.5}
+body.reference-dashboard .dashboard-account .dash-result-detail{display:block;color:var(--ui-muted);font-size:10px;line-height:1.8;margin:18px 0 10px}
+body.reference-dashboard .dashboard-account .dash-result-method{display:block;font-size:11px;color:var(--ui-muted);margin-top:14px}
+body.reference-dashboard .dash-result-method summary{min-height:44px;padding:12px 0;color:#c4b5ff}
+body.reference-dashboard .dashboard-account .dash-performance-link{display:none!important}
+#desk-account-toggle{display:none!important}
+body.desk-demo .studio-markets{display:none!important}
+body.reference-dashboard :is(.surface,.portal-popover,.portal-toolkit,.profile-popover){background:#131622!important;border-color:var(--ui-border)!important;border-radius:14px;box-shadow:none}
+body.reference-dashboard :is(.gold-button,.support-send){background:#b3a0ff!important;color:#181027!important;border-color:#b3a0ff!important;min-height:44px}
+body.reference-dashboard :is(.period-buttons button.selected,.workspace-period button.selected,.settings-tabs button[aria-selected=true]){background:#8b70ed18;border-color:#8b70ed66;color:#c4b5ff}
+body.reference-dashboard :is(.detail-view input,.detail-view textarea,.detail-view select){background:#0b0e18;border-color:#36394e;color:#eef0f8}
+body.reference-dashboard .page-title h1{font-size:25px;letter-spacing:-.6px;font-weight:600}.page-title p{line-height:1.7}
+body.reference-dashboard .portal-chart-card{background:#10131e!important;border-color:var(--ui-border)!important;border-radius:16px!important}
+body.reference-dashboard :is(.chart-workspace,.chart-stage,.structure-scroll,#structure-chart){background:#10131e!important}
+body.reference-dashboard .chart-top{padding:16px;gap:12px;flex-wrap:wrap}
+body.reference-dashboard .symbol-switcher{gap:4px}.symbol-switcher button{min-height:44px}
+body.reference-dashboard .symbol-switcher button.active{color:#d1c6ff!important;background:#8b70ed24!important}
+body.reference-dashboard .dashboard-chart-controls{justify-content:flex-start;gap:8px}
+body.reference-dashboard .dashboard-chart-controls :is(button,select){min-height:44px!important;height:44px!important;padding:10px 12px;background:#111522;border-color:var(--ui-border);font-size:12px}
+body.reference-dashboard .dashboard-chart-controls #full-screen{min-width:44px;width:44px!important;height:44px!important}
+body.reference-dashboard .chart-heading{padding:0 16px 10px;color:var(--ui-muted);font-size:11px;line-height:1.6}
+body.reference-dashboard #desk-feed{font-size:11px;color:#b8bbd0;flex-basis:100%;line-height:1.7}
+body.reference-dashboard .chart-workspace{height:clamp(440px,calc(100dvh - 400px),740px)!important;min-height:440px!important}
+body.reference-dashboard .indicator-dialog{background:#131622!important;border-color:#36394e!important}
+body.reference-dashboard :is(.indicator-tabs,.indicator-dialog-footer){background:#10131e!important;border-color:var(--ui-border)}
+body.reference-dashboard .indicator-tabs button[aria-selected=true]{background:#b3a0ff!important;color:#181027!important}
+body.reference-dashboard .indicator-quick-toggle.enabled{border-color:#8570bb}.indicator-quick-toggle.enabled .indicator-quick-switch{background:#b3a0ff!important}
+body.reference-dashboard .indicator-quick-toggle.enabled .indicator-state{color:#c4b5ff}.indicator-quick-toggle{background:#191d2c!important;border-color:var(--ui-border)}
+body.reference-dashboard .indicator-dialog input[type=checkbox]{accent-color:#b3a0ff}.indicator-bulk-actions button[data-set-indicators=true]{color:#c4b5ff!important}
+body.reference-dashboard .portal-sidebar{background:#121521!important;border-color:var(--ui-border)}
+body.reference-dashboard .portal-sidebar nav a.selected{background:#8b70ed18;color:#c4b5ff}
+body.reference-dashboard .ticket-status-in_progress{color:#c4b5ff;border-color:#8b70ed55;background:#8b70ed18}
+body.reference-dashboard :is(.ticket-workspace button:not(.support-send),.ticket-workspace select,.support-list-back){background:#191d2c;border-color:var(--ui-border);color:#e0e3f2}
+body.reference-dashboard .ticket-workspace .ticket-thread{background:transparent}.ticket-thread:hover,.support-history-entry:hover{background:#8b70ed0d!important}
+body.reference-dashboard :is(.ticket-reference,.ticket-member,.ticket-thread time,.support-history-entry time){color:var(--ui-muted)}
+body.reference-dashboard .support-messages{background:#0b0e18;border-color:var(--ui-border)}.support-outgoing{background:#8b70ed18!important;border-color:#8b70ed38!important}.support-incoming{background:#181d2a!important}
+body.reference-dashboard :is(button,a,input,select,textarea,summary):focus-visible{outline:2px solid #c4b5ff;outline-offset:3px}
+@media(max-width:1050px){.dashboard-shell{grid-template-columns:260px minmax(0,1fr);gap:16px}body.reference-dashboard .portal-content{padding-inline:20px!important}body.reference-dashboard .portal-header{padding-inline:20px}body.reference-dashboard .dashboard-account{padding:18px}}
+@media(max-width:760px){
+ body.reference-dashboard:not(.auth-locked) .portal-header{height:68px;padding:0 14px}.studio-session{font-size:10px;padding:4px 7px;margin-inline-start:10px;gap:5px}
+ body.reference-dashboard .portal-brand>img{width:112px;max-height:32px}body.reference-dashboard .header-actions{gap:7px}
+ body.reference-dashboard #feed-toggle{padding:10px;min-width:44px}body.reference-dashboard .profile-toggle{padding:5px;min-width:44px}.profile-toggle .profile-label,.profile-toggle .chevron{display:none}
+ body.reference-dashboard .portal-content{padding:16px 14px calc(104px + env(safe-area-inset-bottom))!important}
+ .dashboard-shell{grid-template-columns:minmax(0,1fr);gap:16px}.studio-markets{gap:10px}.studio-market{min-height:99px;padding:13px 12px;gap:7px}.studio-market-heading{font-size:11px;gap:5px}.studio-market-price{font-size:20px}.studio-market-source{font-size:10px}.studio-market-change{font-size:10px}
+ body.reference-dashboard .studio-tabs{gap:22px;min-height:44px}body.reference-dashboard .studio-tabs a{font-size:12px;min-height:44px}
+ body.reference-dashboard .dashboard-account{padding:20px!important;display:block;border-radius:14px}body.reference-dashboard .dashboard-account h1{font-size:16px;margin:0 0 16px}.dash-result-selector{margin-bottom:18px}
+ body.reference-dashboard .dashboard-account .dash-status{margin:0 0 16px}body.reference-dashboard .dashboard-account .dash-account-metrics{margin-top:18px!important}
+ body.reference-dashboard .dashboard-bottom{position:fixed;inset-inline:10px;bottom:calc(8px + env(safe-area-inset-bottom));margin:0;padding:5px;border-radius:14px;border-color:#343247;background:#121521f5;box-shadow:0 6px 25px #0008;backdrop-filter:blur(16px)}
+ body.reference-dashboard .dashboard-bottom :is([data-dash-route=performance],[data-dash-route=news]){display:none}
+ body.reference-dashboard .dashboard-bottom a,body.reference-dashboard .dashboard-bottom button{min-height:54px;font-size:10px;padding:6px 2px;flex:1;gap:5px}.dashboard-bottom svg{width:20px;height:20px}
+ body.reference-dashboard .chart-top{padding:12px;gap:8px}body.reference-dashboard .chart-top .symbol-switcher{flex-basis:100%}
+ body.reference-dashboard .dashboard-chart-controls{justify-content:flex-start;margin:0;width:100%;flex-wrap:wrap;gap:7px}
+ body.reference-dashboard .dashboard-chart-controls :is(button,select){padding-inline:10px;font-size:11px}
+ body.reference-dashboard .chart-heading{padding:0 12px 10px}body.reference-dashboard .chart-heading #ohlc{display:block;font-size:10px;line-height:1.7}
+ body.reference-dashboard .chart-workspace{height:440px!important;min-height:440px!important}
+ body.reference-dashboard .page-title h1{font-size:23px}.settings-tabs button{min-height:44px}.detail-view :is(input,textarea,select){font-size:16px}
+ .ticket-thread-top{gap:8px}.studio-feed-label{display:none}
+}
+@media(max-width:374px){.studio-session{display:none}.studio-market-heading{flex-wrap:wrap}.studio-market-price{font-size:18px}body.reference-dashboard .studio-tabs{gap:14px}}
+@media(prefers-reduced-motion:reduce){.studio-market{transition:none}}

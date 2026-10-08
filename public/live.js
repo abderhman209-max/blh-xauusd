@@ -26,9 +26,10 @@ const GoldLive={
 if(typeof module!=='undefined')module.exports=GoldLive;
 
 const CoinbaseMarket={socket:null,onTick:null,
- async history(interval,signal){
+ async history(interval,signal,product='BTC-USD'){
+  if(!['BTC-USD','ETH-USD','SOL-USD'].includes(product))throw Error('Unsupported product');
   const seconds={'1min':60,'5min':300,'15min':900,'30min':900,'1h':3600}[interval];if(!seconds)throw Error('Unsupported interval');const rows=[];let end=Math.floor(Date.now()/1000);
-  for(let page=0;page<4;page++){const start=end-seconds*299,url=`https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=${seconds}&start=${new Date(start*1000).toISOString()}&end=${new Date(end*1000).toISOString()}`;const response=await fetch(url,{signal,headers:{Accept:'application/json'}});if(!response.ok)throw Error('Coinbase unavailable');const data=await response.json();if(!Array.isArray(data))throw Error('Invalid Coinbase data');rows.push(...data);end=start-seconds}
+  for(let page=0;page<4;page++){const start=end-seconds*299,url=`https://api.exchange.coinbase.com/products/${product}/candles?granularity=${seconds}&start=${new Date(start*1000).toISOString()}&end=${new Date(end*1000).toISOString()}`;const response=await fetch(url,{signal,headers:{Accept:'application/json'}});if(!response.ok)throw Error('Coinbase unavailable');const data=await response.json();if(!Array.isArray(data))throw Error('Invalid Coinbase data');rows.push(...data);end=start-seconds}
   let bars=[...new Map(rows.map(r=>[Number(r[0]),{time:Number(r[0])*1000,low:Number(r[1]),high:Number(r[2]),open:Number(r[3]),close:Number(r[4]),volume:Number(r[5]),closed:Number(r[0])*1000+seconds*1000<=Date.now()}])).values()].sort((a,b)=>a.time-b.time);
   if(interval==='30min'){const grouped=new Map();for(const b of bars){const time=Math.floor(b.time/1800000)*1800000,g=grouped.get(time)||{time,open:b.open,high:b.high,low:b.low,close:b.close,volume:0,closed:b.closed};g.high=Math.max(g.high,b.high);g.low=Math.min(g.low,b.low);g.close=b.close;g.volume+=b.volume;g.closed=g.closed&&b.closed;grouped.set(time,g)}bars=[...grouped.values()].sort((a,b)=>a.time-b.time)}
   return bars.slice(-1000)

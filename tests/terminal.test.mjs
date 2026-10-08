@@ -8,10 +8,21 @@ const C=globalThis.PIPVORIA_CORE;
 function session(fetcher){const ctx={URLSearchParams,globalThis:null};ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('public/terminal-api.js','utf8'),ctx);return new ctx.TerminalSession({fetcher});}
 const response=(body,status=200)=>({ok:status<400,status,json:async()=>body});
 function terminalApp(){
-  const ctx={Date,Intl,URLSearchParams,structuredClone,console,document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;vm.createContext(ctx);
+  const ctx={Date,Intl,URLSearchParams,structuredClone,console,ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;vm.createContext(ctx);
   for(const name of ['core','structure','smart','blh-clean','pa-liquidity','heatmap','indicator-performance','terminal-original','terminal'])vm.runInContext(fs.readFileSync('public/'+name+'.js','utf8'),ctx);
   return vm.runInContext('new Terminal()',ctx);
 }
+test('a first finger tap places a drawing without prior hover; a cancelled scroll never draws',()=>{
+  const app=terminalApp(),handlers={},drawings=[];let captured=null;
+  app.draw=()=>{};app.pW=400;app.inv={price:y=>4300-y,time:x=>x};app.addLine=line=>drawings.push(line);app.state.tool='hline';
+  app.canvasRef({parentNode:{},getBoundingClientRect:()=>({left:10,top:20}),setPointerCapture:id=>captured=id,addEventListener:(name,callback)=>handlers[name]=callback});
+  const finger={pointerId:1,pointerType:'touch',isPrimary:true,clientX:110,clientY:120};
+  handlers.pointerdown(finger);app.onUp(finger);assert.equal(captured,1);assert.equal(drawings.length,1);assert.equal(drawings[0].price,4200);
+  handlers.pointerdown(finger);handlers.pointercancel();app.onUp(finger);assert.equal(drawings.length,1);
+});
+test('Calendar resolves to the economic calendar from the mobile More menu and direct links',()=>{
+  const app=terminalApp();app.session={user:{}};app.route('calendar');assert.equal(app.state.appTab,'calendar');app.route('news');assert.equal(app.state.appTab,'calendar');
+});
 test('ticket refresh preserves earlier history and legacy admin replies remain customer scoped',async()=>{
   const app=terminalApp(),calls=[];app.session={user:{id:'admin',isAdmin:true},request:async(route,options)=>{
     calls.push({route,options});

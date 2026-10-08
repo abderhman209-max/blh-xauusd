@@ -347,7 +347,8 @@ Refuser|Reject|Rechazar|رفض`;
   dp() { return this.SYM[this.state.symbol]?.dp ?? 2; }
   TFMS = { '1m': 6e4, '5m': 3e5, '15m': 9e5, '30m': 18e5, '1h': 36e5 };
   CRYPTOS = [{id:"none",coin:"USD",network:"Non configuré",addr:""}];
-  view = { count: 140, offset: 0, yZoom: 1 };
+  initialView(){return{count:window.innerWidth<=767?60:140,offset:0,yZoom:1};}
+  view = this.initialView();
   model = null; perf = null; mouse = null;
 
 
@@ -466,10 +467,11 @@ Refuser|Reject|Rechazar|رفض`;
     this.cv = el;
     this.ro?.disconnect(); this.ro = new ResizeObserver(() => this.draw()); this.ro.observe(el.parentNode);
     el.addEventListener('wheel', e => { e.preventDefault(); this.view.count = Math.max(20, Math.min(500, this.view.count * (e.deltaY > 0 ? 1.12 : 0.89))); this.draw(); }, { passive: false });
-    el.addEventListener('pointerdown', e => { const r = el.getBoundingClientRect(); this.drag = { x: e.clientX, y: e.clientY, off: this.view.offset, yz: this.view.yZoom, axis: e.clientX - r.left > this.pW, moved: false }; });
+    el.addEventListener('pointerdown', e => { if(e.isPrimary===false)return;const r = el.getBoundingClientRect();this.mouse={x:e.clientX-r.left,y:e.clientY-r.top};this.drag = { id:e.pointerId,x: e.clientX, y: e.clientY, off: this.view.offset, yz: this.view.yZoom, axis: e.clientX - r.left > this.pW, moved: false };if(e.pointerType==='touch')el.setPointerCapture(e.pointerId);this.draw(); });
     window.removeEventListener('pointerup', this.onUp);
-    this.onUp = () => { const d = this.drag; this.drag = null; if (d && !d.moved && !d.axis) this.handleClick(); };
+    this.onUp = e => { const d = this.drag;if(d&&e.pointerId!==d.id)return;this.drag = null; if (d && !d.moved && !d.axis) this.handleClick(); };
     window.addEventListener('pointerup', this.onUp);
+    el.addEventListener('pointercancel',()=>{this.drag=null;this.mouse=null;this.draw();});
     el.addEventListener('pointermove', e => {
       const r = el.getBoundingClientRect(); this.mouse = { x: e.clientX - r.left, y: e.clientY - r.top };
       const d = this.drag;
@@ -479,7 +481,7 @@ Refuser|Reject|Rechazar|رفض`;
       this.draw();
       const idx = this.hoverIdx; if (idx !== this.state.hover) this.setState({ hover: idx });
     });
-    el.addEventListener('pointerleave', () => { this.mouse = null; this.draw(); this.setState({ hover: null }); });
+    el.addEventListener('pointerleave', () => { if(this.drag)return;this.mouse = null; this.draw(); this.setState({ hover: null }); });
     el.addEventListener('dblclick', () => { if (this.mouse && this.mouse.x > this.pW) { this.view.yZoom = 1; this.draw(); } else this.resetView(); });
     this.draw();
   };
@@ -494,7 +496,7 @@ Refuser|Reject|Rechazar|رفض`;
       else { this.addLine({ type: tool === 'trend' ? 't' : tool, a: this.pending, b: { t, p } }); this.pending = null; this.setState({ trendPending: false }); }
     }
   }
-  resetView = () => { this.view = { count: 140, offset: 0, yZoom: 1 }; this.draw(); };
+  resetView = () => { this.view = this.initialView(); this.draw(); };
 
   dec() { return 2; }
   draw() {
@@ -637,7 +639,7 @@ Refuser|Reject|Rechazar|رفض`;
     }
   }
 
-  setSymbol(s) { this.view = { count: 140, offset: 0, yZoom: 1 }; this.model = null; this.setState({ symbol: s, bars: [] }, () => this.load()); }
+  setSymbol(s) { this.view = this.initialView(); this.model = null; this.setState({ symbol: s, bars: [] }, () => this.load()); }
 
 
 
@@ -695,7 +697,7 @@ Refuser|Reject|Rechazar|رفض`;
       detailsOpen: s.detailsOpen, detailsLabel: (s.detailsOpen ? '▾' : '▸') + ' Détails du calcul', toggleDetails: () => this.setState({ detailsOpen: !s.detailsOpen }),
       chartBoxRef: this.chartBoxRef, canvasRef: this.canvasRef,
       symbols: Object.keys(this.SYM).map(k => ({ label: this.SYM[k].label, select: () => k !== s.symbol && this.setSymbol(k), bg: active(s.symbol === k, '#221f3d', 'transparent'), color: active(s.symbol === k, '#c9bfff', '#8d93a8') })),
-      tf: s.tf, onTf: e => { this.view = { count: 140, offset: 0, yZoom: 1 }; this.setState({ tf: e.target.value, bars: [] }, () => this.load()); },
+      tf: s.tf, onTf: e => { this.view = this.initialView(); this.setState({ tf: e.target.value, bars: [] }, () => this.load()); },
       toggleInd: () => this.setState({ indOpen: !s.indOpen }), indOpen: s.indOpen,
       indList: [['ema', 'EMA 50'], ['zone', 'Zones offre / demande'], ['plan', 'Signaux + plan (Entrée, SL, TP)'], ['structure', 'Structure BOS / CHoCH']].map(([k, label]) => ({ label, bg: s.ind[k] ? '#9d8cff' : 'transparent', toggle: () => this.setState({ ind: { ...s.ind, [k]: !s.ind[k] } }) })),
       resetView: this.resetView, fullscreen: () => { const b = this.box; if (!b) return; document.fullscreenElement ? document.exitFullscreen() : b.requestFullscreen?.(); },
@@ -725,13 +727,13 @@ Refuser|Reject|Rechazar|رفض`;
       ],
       tools: [['cursor', '＋', 'Curseur / déplacer'], ['hline', '━', 'Ligne horizontale'], ['trend', '╱', 'Ligne de tendance : deux points'], ['rect', '▭', 'Rectangle : deux coins'], ['fib', 'φ', 'Fibonacci manuel : du point de départ au point d\'arrivée'], ['text', 'T', 'Texte : cliquez pour annoter'], ['replay', '⏯', 'Replay de marché'], ['zin', '⊕', 'Zoom avant'], ['zout', '⊖', 'Zoom arrière'], ['reset', '↺', 'Réinitialiser la vue'], ['del', '⌫', 'Supprimer la dernière ligne de cette période']].map(([k, glyph, title]) => {
         const isTool = ['cursor', 'hline', 'trend', 'rect', 'fib', 'text'].includes(k), on = (isTool && s.tool === k) || (k === 'replay' && !!this.rp);
-        return { glyph, title, gap: k === 'zin' || k === 'del' || k === 'replay' ? '10px' : '0px', bg: on ? '#221f3d' : 'transparent', color: on ? '#c9bfff' : '#a3a9bd', border: on ? '#4a3f8f' : '#1f2536',
+        return { key:k,glyph, title, gap: k === 'zin' || k === 'del' || k === 'replay' ? '10px' : '0px', bg: on ? '#221f3d' : 'transparent', color: on ? '#c9bfff' : '#a3a9bd', border: on ? '#4a3f8f' : '#1f2536',
           select: () => {
             if (isTool) { this.pending = null; this.setState({ tool: k, trendPending: false, textAt: null }); return; }
             if (k === 'replay') { this.startReplay(); return; }
             if (k === 'zin') this.view.count = Math.max(20, this.view.count * 0.8);
             if (k === 'zout') this.view.count = Math.min(500, this.view.count * 1.25);
-            if (k === 'reset') this.view = { count: 140, offset: 0, yZoom: 1 };
+            if (k === 'reset') this.view = this.initialView();
             if (k === 'del') { this.lines[this.lkey()]?.pop(); this.saveLines(); }
             this.draw();
           } };

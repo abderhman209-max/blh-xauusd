@@ -2,7 +2,7 @@
 <html><head>
 <title>Pipvoria</title><meta name="theme-color" content="#0a0d16"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/pipvoria-icon.svg"><link rel="stylesheet" href="/terminal.css">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
 </head>
 <body>
@@ -311,15 +311,15 @@ select option{background:#11151f;color:#e9ebf2}
     <div style="display:flex;align-items:center;gap:10px">
       <div style="width:12px;height:12px;background:#9d8cff;transform:rotate(45deg);border-radius:2px"></div>
       <div style="font-weight:700;font-size:18px">Pipvoria</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#3fd2a4;border:1px solid #1f4a3f;border-radius:999px;padding:3px 9px;margin-left:6px">{{ accountBadge }}</div>
+      <div class="terminal-account-badge" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#3fd2a4;border:1px solid #1f4a3f;border-radius:999px;padding:3px 9px;margin-left:6px">{{ accountBadge }}</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;position:relative">
       <button sc-camel-on-click="{{ toggleNotif }}" style="position:relative;background:#11151f;border:1px solid #1f2536;color:#e9ebf2;border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer">Alertes<sc-if value="{{ hasSignals }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-radius:50%;background:#9d8cff"></span></sc-if></button>
-      <button data-no-i18n="true" sc-camel-on-click="{{ goProfile }}" style="display:flex;align-items:center;gap:8px;background:#11151f;border:1px solid #1f2536;color:#e9ebf2;border-radius:10px;padding:5px 12px 5px 5px;font-size:13px;cursor:pointer">
+      <button class="terminal-profile-button" aria-label="Profil" data-no-i18n="true" sc-camel-on-click="{{ goProfile }}" style="display:flex;align-items:center;gap:8px;background:#11151f;border:1px solid #1f2536;color:#e9ebf2;border-radius:10px;padding:5px 12px 5px 5px;font-size:13px;cursor:pointer">
         <div style="width:26px;height:26px;border-radius:8px;background:#2a2450;color:#c9bfff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">{{ initials }}</div><span class="terminal-name">{{ firstName }}</span>
       </button>
       <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
-        <div style="position:absolute;top:44px;right:0;width:320px;background:#11151f;border:1px solid #232a3b;border-radius:14px;padding:8px;z-index:20;box-shadow:0 20px 50px rgba(0,0,0,0.5);display:flex;flex-direction:column">
+        <div class="terminal-notification-menu" style="position:absolute;top:44px;right:0;width:320px;background:#11151f;border:1px solid #232a3b;border-radius:14px;padding:8px;z-index:20;box-shadow:0 20px 50px rgba(0,0,0,0.5);display:flex;flex-direction:column">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px"><span style="font-size:13px;color:#8d93a8">Derniers signaux du bot</span><button sc-camel-on-click="{{ testAlert }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer;padding:5px 10px;font-size:11px">Tester une alerte</button></div>
           <sc-for list="{{ notifList }}" as="n" hint-placeholder-count="3">
             <div style="display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border-top:1px solid #1a2030;font-size:13px">
@@ -350,8 +350,8 @@ select option{background:#11151f;color:#e9ebf2}
 
   <!-- TRADER -->
   <sc-if value="{{ isTrader }}" hint-placeholder-val="{{ true }}">
-  <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:18px 24px">
-    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px">
+  <div data-screen-label="Trader" class="terminal-trader" style="flex:1;display:flex;flex-direction:column;gap:16px;padding:18px 24px">
+    <div class="terminal-watchlist" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px">
       <sc-for list="{{ watch }}" as="w" hint-placeholder-count="6">
         <button sc-camel-on-click="{{ w.select }}" style="flex:none;display:flex;flex-direction:column;gap:3px;text-align:left;padding:10px 14px;border-radius:12px;cursor:pointer;color:#e9ebf2;min-width:136px;background:{{ w.bg }};border:1px solid {{ w.border }}">
           <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:700"><span>{{ w.label }}</span><span style="font-family:'JetBrains Mono',monospace;color:{{ w.chgColor }}">{{ w.chg }}</span></div>
@@ -367,12 +367,12 @@ select option{background:#11151f;color:#e9ebf2}
     </div>
 
     <sc-if value="{{ isChartTab }}" hint-placeholder-val="{{ true }}">
-    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;flex-direction:{{ layoutDir }}">
+    <div class="terminal-chart-layout" style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;flex-direction:{{ layoutDir }}">
 
       <!-- Results panel -->
-      <div style="flex:1 1 260px;max-width:{{ panelMax }};background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:20px;display:flex;flex-direction:{{ panelDir }};flex-wrap:wrap;gap:16px">
+      <div id="terminal-results-body" class="terminal-results-card" data-mobile-expanded="{{ mobileResultsOpen }}" style="flex:1 1 260px;max-width:{{ panelMax }};background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:20px;display:flex;flex-direction:{{ panelDir }};flex-wrap:wrap;gap:16px">
         <div style="display:flex;flex-direction:column;gap:10px;flex:{{ fb220 }}">
-          <div style="font-size:16px;font-weight:600">Résultats de l'indicateur</div>
+          <div class="terminal-results-heading" style="font-size:16px;font-weight:600"><span>Résultats de l'indicateur</span><button class="terminal-mobile-only terminal-quiet" aria-expanded="{{ mobileResultsOpen }}" aria-controls="terminal-results-body" sc-camel-on-click="{{ toggleMobileResults }}">{{ mobileResultsLabel }}</button></div>
           <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Résultats de
             <sc-raw-select value="{{ resultsOf }}" sc-camel-on-change="{{ onResultsOf }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:9px 10px;color:#e9ebf2;font-size:13px;font-weight:600"><option value="blh">BLH XAUUSD M5 CLEAN</option><option value="ms">Market Structure &amp; Fibonacci + RR</option><option value="planner">Signal Trade Planner</option><option value="pa">Price Action &amp; Liquidity Map</option></sc-raw-select>
           </label>
@@ -409,22 +409,23 @@ select option{background:#11151f;color:#e9ebf2}
       </div>
 
       <!-- Chart card -->
-      <div ref="{{ chartBoxRef }}" style="flex:999 1 560px;min-width:0;background:#0f1320;border:1px solid #1a2030;border-radius:16px;display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;flex-wrap:wrap;border-bottom:1px solid #161b28">
-          <div style="display:flex;flex-wrap:wrap;gap:4px;background:#0a0d16;border-radius:10px;padding:3px">
+      <div class="terminal-chart-card" ref="{{ chartBoxRef }}" style="flex:999 1 560px;min-width:0;background:#0f1320;border:1px solid #1a2030;border-radius:16px;display:flex;flex-direction:column;overflow:hidden">
+        <div class="terminal-chart-controls" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;flex-wrap:wrap;border-bottom:1px solid #161b28">
+          <div class="terminal-symbols" style="display:flex;flex-wrap:wrap;gap:4px;background:#0a0d16;border-radius:10px;padding:3px">
             <sc-for list="{{ symbols }}" as="s" hint-placeholder-count="2">
               <button sc-camel-on-click="{{ s.select }}" style="border:0;border-radius:8px;padding:7px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;background:{{ s.bg }};color:{{ s.color }}">{{ s.label }}</button>
             </sc-for>
           </div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative">
-            <sc-raw-select value="{{ tf }}" sc-camel-on-change="{{ onTf }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:7px 10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:12px">
+          <div class="terminal-chart-buttons" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative">
+            <sc-raw-select aria-label="Unité de temps" value="{{ tf }}" sc-camel-on-change="{{ onTf }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:7px 10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:12px">
               <option value="1m">1m</option><option value="5m">5m</option><option value="15m">15m</option><option value="30m">30m</option><option value="1h">1h</option>
             </sc-raw-select>
             <button sc-camel-on-click="{{ toggleInd }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:7px 12px;color:#e9ebf2;font-size:12px;font-weight:600;cursor:pointer">Indicateurs</button>
-            <button sc-camel-on-click="{{ fullscreen }}" title="Plein écran" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:7px 10px;color:#e9ebf2;font-size:12px;cursor:pointer">{{ fsLabel }}</button>
+            <button class="terminal-fullscreen" aria-label="{{ fsLabel }}" sc-camel-on-click="{{ fullscreen }}" title="Plein écran" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:7px 10px;color:#e9ebf2;font-size:12px;cursor:pointer">{{ fsLabel }}</button>
             <button sc-camel-on-click="{{ toggleDemo }}" style="border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;background:{{ demoBg }};color:{{ demoColor }};border:1px solid {{ demoBorder }}">{{ demoLabel }}</button>
             <sc-if value="{{ indOpen }}" hint-placeholder-val="{{ false }}">
-              <div style="position:absolute;top:40px;right:0;width:290px;max-height:70vh;overflow:auto;background:#11151f;border:1px solid #232a3b;border-radius:12px;padding:8px;z-index:10;box-shadow:0 20px 50px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:2px">
+              <div class="terminal-indicator-menu" style="position:absolute;top:40px;right:0;width:290px;max-height:70vh;overflow:auto;background:#11151f;border:1px solid #232a3b;border-radius:12px;padding:8px;z-index:10;box-shadow:0 20px 50px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:2px">
+                <div class="terminal-mobile-only terminal-menu-heading"><strong>Indicateurs</strong><button class="terminal-quiet" aria-label="Fermer les indicateurs" sc-camel-on-click="{{ toggleInd }}">Fermer</button></div>
                 <div style="padding:8px 10px;font-size:11px;color:#8d93a8;font-family:'JetBrains Mono',monospace">MARKET STRUCTURE &amp; FIBONACCI + RR</div>
                 <sc-for list="{{ msToggles }}" as="i" hint-placeholder-count="2">
                   <button sc-camel-on-click="{{ i.toggle }}" style="display:flex;align-items:center;gap:10px;background:none;border:0;color:#e9ebf2;padding:9px 10px;border-radius:8px;font-size:13px;cursor:pointer;text-align:left">
@@ -456,7 +457,7 @@ select option{background:#11151f;color:#e9ebf2}
             </sc-if>
           </div>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 14px 4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8d93a8;flex-wrap:wrap">
+        <div class="terminal-market-info" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 14px 4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8d93a8;flex-wrap:wrap">
           <div style="display:flex;gap:12px;flex-wrap:wrap"><span>{{ symbolName }} · {{ tf }}</span><span style="color:#c4c8d6">{{ ohlc }}</span></div>
           <div style="display:flex;align-items:center;gap:7px;border:1px solid {{ feedBorder }};border-radius:999px;padding:4px 10px;color:#c4c8d6">
             <div style="width:7px;height:7px;border-radius:50%;background:{{ feedColor }}"></div>{{ sourceLabel }}
@@ -474,18 +475,18 @@ select option{background:#11151f;color:#e9ebf2}
           <button sc-camel-on-click="{{ rpExit }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer;padding:5px 10px">Quitter</button>
         </div>
         </sc-if>
-        <div style="display:flex;gap:6px 14px;flex-wrap:wrap;padding:2px 14px 8px;font-size:11px;font-family:'JetBrains Mono',monospace">
+        <div class="terminal-legend" style="display:flex;gap:6px 14px;flex-wrap:wrap;padding:2px 14px 8px;font-size:11px;font-family:'JetBrains Mono',monospace">
           <sc-for list="{{ legend }}" as="g" hint-placeholder-count="5">
             <div style="display:flex;align-items:center;gap:6px;color:#a3a9bd"><div style="width:12px;height:3px;border-radius:2px;background:{{ g.color }}"></div>{{ g.label }}</div>
           </sc-for>
         </div>
-        <div style="display:flex;flex:1;min-height:{{ chartMinH }};border-top:1px solid #161b28">
-          <div style="display:flex;flex-direction:column;gap:4px;padding:8px 6px;border-right:1px solid #161b28">
+        <div class="terminal-chart-viewport" style="display:flex;flex:1;min-height:{{ chartMinH }};border-top:1px solid #161b28">
+          <div class="terminal-drawing-tools" role="toolbar" aria-label="Outils du graphique" style="display:flex;flex-direction:column;gap:4px;padding:8px 6px;border-right:1px solid #161b28">
             <sc-for list="{{ tools }}" as="t" hint-placeholder-count="7">
               <button sc-camel-on-click="{{ t.select }}" title="{{ t.title }}" aria-label="{{ t.title }}" style="width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;margin-top:{{ t.gap }};background:{{ t.bg }};color:{{ t.color }};border:1px solid {{ t.border }}">{{ t.glyph }}</button>
             </sc-for>
           </div>
-          <div style="position:relative;flex:1;min-width:0">
+          <div class="terminal-chart-plot" style="position:relative;flex:1;min-width:0">
             <canvas ref="{{ canvasRef }}" style="position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair"></canvas>
             <sc-if value="{{ textAt }}" hint-placeholder-val="{{ false }}">
               <input ref="{{ textRef }}" value="{{ textVal }}" sc-camel-on-change="{{ onTextVal }}" sc-camel-on-key-down="{{ onTextKey }}" sc-camel-on-blur="{{ commitText }}" placeholder="Texte puis Entrée" style="position:absolute;left:{{ textX }};top:{{ textY }};z-index:5;width:180px;background:#0a0d16;border:1px solid #f0b45b;border-radius:6px;padding:5px 8px;color:#f0b45b;font-size:12px;outline:none">
@@ -495,7 +496,7 @@ select option{background:#11151f;color:#e9ebf2}
             </sc-if>
           </div>
         </div>
-        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7186;border-top:1px solid #161b28"><span>{{ toolHint }}</span><span>BLH {{ tf }} : {{ blhSignals }} signaux · Structure : {{ msSetups }} configurations</span></div>
+        <div class="terminal-chart-help" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7186;border-top:1px solid #161b28"><span class="terminal-desktop-help">{{ toolHint }}</span><span class="terminal-mobile-only">{{ mobileToolHint }}</span><span>BLH {{ tf }} : {{ blhSignals }} signaux · Structure : {{ msSetups }} configurations</span></div>
       </div>
     </div>
     </sc-if>
@@ -581,11 +582,11 @@ select option{background:#11151f;color:#e9ebf2}
 
     <sc-if value="{{ isOpsTab }}" hint-placeholder-val="{{ false }}">
     <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;overflow:auto">
-      <div style="min-width:760px;display:flex;flex-direction:column">
-        <div style="display:grid;grid-template-columns:1.4fr 0.8fr 1fr 1fr 1fr 1.2fr 0.8fr 0.7fr;gap:10px;padding:14px 20px;font-size:12px;color:#8d93a8;border-bottom:1px solid #1a2030"><div>Heure</div><div>Sens</div><div>Entrée</div><div>Stop loss</div><div>TP3</div><div>Statut</div><div>Confiance</div><div style="text-align:right">R</div></div>
+      <div class="terminal-mobile-table" style="min-width:760px;display:flex;flex-direction:column">
+        <div class="terminal-table-heading" style="display:grid;grid-template-columns:1.4fr 0.8fr 1fr 1fr 1fr 1.2fr 0.8fr 0.7fr;gap:10px;padding:14px 20px;font-size:12px;color:#8d93a8;border-bottom:1px solid #1a2030"><div>Heure</div><div>Sens</div><div>Entrée</div><div>Stop loss</div><div>TP3</div><div>Statut</div><div>Confiance</div><div style="text-align:right">R</div></div>
         <sc-for list="{{ ops }}" as="o" hint-placeholder-count="6">
-          <div style="display:grid;grid-template-columns:1.4fr 0.8fr 1fr 1fr 1fr 1.2fr 0.8fr 0.7fr;gap:10px;padding:13px 20px;font-family:'JetBrains Mono',monospace;font-size:13px;border-bottom:1px solid #151a26">
-            <div style="color:#8d93a8">{{ o.time }}</div><div style="color:{{ o.color }};font-weight:700">{{ o.dir }}</div><div>{{ o.entry }}</div><div>{{ o.stop }}</div><div>{{ o.tp }}</div><div style="color:#c4c8d6">{{ o.status }}</div><div style="color:{{ o.confColor }}">{{ o.conf }}</div><div style="text-align:right;color:{{ o.rColor }}">{{ o.r }}</div>
+          <div class="terminal-table-row" style="display:grid;grid-template-columns:1.4fr 0.8fr 1fr 1fr 1fr 1.2fr 0.8fr 0.7fr;gap:10px;padding:13px 20px;font-family:'JetBrains Mono',monospace;font-size:13px;border-bottom:1px solid #151a26">
+            <div data-label="Heure" style="color:#8d93a8">{{ o.time }}</div><div data-label="Sens" style="color:{{ o.color }};font-weight:700">{{ o.dir }}</div><div data-label="Entrée">{{ o.entry }}</div><div data-label="Stop loss">{{ o.stop }}</div><div data-label="TP3">{{ o.tp }}</div><div data-label="Statut" style="color:#c4c8d6">{{ o.status }}</div><div data-label="Confiance" style="color:{{ o.confColor }}">{{ o.conf }}</div><div data-label="R" style="text-align:right;color:{{ o.rColor }}">{{ o.r }}</div>
           </div>
         </sc-for>
         <sc-if value="{{ noOps }}" hint-placeholder-val="{{ false }}"><div style="padding:28px 20px;color:#8d93a8;font-size:14px">Aucun signal sur la période chargée.</div></sc-if>
@@ -644,7 +645,7 @@ select option{background:#11151f;color:#e9ebf2}
         <div style="font-size:13px;color:#9d8cff;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.08em">{{ d.day }}</div>
         <div style="background:#11151f;border:1px solid #1a2030;border-radius:14px;overflow:hidden">
           <sc-for list="{{ d.events }}" as="e" hint-placeholder-count="2">
-            <div style="display:grid;grid-template-columns:70px 60px minmax(0,1fr) 90px 90px;gap:12px;padding:14px 18px;border-bottom:1px solid #151a26;align-items:center;font-size:14px">
+            <div class="terminal-calendar-event" style="display:grid;grid-template-columns:70px 60px minmax(0,1fr) 90px 90px;gap:12px;padding:14px 18px;border-bottom:1px solid #151a26;align-items:center;font-size:14px">
               <div style="font-family:'JetBrains Mono',monospace;color:#8d93a8">{{ e.time }}</div>
               <div style="font-family:'JetBrains Mono',monospace;font-weight:700">{{ e.ccy }}</div>
               <div style="display:flex;align-items:center;gap:10px;min-width:0"><div style="width:8px;height:8px;border-radius:50%;flex:none;background:{{ e.impact }}"></div>{{ e.name }}</div>
@@ -661,13 +662,13 @@ select option{background:#11151f;color:#e9ebf2}
   <!-- HISTORY -->
   <sc-if value="{{ isHistory }}" hint-placeholder-val="{{ false }}">
   <div data-screen-label="Historique" style="flex:1;padding:24px;display:flex;flex-direction:column;gap:18px;max-width:1100px;width:100%;margin:0 auto">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><div style="font-size:26px;font-weight:600;letter-spacing:-0.02em">Historique</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:{{ netColor }}">{{ netR }} · {{ stats.closed }} trades</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><div style="font-size:26px;font-weight:600;letter-spacing:-0.02em">Historique</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:{{ netColor }}">{{ historyNetR }} · {{ historyClosed }} trades</div></div>
     <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;overflow:auto">
-      <div style="min-width:700px">
-        <div style="display:grid;grid-template-columns:1.3fr 1.3fr 0.7fr 1fr 1fr 0.7fr;gap:10px;padding:14px 20px;font-size:12px;color:#8d93a8;border-bottom:1px solid #1a2030"><div>Ouverture</div><div>Clôture</div><div>Sens</div><div>Entrée</div><div>Sortie</div><div style="text-align:right">R</div></div>
+      <div class="terminal-mobile-table" style="min-width:700px">
+        <div class="terminal-table-heading" style="display:grid;grid-template-columns:1.3fr 1.3fr 0.7fr 1fr 1fr 0.7fr;gap:10px;padding:14px 20px;font-size:12px;color:#8d93a8;border-bottom:1px solid #1a2030"><div>Ouverture</div><div>Clôture</div><div>Sens</div><div>Entrée</div><div>Sortie</div><div style="text-align:right">R</div></div>
         <sc-for list="{{ history }}" as="h" hint-placeholder-count="6">
-          <div style="display:grid;grid-template-columns:1.3fr 1.3fr 0.7fr 1fr 1fr 0.7fr;gap:10px;padding:13px 20px;font-family:'JetBrains Mono',monospace;font-size:13px;border-bottom:1px solid #151a26">
-            <div style="color:#8d93a8">{{ h.time }}</div><div style="color:#8d93a8">{{ h.closed }}</div><div style="color:{{ h.color }};font-weight:700">{{ h.dir }}</div><div>{{ h.entry }}</div><div>{{ h.exit }}</div><div style="text-align:right;color:{{ h.rColor }}">{{ h.r }}</div>
+          <div class="terminal-table-row" style="display:grid;grid-template-columns:1.3fr 1.3fr 0.7fr 1fr 1fr 0.7fr;gap:10px;padding:13px 20px;font-family:'JetBrains Mono',monospace;font-size:13px;border-bottom:1px solid #151a26">
+            <div data-label="Ouverture" style="color:#8d93a8">{{ h.time }}</div><div data-label="Clôture" style="color:#8d93a8">{{ h.closed }}</div><div data-label="Sens" style="color:{{ h.color }};font-weight:700">{{ h.dir }}</div><div data-label="Entrée">{{ h.entry }}</div><div data-label="Sortie">{{ h.exit }}</div><div data-label="R" style="text-align:right;color:{{ h.rColor }}">{{ h.r }}</div>
           </div>
         </sc-for>
         <sc-if value="{{ noHistory }}" hint-placeholder-val="{{ false }}"><div style="padding:28px 20px;color:#8d93a8;font-size:14px">Aucun trade clôturé sur la période.</div></sc-if>
@@ -679,6 +680,7 @@ select option{background:#11151f;color:#e9ebf2}
   <!-- PROFILE -->
   <sc-if value="{{ isProfile }}" hint-placeholder-val="{{ false }}">
   <div data-screen-label="Profil" style="flex:1;padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;max-width:1100px;width:100%;margin:0 auto;align-content:start">
+    <div class="terminal-mobile-only terminal-mobile-shortcuts"><button class="terminal-quiet" sc-camel-on-click="{{ goCalendar }}">Calendrier</button><button class="terminal-quiet" sc-camel-on-click="{{ goHistory }}">Historique</button></div>
     <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px">
       <div style="display:flex;align-items:center;gap:14px"><div style="width:52px;height:52px;border-radius:14px;background:#2a2450;color:#c9bfff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px">{{ initials }}</div><div style="display:flex;flex-direction:column;gap:3px"><div data-no-i18n="true" style="font-size:18px;font-weight:600">{{ displayName }}</div><div style="font-size:13px;color:#8d93a8">{{ displayEmail }}</div></div></div>
       <div style="display:flex;flex-direction:column;gap:1px;background:#1a2030;border-radius:12px;overflow:hidden;font-size:14px">
@@ -871,12 +873,12 @@ select option{background:#11151f;color:#e9ebf2}
     <p class="terminal-mini">Paiements : prestataire à connecter.</p>
     <div style="font-size:16px;font-weight:600">Utilisateurs</div>
     <div style="background:#11151f;border:1px solid #1a2030;border-radius:14px;overflow:auto">
-      <div style="min-width:720px">
-        <div style="display:grid;grid-template-columns:1.4fr 1.6fr 0.9fr 1fr 0.9fr;gap:10px;padding:12px 18px;font-size:12px;color:#8d93a8;border-bottom:1px solid #1a2030"><div>Nom</div><div>E-mail</div><div>Statut</div><div>Création</div><div style="text-align:right">Action</div></div>
+      <div class="terminal-mobile-table" style="min-width:720px">
+        <div class="terminal-table-heading" style="display:grid;grid-template-columns:1.4fr 1.6fr 0.9fr 1fr 0.9fr;gap:10px;padding:12px 18px;font-size:12px;color:#8d93a8;border-bottom:1px solid #1a2030"><div>Nom</div><div>E-mail</div><div>Statut</div><div>Création</div><div style="text-align:right">Action</div></div>
         <sc-for list="{{ adminUsers }}" as="u" hint-placeholder-count="4">
-          <div style="display:grid;grid-template-columns:1.4fr 1.6fr 0.9fr 1fr 0.9fr;gap:10px;padding:13px 18px;border-bottom:1px solid #151a26;align-items:center;font-size:13px">
-            <div>{{ u.name }}</div><div style="color:#8d93a8">{{ u.email }}</div><div style="color:{{ u.stColor }}">{{ u.status }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:12px">{{ u.until }}</div>
-            <div style="text-align:right"><button sc-camel-on-click="{{ u.toggle }}" disabled="{{ u.protected }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer">{{ u.action }}</button><button class="terminal-quiet" sc-camel-on-click="{{ u.recover }}">Récupération</button><button class="terminal-quiet" sc-camel-on-click="{{ u.remove }}" disabled="{{ u.protected }}">Supprimer</button></div>
+          <div class="terminal-table-row" style="display:grid;grid-template-columns:1.4fr 1.6fr 0.9fr 1fr 0.9fr;gap:10px;padding:13px 18px;border-bottom:1px solid #151a26;align-items:center;font-size:13px">
+            <div data-label="Nom">{{ u.name }}</div><div data-label="E-mail" style="color:#8d93a8">{{ u.email }}</div><div data-label="Statut" style="color:{{ u.stColor }}">{{ u.status }}</div><div data-label="Création" style="font-family:'JetBrains Mono',monospace;font-size:12px">{{ u.until }}</div>
+            <div data-label="Actions" style="text-align:right"><button sc-camel-on-click="{{ u.toggle }}" disabled="{{ u.protected }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer">{{ u.action }}</button><button class="terminal-quiet" sc-camel-on-click="{{ u.recover }}">Récupération</button><button class="terminal-quiet" sc-camel-on-click="{{ u.remove }}" disabled="{{ u.protected }}">Supprimer</button></div>
           </div>
         </sc-for>
       </div>
@@ -886,8 +888,8 @@ select option{background:#11151f;color:#e9ebf2}
 
   <!-- SUPPORT -->
   <sc-if value="{{ isSupport }}" hint-placeholder-val="{{ false }}">
-  <div data-screen-label="Support" style="flex:1;padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;max-width:1100px;width:100%;margin:0 auto;align-content:start"><sc-if value="{{ supportError }}"><p role="status" class="terminal-notice" style="grid-column:1 / -1">{{ supportError }}</p></sc-if><div class="terminal-actions" style="grid-column:1 / -1"><button class="terminal-quiet" sc-camel-on-click="{{ refreshTickets }}">Actualiser</button><sc-if value="{{ viewing }}"><button class="terminal-quiet" sc-camel-on-click="{{ backTickets }}">Retour aux tickets</button></sc-if><sc-if value="{{ hasMoreTickets }}"><button class="terminal-quiet" sc-camel-on-click="{{ loadMoreTickets }}">Plus de tickets</button></sc-if><sc-if value="{{ olderMessages }}"><button class="terminal-quiet" sc-camel-on-click="{{ loadOlder }}">Messages précédents</button></sc-if></div>
-    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+  <div data-screen-label="Support" data-detail="{{ supportDetailVisible }}" style="flex:1;padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;max-width:1100px;width:100%;margin:0 auto;align-content:start"><sc-if value="{{ supportError }}"><p role="status" class="terminal-notice" style="grid-column:1 / -1">{{ supportError }}</p></sc-if><div class="terminal-actions" style="grid-column:1 / -1"><button class="terminal-quiet" sc-camel-on-click="{{ refreshTickets }}">Actualiser</button><sc-if value="{{ viewing }}"><button class="terminal-quiet" sc-camel-on-click="{{ backTickets }}">Retour aux tickets</button></sc-if><sc-if value="{{ hasMoreTickets }}"><button class="terminal-quiet" sc-camel-on-click="{{ loadMoreTickets }}">Plus de tickets</button></sc-if><sc-if value="{{ olderMessages }}"><button class="terminal-quiet" sc-camel-on-click="{{ loadOlder }}">Messages précédents</button></sc-if></div>
+    <div class="terminal-support-index" style="display:flex;flex-direction:column;gap:12px;min-width:0">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div style="font-size:26px;font-weight:600;letter-spacing:-0.02em">Support</div>
         <button sc-camel-on-click="{{ newTicket }}" disabled="{{ supportUnavailable }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:10px;padding:9px 14px;font-weight:600;font-size:13px;cursor:pointer">Nouveau ticket</button>
@@ -911,7 +913,7 @@ select option{background:#11151f;color:#e9ebf2}
       </div>
     </div>
 
-    <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;display:flex;flex-direction:column;min-height:520px;min-width:0">
+    <div class="terminal-support-conversation" style="background:#11151f;border:1px solid #1a2030;border-radius:16px;display:flex;flex-direction:column;min-height:520px;min-width:0">
       <sc-if value="{{ composing }}" hint-placeholder-val="{{ false }}">
         <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
           <div style="font-size:18px;font-weight:600">Ouvrir un ticket</div>
@@ -935,7 +937,7 @@ select option{background:#11151f;color:#e9ebf2}
           <div style="display:flex;flex-direction:column;gap:3px;min-width:0"><div style="font-weight:600">{{ cur.subject }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8d93a8">#{{ cur.id }} · {{ cur.cat }}</div></div>
           <button sc-camel-on-click="{{ toggleClose }}" disabled="{{ supportBusy }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer">{{ closeLabel }}</button>
         </div>
-        <div ref="{{ msgBoxRef }}" style="flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px;max-height:440px">
+        <div class="terminal-support-messages" ref="{{ msgBoxRef }}" style="flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px;max-height:440px">
           <sc-for list="{{ cur.msgs }}" as="m" hint-placeholder-count="3">
             <div style="display:flex;flex-direction:column;gap:4px;max-width:78%;align-self:{{ m.align }}">
               <div style="font-size:11px;color:#6b7186;text-align:{{ m.textAlign }}">{{ m.who }} · {{ m.time }}</div>
@@ -954,10 +956,10 @@ select option{background:#11151f;color:#e9ebf2}
   </sc-if>
 
   <!-- Bottom nav -->
-  <nav style="position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:10px 16px 14px;background:linear-gradient(transparent,#0a0d16 40%);z-index:30">
+  <nav class="terminal-navigation" aria-label="Navigation principale" data-secondary-active="{{ mobileSecondaryActive }}" style="position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:10px 16px 14px;background:linear-gradient(transparent,#0a0d16 40%);z-index:30">
     <div style="display:flex;gap:4px;background:#11151f;border:1px solid #232a3b;border-radius:18px;padding:6px;box-shadow:0 12px 40px rgba(0,0,0,0.5)">
       <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
-        <button sc-camel-on-click="{{ n.select }}" style="display:flex;flex-direction:column;align-items:center;gap:5px;border:0;border-radius:13px;padding:9px 10px;min-width:64px;cursor:pointer;font-size:12px;font-weight:600;background:{{ n.bg }};color:{{ n.color }}">
+        <button data-secondary="{{ n.secondary }}" data-more="{{ n.more }}" aria-current="{{ n.current }}" sc-camel-on-click="{{ n.select }}" style="display:flex;flex-direction:column;align-items:center;gap:5px;border:0;border-radius:13px;padding:9px 10px;min-width:64px;cursor:pointer;font-size:12px;font-weight:600;background:{{ n.bg }};color:{{ n.color }}">
           <div style="width:6px;height:6px;transform:rotate(45deg);background:{{ n.dot }}"></div>{{ n.label }}
         </button>
       </sc-for>

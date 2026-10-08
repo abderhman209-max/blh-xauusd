@@ -7,13 +7,13 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#020815",
-  "theme_color": "#06152f",
+  "background_color": "#0a0d16",
+  "theme_color": "#0a0d16",
   "icons": [
     {
-      "src": "/pipvoria-app-icon.jpeg",
-      "sizes": "1254x1254",
-      "type": "image/jpeg",
+      "src": "/pipvoria-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]

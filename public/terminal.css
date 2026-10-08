@@ -1,0 +1,24 @@
+/* Only layout/accessibility repairs to the supplied Pipvoria design. */
+html{color-scheme:dark;background:#0a0d16}body{margin:0;background:#0a0d16}
+*{box-sizing:border-box}button,input,select,textarea{font:inherit}button:disabled{opacity:.45;cursor:not-allowed!important}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #b9adff!important;outline-offset:3px}
+[role=status],[role=alert]{overflow-wrap:anywhere}textarea{resize:vertical}
+.terminal-card{background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px}
+.terminal-button{background:#9d8cff;color:#0a0d16;border:0;border-radius:10px;padding:10px 16px;font-weight:600;cursor:pointer}
+.terminal-quiet{background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:8px 12px;cursor:pointer}
+.terminal-notice{font-size:13px;color:#f0b45b;line-height:1.55;margin:0;overflow-wrap:anywhere}
+.terminal-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:14px}
+.terminal-fields label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8}
+.terminal-fields input,.terminal-fields select{background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;min-width:0}
+.terminal-actions{display:flex;gap:8px;flex-wrap:wrap}.terminal-rows{display:flex;flex-direction:column;gap:10px}
+.terminal-mini{font-size:12px;color:#8d93a8}.terminal-rows p{margin:0}
+@media(max-width:600px){[data-screen-label]{padding:16px!important;min-width:0!important}button{min-height:36px}
+[data-screen-label="Terminal"]{padding:0!important;padding-bottom:84px!important}
+[data-screen-label="Terminal"]>header{padding:12px!important;gap:6px!important}
+[data-screen-label="Terminal"]>header>div{gap:6px!important;min-width:0}
+.terminal-name{max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+nav{padding:8px 6px 12px!important}nav>div{width:100%;min-width:0;gap:1px!important;padding:4px!important}nav button{min-width:0!important;padding:8px 3px!important;font-size:10px!important;flex:1}
+[data-screen-label="Trader"]>div{min-width:0}canvas{touch-action:none}
+[data-screen-label="Support"]>div{min-width:0!important}body{overflow-x:hidden}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+@media print{body{background:white!important;color:black!important}button,nav,canvas{display:none!important}[data-screen-label]{width:100%!important;padding:0!important}input,textarea{background:white!important;color:black!important}}

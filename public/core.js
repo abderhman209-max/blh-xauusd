@@ -136,7 +136,26 @@
     const profiles={};
     for(const [key,profile] of Object.entries(v.marketProfiles||{}).slice(0,10))if(/^(XAU\/USD|BTC\/USD)\|(1min|5min|15min|30min|1h)$/.test(key))profiles[key]=settings({indicators:profile}).indicators;
     const presets=(Array.isArray(v.presets)?v.presets:[]).slice(0,20).filter(p=>p&&typeof p.name==='string').map(p=>({name:p.name.slice(0,50),indicators:settings({indicators:p.indicators}).indicators}));
-    return {version:1,timezone:validTimezone(v.timezone)?v.timezone:'UTC',confirmedOnly:v.confirmedOnly!==false,demo:!!v.demo,risk:{balance:numeric(v.risk?.balance)&&v.risk.balance>=1&&v.risk.balance<=1e12?Number(v.risk.balance):10000,percent:numeric(v.risk?.percent)&&v.risk.percent>=.01&&v.risk.percent<=100?Number(v.risk.percent):1},indicators:clean,marketProfiles:profiles,presets,contract:numeric(v.contract)&&v.contract>0&&v.contract<=1e9?Number(v.contract):100,lotStep:numeric(v.lotStep)&&v.lotStep>0&&v.lotStep<=1e7?Number(v.lotStep):.01,btcContract:numeric(v.btcContract)&&v.btcContract>0?Number(v.btcContract):1,btcLotStep:numeric(v.btcLotStep)&&v.btcLotStep>0?Number(v.btcLotStep):.0001,goal:v.goal&&numeric(v.goal.targetR)&&v.goal.targetR>0&&numeric(v.goal.maxRisk)&&v.goal.maxRisk>0&&v.goal.maxRisk<=100?{targetR:Number(v.goal.targetR),maxRisk:Number(v.goal.maxRisk)}:null};
+    return {version:1,timezone:validTimezone(v.timezone)?v.timezone:'UTC',confirmedOnly:v.confirmedOnly!==false,demo:!!v.demo,risk:{balance:numeric(v.risk?.balance)&&v.risk.balance>=1&&v.risk.balance<=1e12?Number(v.risk.balance):10000,percent:numeric(v.risk?.percent)&&v.risk.percent>=.01&&v.risk.percent<=100?Number(v.risk.percent):1},indicators:clean,marketProfiles:profiles,presets,contract:numeric(v.contract)&&v.contract>0&&v.contract<=1e9?Number(v.contract):100,lotStep:numeric(v.lotStep)&&v.lotStep>0&&v.lotStep<=1e7?Number(v.lotStep):.01,btcContract:numeric(v.btcContract)&&v.btcContract>0?Number(v.btcContract):1,btcLotStep:numeric(v.btcLotStep)&&v.btcLotStep>0?Number(v.btcLotStep):.0001,goal:v.goal&&numeric(v.goal.targetR)&&v.goal.targetR>0&&numeric(v.goal.maxRisk)&&v.goal.maxRisk>0&&v.goal.maxRisk<=100?{targetR:Number(v.goal.targetR),maxRisk:Number(v.goal.maxRisk)}:null,terminal:terminalSettings(v.terminal)};
+  }
+  function terminalSettings(value) {
+    const v=value&&typeof value==='object'?value:{},positive=(x,max)=>numeric(x)&&Number(x)>0&&Number(x)<=max?Number(x):null;
+    const drawings={};
+    const point=p=>p&&numeric(p.t)&&numeric(p.p)?{t:Number(p.t),p:Number(p.p)}:null;
+    for(const [key,rows] of Object.entries(v.drawings||{}).slice(0,30)) {
+      if(!/^(XAU|BTC|ETH|SOL|EUR|NAS)\|(1m|5m|15m|30m|1h)$/.test(key)||!Array.isArray(rows))continue;
+      drawings[key]=rows.slice(-50).flatMap(row=>{
+        if(!row||typeof row!=='object')return[];
+        if(row.type==='h'&&numeric(row.price))return[{type:'h',price:Number(row.price)}];
+        if(['t','rect','fib'].includes(row.type)&&point(row.a)&&point(row.b))return[{type:row.type,a:point(row.a),b:point(row.b)}];
+        if(row.type==='x'&&point(row)&&typeof row.text==='string')return[{type:'x',...point(row),text:row.text.slice(0,200)}];
+        return[];
+      });
+    }
+    return {language:['Français','English','Español','العربية'].includes(v.language)?v.language:'Français',sound:v.sound===true,
+      sessions:{asia:v.sessions?.asia===true,london:v.sessions?.london!==false,ny:v.sessions?.ny!==false},sessionFilter:v.sessionFilter===true,
+      avoid:typeof v.avoid==='string'&&/^[\d,\s-]{0,100}$/.test(v.avoid)?v.avoid:'',maxLossDay:positive(v.maxLossDay,1000),maxTradesDay:positive(v.maxTradesDay,1000),
+      goalR:positive(v.goalR,10000),monthlyReminder:v.monthlyReminder===true,drawings};
   }
   function tracker() {
     const markets=new Map();

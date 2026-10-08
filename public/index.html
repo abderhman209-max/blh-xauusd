@@ -1,267 +1,987 @@
-<!doctype html>
-<html lang="fr" data-theme="dark" style="color-scheme:dark">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PIPVORIA — Le marché, en perspective</title>
-<meta name="description" content="Signaux, graphiques XAU/USD et BTC/USD, calcul du risque et journal de trading dans un espace sécurisé.">
-<link rel="icon" href="pipvoria-app-icon.jpeg" type="image/jpeg">
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="portal.css?v=20261005e">
-<link rel="stylesheet" href="workspace.css">
-<link rel="stylesheet" href="admin.css">
-<link rel="stylesheet" href="auth.css">
-<link rel="stylesheet" href="support.css?v=20261007-support">
+<!DOCTYPE html>
+<html><head>
+<title>Pipvoria</title><meta name="theme-color" content="#0a0d16"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/pipvoria-icon.svg"><link rel="stylesheet" href="/terminal.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
 </head>
-<body class="chart-app auth-locked">
-<header class="chart-top">
-<a class="logo" href="#workspace" aria-label="BLH XAUUSD">
-<img src="blh-logo.png" alt="">
-<span>BLH <b>XAUUSD</b>
-</span>
-</a>
-<div class="frames" role="group" aria-label="Période du graphique">
-<button data-interval="1min">1m</button>
-<button data-interval="5min" class="active">5m</button>
-<button data-interval="15min">15m</button>
-<button data-interval="30min">30m</button>
-<button data-interval="1h">1h</button>
+<body>
+<x-dc>
+
+<helmet>
+
+<style>/* latin-ext */
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("/fonts/327efe03-6874-43b1-acdc-259e899af94c.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("/fonts/c87f2872-be5c-4608-b7d4-9fc51ad2a3ec.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("/fonts/327efe03-6874-43b1-acdc-259e899af94c.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("/fonts/c87f2872-be5c-4608-b7d4-9fc51ad2a3ec.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("/fonts/327efe03-6874-43b1-acdc-259e899af94c.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("/fonts/c87f2872-be5c-4608-b7d4-9fc51ad2a3ec.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("/fonts/327efe03-6874-43b1-acdc-259e899af94c.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("/fonts/c87f2872-be5c-4608-b7d4-9fc51ad2a3ec.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/1909f865-e97f-4b21-a679-596f9b5c4ef6.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/3a3f9117-c22e-4115-9f86-dd751c936abc.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/c1cd8423-c0de-4115-a1af-19b9ff55c74c.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/156ca966-d650-4e61-80f1-990f1b1ed9aa.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/af202c4f-fef1-4c85-83e6-1312ef72a2be.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/61da8db2-7c11-4bc2-9cee-43f3baa1c735.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/1909f865-e97f-4b21-a679-596f9b5c4ef6.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/3a3f9117-c22e-4115-9f86-dd751c936abc.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/c1cd8423-c0de-4115-a1af-19b9ff55c74c.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/156ca966-d650-4e61-80f1-990f1b1ed9aa.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/af202c4f-fef1-4c85-83e6-1312ef72a2be.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/61da8db2-7c11-4bc2-9cee-43f3baa1c735.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/1909f865-e97f-4b21-a679-596f9b5c4ef6.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/3a3f9117-c22e-4115-9f86-dd751c936abc.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/c1cd8423-c0de-4115-a1af-19b9ff55c74c.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/156ca966-d650-4e61-80f1-990f1b1ed9aa.woff2") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/af202c4f-fef1-4c85-83e6-1312ef72a2be.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/61da8db2-7c11-4bc2-9cee-43f3baa1c735.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+<style>
+html,body{margin:0;background:#0a0d16;color:#e9ebf2;font-family:'Instrument Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#b9adff;text-decoration:none}a:hover{color:#e9ebf2}
+input,select,button{font-family:inherit}
+select option{background:#11151f;color:#e9ebf2}
+</style>
+</helmet>
+<div style="min-height:100vh;background:#0a0d16;color:#e9ebf2">
+
+<!-- AUTH -->
+<sc-if value="{{ isAuth }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Auth" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;gap:28px">
+  <button sc-camel-on-click="{{ goLogin }}" style="display:flex;align-items:center;gap:10px;background:none;border:0;color:#e9ebf2;cursor:pointer">
+    <div style="width:12px;height:12px;background:#9d8cff;transform:rotate(45deg);border-radius:2px"></div>
+    <div style="font-weight:700;font-size:19px">Pipvoria</div>
+  </button>
+  <div style="width:100%;max-width:420px;background:#11151f;border:1px solid #1f2536;border-radius:20px;padding:30px;display:flex;flex-direction:column;gap:20px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;background:#0a0d16;border-radius:12px;padding:4px;gap:4px">
+      <button sc-camel-on-click="{{ goLogin }}" style="border:0;border-radius:9px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;background:{{ loginTabBg }};color:{{ loginTabColor }}">Connexion</button>
+      <button sc-camel-on-click="{{ goSignup }}" style="border:0;border-radius:9px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;background:{{ signupTabBg }};color:{{ signupTabColor }}">Inscription</button>
+    </div>
+    <div style="font-size:24px;font-weight:600;letter-spacing:-0.02em">{{ authTitle }}</div>
+    <sc-if value="{{ isSignup }}" hint-placeholder-val="{{ true }}">
+      <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#8d93a8">Nom complet
+        <input value="{{ name }}" sc-camel-on-change="{{ onName }}" placeholder="Votre nom" style="background:#0a0d16;border:1px solid #232a3b;border-radius:10px;padding:13px 14px;color:#e9ebf2;font-size:15px;outline:none">
+      </label>
+    </sc-if>
+    <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#8d93a8">E-mail
+      <input type="email" value="{{ email }}" sc-camel-on-change="{{ onEmail }}" placeholder="vous@exemple.com" style="background:#0a0d16;border:1px solid #232a3b;border-radius:10px;padding:13px 14px;color:#e9ebf2;font-size:15px;outline:none">
+    </label>
+    <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#8d93a8">Mot de passe
+      <input type="password" value="{{ password }}" sc-camel-on-change="{{ onPassword }}" placeholder="12 caractères minimum à l’inscription" style="background:#0a0d16;border:1px solid #232a3b;border-radius:10px;padding:13px 14px;color:#e9ebf2;font-size:15px;outline:none">
+    </label>
+    <sc-if value="{{ need2fa }}" hint-placeholder-val="{{ false }}">
+      <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#8d93a8">Code de double authentification
+        <input value="{{ tfaLogin }}" sc-camel-on-change="{{ onTfaLogin }}" inputmode="numeric" maxlength="6" placeholder="123456" style="background:#0a0d16;border:1px solid #9d8cff;border-radius:10px;padding:13px 14px;color:#e9ebf2;font-size:18px;letter-spacing:0.3em;font-family:'JetBrains Mono',monospace;outline:none">
+        <span style="font-size:12px;color:#6b7186">Ouvrez votre application d'authentification (Google Authenticator, Authy…)</span>
+      </label>
+    </sc-if>
+    <sc-if value="{{ authError }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:13px;color:#f2707a">{{ authError }}</div>
+    </sc-if>
+    <button sc-camel-on-click="{{ submitAuth }}" disabled="{{ authBusy }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:12px;padding:14px;font-weight:600;font-size:15px;cursor:pointer">{{ authCta }}</button><button class="terminal-quiet" sc-camel-on-click="{{ forgotPassword }}">Mot de passe oublié ?</button><sc-if value="{{ logoutPending }}"><button class="terminal-button" sc-camel-on-click="{{ retryLogout }}">Réessayer la déconnexion</button></sc-if>
+    <div style="font-size:12px;color:#6b7186;line-height:1.5;text-align:center">Un seul appareil connecté à la fois. Session sécurisée.</div>
+  </div>
 </div>
-<details class="settings">
-<summary>⚙ Indicateur</summary>
-<form id="indicator-controls">
-<label>
-<input id="show-structure" type="checkbox" checked> Market Structure & Fibonacci + RR</label>
-<label>Structure<select id="term">
-<option>Short</option>
-<option selected>Mid</option>
-<option>Long</option>
-</select>
-</label>
-<label>Risque / rendement<input id="rr" type="number" min=".5" step=".5" value="2">
-</label>
-<label>
-<input id="valid" type="checkbox"> Masquer les configurations remplacées sans entrée</label>
-<hr>
-<label>
-<input id="show-blh-clean" type="checkbox" checked> BLH XAUUSD M5 CLEAN</label>
-<p class="indicator-hint">Sweep · BOS / CHoCH · BUY / SELL · uniquement XAU/USD en 5 min</p>
-<label>Swing Length<input id="blh-swing" type="number" min="2" max="20" value="4"></label>
-<label>ATR Length<input id="blh-atr" type="number" min="1" max="100" value="14"></label>
-<label>EMA Length<input id="blh-ema-length" type="number" min="1" max="200" value="50"></label>
-<label>Sweep Confirmation Bars<input id="blh-sweep" type="number" min="1" max="50" value="5"></label>
-<label>Zone Width<input id="blh-zone" type="number" min="1" max="100" value="30"></label>
-<label>TP1 RR<input id="blh-rr1" type="number" min="0.25" step="0.25" value="1"></label>
-<label>TP2 RR<input id="blh-rr2" type="number" min="0.25" step="0.25" value="2"></label>
-<label>TP3 RR<input id="blh-rr3" type="number" min="0.25" step="0.25" value="3"></label>
-<label><input id="blh-ema" type="checkbox" checked> Show EMA</label>
-<hr>
-<label>
-<input id="show-pa-liquidity" type="checkbox" checked> Price Action & Liquidity Map</label>
-<p class="indicator-hint" data-indicator-group="pa">BOS / CHoCH · Sweeps · EQH / EQL · Entry / SL / TP</p>
-<label>Swing confirmation bars<input id="pa-pivot" type="number" min="2" max="50" value="5"></label>
-<label>ATR length<input id="pa-atr" type="number" min="1" max="100" value="14"></label>
-<label>Equal-level tolerance (ATR)<input id="pa-tolerance" type="number" min=".01" max="1" step=".01" value=".10"></label>
-<label>Reward-to-risk<input id="pa-rr" type="number" min=".25" max="10" step=".25" value="2"></label>
-<label><input id="pa-structure" type="checkbox" checked> Show BOS / CHoCH</label>
-<label><input id="pa-sweeps" type="checkbox" checked> Show liquidity sweeps</label>
-<label><input id="pa-equal" type="checkbox" checked> Show equal highs / lows</label>
-<label><input id="pa-levels" type="checkbox" checked> Show Entry / SL / TP</label>
-<label>Bullish color<input id="pa-bull" type="color" value="#089981"></label>
-<label>Bearish color<input id="pa-bear" type="color" value="#f23645"></label>
-<label>Equal liquidity color<input id="pa-color" type="color" value="#5b9cf6"></label>
-<hr>
-<label>
-<input id="show-smart" type="checkbox" checked> Signal Trade Planner Strategy</label>
-<label>Signal mode<select id="planner-mode">
-<option>Hybrid</option>
-<option>EMA crossover</option>
-<option>Pullback continuation</option>
-</select>
-</label>
-<label>Fast EMA<input id="planner-fast" type="number" min="1" value="21">
-</label>
-<label>Slow EMA<input id="planner-slow" type="number" min="2" value="50">
-</label>
-<label>RSI length<input id="planner-rsi-length" type="number" min="2" value="14">
-</label>
-<label>RSI threshold<input id="planner-rsi-threshold" type="number" min="50" max="70" value="52">
-</label>
-<label>Minimum EMA separation (ATR)<input id="planner-separation" type="number" min="0" step="0.05" value="0.05">
-</label>
-<label>Minimum candle body (ATR)<input id="planner-body" type="number" min="0" step="0.05" value="0.10">
-</label>
-<label>Cooldown bars<input id="planner-cooldown" type="number" min="0" value="3">
-</label>
-<label>Stop mode<select id="planner-stop-mode">
-<option>ATR</option>
-<option>Recent swing</option>
-</select>
-</label>
-<label>Swing lookback<input id="planner-swing" type="number" min="2" value="7">
-</label>
-<label>Same-bar priority<select id="planner-priority">
-<option>Stop first</option>
-<option>Targets first</option>
-</select>
-</label>
-<label>Trade direction<select id="planner-direction">
-<option>Both</option>
-<option>Long only</option>
-<option>Short only</option>
-</select>
-</label>
-<label>
-<input id="planner-trailing" type="checkbox" checked> Trailing stop after TP1</label>
-<label>Trailing ATR multiplier<input id="planner-trailing-atr" type="number" min="0.1" step="0.1" value="1.5">
-</label>
-<label>
-<input id="planner-dashboard" type="checkbox" checked> Show backtest dashboard</label>
-<input id="smart-swing" type="hidden" value="5">
-<label>ATR Length<input id="smart-atr" type="number" min="1" max="100" value="14">
-</label>
-<label>Stop ATR multiplier<input id="smart-zone" type="number" min="0.1" step="0.1" value="1.5">
-</label>
-<label>TP1 R<input id="smart-tp1" type="number" min="0.1" step="0.1" value="0.5">
-</label>
-<label>TP2 R<input id="smart-tp2" type="number" min="0.1" step="0.1" value="1">
-</label>
-<label>TP3 R<input id="smart-tp3" type="number" min="0.1" step="0.1" value="1.5">
-</label>
-<label hidden>
-<input id="smart-zones" type="checkbox"> Zones BUY / SELL</label>
-<label>
-<input id="smart-tps" type="checkbox" checked> TP1 / TP2 / TP3</label>
-<label>
-<input id="smart-signals" type="checkbox" checked> Signaux BUY / SELL</label>
-<label>
-<input id="smart-trend" type="checkbox" checked> EMA 21 / EMA 50</label>
-<hr>
-<label>
-<input id="show-heatmap" type="checkbox"> Volumetric Regression Heatmap</label>
-<label>Source<select id="heat-source">
-<option value="hl2">HL2</option>
-<option value="close">Close</option>
-</select>
-</label>
-<label>Base Period<input id="heat-base" type="number" value="400" min="50" max="1000" step="1">
-</label>
-<label>Grid Rows Each Side<input id="heat-bins" type="number" value="40" min="5" max="45" step="1">
-</label>
-<label>Gradient Smoothing<input id="heat-smoothing" type="number" value="4" min="0" max="20" step="1">
-</label>
-<label>Signal Band SD<input id="heat-band" type="number" value="2" min="0.1" max="10" step="0.1">
-</label>
-<label>Flat Slope Threshold<input id="heat-threshold" type="number" value="2.5" min="0" max="20" step="0.5">
-</label>
-<label>Future Projection<input id="heat-extension" type="number" value="30" min="0" max="200" step="1">
-</label>
-<label>Heatmap Line Width<input id="heat-lineWidth" type="number" value="10" min="1" max="100" step="1">
-</label>
-<label>Profile Width<input id="heat-profileWidth" type="number" value="30" min="5" max="100" step="1">
-</label>
-<label>Delta Height<input id="heat-deltaScale" type="number" value="0.6" min="0.1" max="2" step="0.1">
-</label>
-<label>Delta Width<input id="heat-deltaWidth" type="number" value="3" min="1" max="10" step="1">
-</label>
-<label>
-<input id="heat-dynamic" type="checkbox" checked> Dynamic Period</label>
-<label>
-<input id="heat-signals" type="checkbox" checked> Mean Reversion Signals</label>
-<label>
-<input id="heat-profile" type="checkbox" checked> Volume Profile</label>
-<label>
-<input id="heat-delta" type="checkbox" checked> Delta Histograms</label>
-<label>
-<input id="heat-dashboard" type="checkbox" checked> Dashboard</label>
-<p>Les signaux de régression sont recalculés sur toute la fenêtre et peuvent changer dans le passé. Heatmap et delta nécessitent le volume du fournisseur.</p>
-<p>BOS : bougies clôturées. Smart : inclut la bougie ouverte complète ; ses signaux peuvent changer avant la clôture. Bougies partielles exclues. Adaptation Pine ; correspondance exacte non vérifiée.</p>
-</form>
-</details>
-<span id="feed-status">Connexion…</span>
-<button id="full-screen" title="Plein écran" aria-label="Plein écran"><span class="fullscreen-icon" aria-hidden="true">⛶</span><span class="fullscreen-label">Plein écran</span></button>
-</header>
-<main id="workspace" class="chart-workspace">
-<button id="exit-chart-fullscreen" type="button" aria-label="Quitter le plein écran" title="Quitter le plein écran">✕</button>
-<div class="drawing-tools" aria-label="Outils du graphique">
-<button id="cursor-tool" class="active" title="Curseur / déplacer" aria-label="Curseur / déplacer">＋</button>
-<button id="line-tool" title="Ajouter une ligne horizontale" aria-label="Ajouter une ligne horizontale">━</button>
-<button id="trend-tool" title="Ligne de tendance : deux points" aria-label="Ligne de tendance">╱</button>
-<span class="tool-divider">
-</span>
-<button id="zoom-in" title="Zoom avant" aria-label="Zoom avant">⊕</button>
-<button id="zoom-out" title="Zoom arrière" aria-label="Zoom arrière">⊖</button>
-<button id="reset-view" title="Réinitialiser la vue" aria-label="Réinitialiser la vue">↺</button>
-<span class="tool-divider">
-</span>
-<button id="delete-line" title="Supprimer la dernière ligne de cette période" aria-label="Supprimer la dernière ligne">⌫</button>
+</sc-if>
+
+<!-- APP -->
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{ notice }}"><div role="status" class="terminal-card" style="margin:12px 24px;padding:14px;flex-direction:row;align-items:center"><p class="terminal-notice" style="flex:1">{{ notice }}</p><button class="terminal-quiet" sc-camel-on-click="{{ clearNotice }}" aria-label="Fermer la notification">×</button></div></sc-if>
+
+<div data-screen-label="Terminal" style="min-height:100vh;display:flex;flex-direction:column;padding-bottom:84px">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 24px;border-bottom:1px solid #161b28">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:12px;height:12px;background:#9d8cff;transform:rotate(45deg);border-radius:2px"></div>
+      <div style="font-weight:700;font-size:18px">Pipvoria</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#3fd2a4;border:1px solid #1f4a3f;border-radius:999px;padding:3px 9px;margin-left:6px">{{ accountBadge }}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;position:relative">
+      <button sc-camel-on-click="{{ toggleNotif }}" style="position:relative;background:#11151f;border:1px solid #1f2536;color:#e9ebf2;border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer">Alertes<sc-if value="{{ hasSignals }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-radius:50%;background:#9d8cff"></span></sc-if></button>
+      <button data-no-i18n="true" sc-camel-on-click="{{ goProfile }}" style="display:flex;align-items:center;gap:8px;background:#11151f;border:1px solid #1f2536;color:#e9ebf2;border-radius:10px;padding:5px 12px 5px 5px;font-size:13px;cursor:pointer">
+        <div style="width:26px;height:26px;border-radius:8px;background:#2a2450;color:#c9bfff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">{{ initials }}</div><span class="terminal-name">{{ firstName }}</span>
+      </button>
+      <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;top:44px;right:0;width:320px;background:#11151f;border:1px solid #232a3b;border-radius:14px;padding:8px;z-index:20;box-shadow:0 20px 50px rgba(0,0,0,0.5);display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px"><span style="font-size:13px;color:#8d93a8">Derniers signaux du bot</span><button sc-camel-on-click="{{ testAlert }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer;padding:5px 10px;font-size:11px">Tester une alerte</button></div>
+          <sc-for list="{{ notifList }}" as="n" hint-placeholder-count="3">
+            <div style="display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border-top:1px solid #1a2030;font-size:13px">
+              <div style="font-weight:600;color:{{ n.color }}">{{ n.dir }} · {{ n.symbol }}</div>
+              <div style="font-family:'JetBrains Mono',monospace;color:#8d93a8">{{ n.time }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </header>
+  <sc-if value="{{ showExpiry }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 24px 0;padding:12px 16px;border-radius:12px;background:#2b2414;border:1px solid #5a4520;font-size:14px;color:#f5d9a8">
+    <span>{{ expiryText }}</span>
+    <div style="display:flex;gap:8px"><button sc-camel-on-click="{{ goPayment }}" disabled="{{ financeUnavailable }}" style="background:#f0b45b;color:#0a0d16;border:0;border-radius:9px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer">Renouveler</button><button sc-camel-on-click="{{ dismissExpiry }}" style="background:none;border:1px solid #5a4520;color:#f5d9a8;border-radius:9px;padding:8px 12px;font-size:13px;cursor:pointer">Plus tard</button></div>
+  </div>
+  </sc-if>
+  <div style="position:fixed;top:70px;right:18px;z-index:60;display:flex;flex-direction:column;gap:10px;width:min(340px,calc(100vw - 36px));pointer-events:none">
+    <sc-for list="{{ toasts }}" as="t" hint-placeholder-count="0">
+      <div role="status" style="pointer-events:auto;position:relative;padding:14px 40px 14px 16px;border-radius:12px;background:#0d1320;border:1px solid {{ t.color }};box-shadow:0 16px 48px rgba(0,0,0,0.6);display:flex;flex-direction:column;gap:4px">
+        <button sc-camel-on-click="{{ t.close }}" aria-label="Fermer" style="position:absolute;right:8px;top:6px;background:none;border:0;color:#8d93a8;font-size:18px;cursor:pointer">×</button>
+        <div style="font-weight:700;font-size:16px;color:{{ t.color }}">{{ t.title }}</div>
+        <div style="font-size:13px;color:#c4c8d6">{{ t.body }}</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#8d93a8">{{ t.levels }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- TRADER -->
+  <sc-if value="{{ isTrader }}" hint-placeholder-val="{{ true }}">
+  <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:18px 24px">
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px">
+      <sc-for list="{{ watch }}" as="w" hint-placeholder-count="6">
+        <button sc-camel-on-click="{{ w.select }}" style="flex:none;display:flex;flex-direction:column;gap:3px;text-align:left;padding:10px 14px;border-radius:12px;cursor:pointer;color:#e9ebf2;min-width:136px;background:{{ w.bg }};border:1px solid {{ w.border }}">
+          <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:700"><span>{{ w.label }}</span><span style="font-family:'JetBrains Mono',monospace;color:{{ w.chgColor }}">{{ w.chg }}</span></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:15px">{{ w.price }}</div>
+          <div style="font-size:10px;color:#6b7186">{{ w.src }}</div>
+        </button>
+      </sc-for>
+    </div>
+    <div style="display:flex;gap:4px;border-bottom:1px solid #161b28">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+        <button sc-camel-on-click="{{ t.select }}" style="background:none;border:0;border-bottom:2px solid {{ t.line }};color:{{ t.color }};padding:10px 14px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:-1px">{{ t.label }}</button>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ isChartTab }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;flex-direction:{{ layoutDir }}">
+
+      <!-- Results panel -->
+      <div style="flex:1 1 260px;max-width:{{ panelMax }};background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:20px;display:flex;flex-direction:{{ panelDir }};flex-wrap:wrap;gap:16px">
+        <div style="display:flex;flex-direction:column;gap:10px;flex:{{ fb220 }}">
+          <div style="font-size:16px;font-weight:600">Résultats de l'indicateur</div>
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Résultats de
+            <sc-raw-select value="{{ resultsOf }}" sc-camel-on-change="{{ onResultsOf }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:9px 10px;color:#e9ebf2;font-size:13px;font-weight:600"><option value="blh">BLH XAUUSD M5 CLEAN</option><option value="ms">Market Structure &amp; Fibonacci + RR</option><option value="planner">Signal Trade Planner</option><option value="pa">Price Action &amp; Liquidity Map</option></sc-raw-select>
+          </label>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#f0b45b">Test historique · simulation</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex:{{ fb120 }}">
+          <div style="font-size:12px;color:#8d93a8">État</div>
+          <div style="font-size:22px;font-weight:600;color:{{ stateColor }}">{{ stateLabel }}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;flex:{{ fb160 }}">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#8d93a8"><span>Progression</span><span style="font-family:'JetBrains Mono',monospace;color:#c4c8d6">{{ progressLabel }}</span></div>
+          <div style="height:6px;background:#0a0d16;border-radius:99px;overflow:hidden"><div style="height:100%;background:#9d8cff;border-radius:99px;width:{{ progressPct }}"></div></div>
+          <div style="font-size:11px;color:#6b7186">Objectif : {{ goalLabel }}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;flex:{{ fb180 }}">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:12px;color:#8d93a8">Objectif</div><div style="font-size:14px">À définir</div></div><div style="width:9px;height:9px;border:1px solid #6b7186;transform:rotate(45deg)"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:12px;color:#8d93a8">Règles</div><div style="font-size:14px">Risque réel non évalué</div></div><div style="width:9px;height:9px;border:1px solid #6b7186;transform:rotate(45deg)"></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 10px;flex:{{ fb240 }};background:#0d111b;border-radius:12px;padding:14px">
+          <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:11px;color:#8d93a8">Trades clôturés</div><div style="font-family:'JetBrains Mono',monospace;font-size:17px">{{ stats.closed }}</div></div>
+          <div style="display:flex;flex-direction:column;gap:3px;grid-column:span 2"><div style="font-size:11px;color:#8d93a8">Résultat net</div><div style="font-family:'JetBrains Mono',monospace;font-size:17px;color:{{ netColor }}">{{ netR }}</div></div>
+          <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:11px;color:#8d93a8">Signaux</div><div style="font-family:'JetBrains Mono',monospace;font-size:15px">{{ stats.signals }}</div></div>
+          <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:11px;color:#8d93a8">Non clôturés</div><div style="font-family:'JetBrains Mono',monospace;font-size:15px">{{ stats.active }}</div></div>
+          <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:11px;color:#8d93a8">Réussite</div><div style="font-family:'JetBrains Mono',monospace;font-size:15px">{{ winRate }}</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex:{{ fb220 }};font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7186;line-height:1.5">
+          <div>{{ calcInfo }}</div>
+          <div>{{ calcRange }}</div>
+          <button sc-camel-on-click="{{ toggleDetails }}" style="align-self:flex-start;background:none;border:0;color:#b9adff;font-family:inherit;font-size:11px;padding:0;cursor:pointer">{{ detailsLabel }}</button>
+          <sc-if value="{{ detailsOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="color:#8d93a8">Entrée à la clôture de la bougie signal. Sortie : SL = −1 R, TP3 = +3 R. Bougie touchant SL et TP3 : exclue. Drawdown max : {{ drawdown }}. Gagnants {{ stats.wins }} · Perdants {{ stats.losses }}.</div>
+          </sc-if>
+        </div>
+      </div>
+
+      <!-- Chart card -->
+      <div ref="{{ chartBoxRef }}" style="flex:999 1 560px;min-width:0;background:#0f1320;border:1px solid #1a2030;border-radius:16px;display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;flex-wrap:wrap;border-bottom:1px solid #161b28">
+          <div style="display:flex;flex-wrap:wrap;gap:4px;background:#0a0d16;border-radius:10px;padding:3px">
+            <sc-for list="{{ symbols }}" as="s" hint-placeholder-count="2">
+              <button sc-camel-on-click="{{ s.select }}" style="border:0;border-radius:8px;padding:7px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;background:{{ s.bg }};color:{{ s.color }}">{{ s.label }}</button>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative">
+            <sc-raw-select value="{{ tf }}" sc-camel-on-change="{{ onTf }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:7px 10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:12px">
+              <option value="1m">1m</option><option value="5m">5m</option><option value="15m">15m</option><option value="30m">30m</option><option value="1h">1h</option>
+            </sc-raw-select>
+            <button sc-camel-on-click="{{ toggleInd }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:7px 12px;color:#e9ebf2;font-size:12px;font-weight:600;cursor:pointer">Indicateurs</button>
+            <button sc-camel-on-click="{{ fullscreen }}" title="Plein écran" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:7px 10px;color:#e9ebf2;font-size:12px;cursor:pointer">{{ fsLabel }}</button>
+            <button sc-camel-on-click="{{ toggleDemo }}" style="border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;background:{{ demoBg }};color:{{ demoColor }};border:1px solid {{ demoBorder }}">{{ demoLabel }}</button>
+            <sc-if value="{{ indOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;top:40px;right:0;width:290px;max-height:70vh;overflow:auto;background:#11151f;border:1px solid #232a3b;border-radius:12px;padding:8px;z-index:10;box-shadow:0 20px 50px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:2px">
+                <div style="padding:8px 10px;font-size:11px;color:#8d93a8;font-family:'JetBrains Mono',monospace">MARKET STRUCTURE &amp; FIBONACCI + RR</div>
+                <sc-for list="{{ msToggles }}" as="i" hint-placeholder-count="2">
+                  <button sc-camel-on-click="{{ i.toggle }}" style="display:flex;align-items:center;gap:10px;background:none;border:0;color:#e9ebf2;padding:9px 10px;border-radius:8px;font-size:13px;cursor:pointer;text-align:left">
+                    <div style="width:14px;height:14px;flex:none;border-radius:4px;border:1px solid #9d8cff;background:{{ i.bg }}"></div>{{ i.label }}
+                  </button>
+                </sc-for>
+                <label style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 10px;font-size:13px">Structure
+                  <sc-raw-select value="{{ msTerm }}" sc-camel-on-change="{{ onMsTerm }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:8px;padding:5px 8px;color:#e9ebf2;font-size:12px"><option value="Short">Short</option><option value="Mid">Mid</option><option value="Long">Long</option></sc-raw-select>
+                </label>
+                <label style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 10px;font-size:13px">Risque / rendement
+                  <input type="number" min="0.5" step="0.5" value="{{ msRr }}" sc-camel-on-change="{{ onMsRr }}" style="width:70px;background:#0a0d16;border:1px solid #232a3b;border-radius:8px;padding:5px 8px;color:#e9ebf2;font-size:12px;font-family:'JetBrains Mono',monospace">
+                </label>
+                <div style="height:1px;background:#1f2536;margin:6px 4px"></div>
+                <div style="padding:8px 10px;font-size:11px;color:#8d93a8;font-family:'JetBrains Mono',monospace">AUTRES INDICATEURS</div>
+                <sc-for list="{{ extraInd }}" as="i" hint-placeholder-count="4">
+                  <button sc-camel-on-click="{{ i.toggle }}" style="display:flex;align-items:center;gap:10px;background:none;border:0;color:#e9ebf2;padding:9px 10px;border-radius:8px;font-size:13px;cursor:pointer;text-align:left">
+                    <div style="width:14px;height:14px;flex:none;border-radius:4px;border:1px solid #9d8cff;background:{{ i.bg }}"></div><div style="display:flex;flex-direction:column;gap:2px"><span>{{ i.label }}</span><span style="font-size:11px;color:#6b7186">{{ i.sub }}</span></div>
+                  </button>
+                </sc-for>
+                <div style="height:1px;background:#1f2536;margin:6px 4px"></div>
+                <div style="padding:8px 10px;font-size:11px;color:#8d93a8;font-family:'JetBrains Mono',monospace">BLH XAUUSD M5 CLEAN</div>
+                <sc-for list="{{ indList }}" as="i" hint-placeholder-count="4">
+                  <button sc-camel-on-click="{{ i.toggle }}" style="display:flex;align-items:center;gap:10px;background:none;border:0;color:#e9ebf2;padding:9px 10px;border-radius:8px;font-size:13px;cursor:pointer;text-align:left">
+                    <div style="width:14px;height:14px;flex:none;border-radius:4px;border:1px solid #9d8cff;background:{{ i.bg }}"></div>{{ i.label }}
+                  </button>
+                </sc-for>
+                <div style="padding:8px 10px;font-size:11px;color:#6b7186;line-height:1.5">Bougies clôturées uniquement. Adaptation Pine ; correspondance exacte non vérifiée.</div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 14px 4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8d93a8;flex-wrap:wrap">
+          <div style="display:flex;gap:12px;flex-wrap:wrap"><span>{{ symbolName }} · {{ tf }}</span><span style="color:#c4c8d6">{{ ohlc }}</span></div>
+          <div style="display:flex;align-items:center;gap:7px;border:1px solid {{ feedBorder }};border-radius:999px;padding:4px 10px;color:#c4c8d6">
+            <div style="width:7px;height:7px;border-radius:50%;background:{{ feedColor }}"></div>{{ sourceLabel }}
+          </div>
+        </div>
+        <sc-if value="{{ replayOn }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 14px 8px;padding:8px 10px;background:#18152e;border:1px solid #4a3f8f;border-radius:10px;font-size:12px">
+          <span style="font-weight:700;color:#c9bfff;font-family:'JetBrains Mono',monospace">REPLAY</span>
+          <button sc-camel-on-click="{{ rpBack }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer;padding:5px 10px">◀ 1</button>
+          <button sc-camel-on-click="{{ rpPlay }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:9px;padding:6px 14px;font-weight:700;font-size:12px;cursor:pointer">{{ rpPlayLabel }}</button>
+          <button sc-camel-on-click="{{ rpFwd }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer;padding:5px 10px">1 ▶</button>
+          <sc-raw-select value="{{ rpSpeed }}" sc-camel-on-change="{{ onRpSpeed }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:8px;padding:5px 8px;color:#e9ebf2;font-size:12px"><option value="1">1×</option><option value="2">2×</option><option value="5">5×</option><option value="10">10×</option></sc-raw-select>
+          <input type="range" min="60" max="{{ rpMax }}" value="{{ rpIdx }}" sc-camel-on-change="{{ onRpSeek }}" style="flex:1;min-width:120px;accent-color:#9d8cff">
+          <span style="font-family:'JetBrains Mono',monospace;color:#a3a9bd">{{ rpLabel }}</span>
+          <button sc-camel-on-click="{{ rpExit }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer;padding:5px 10px">Quitter</button>
+        </div>
+        </sc-if>
+        <div style="display:flex;gap:6px 14px;flex-wrap:wrap;padding:2px 14px 8px;font-size:11px;font-family:'JetBrains Mono',monospace">
+          <sc-for list="{{ legend }}" as="g" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:6px;color:#a3a9bd"><div style="width:12px;height:3px;border-radius:2px;background:{{ g.color }}"></div>{{ g.label }}</div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex:1;min-height:{{ chartMinH }};border-top:1px solid #161b28">
+          <div style="display:flex;flex-direction:column;gap:4px;padding:8px 6px;border-right:1px solid #161b28">
+            <sc-for list="{{ tools }}" as="t" hint-placeholder-count="7">
+              <button sc-camel-on-click="{{ t.select }}" title="{{ t.title }}" aria-label="{{ t.title }}" style="width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;margin-top:{{ t.gap }};background:{{ t.bg }};color:{{ t.color }};border:1px solid {{ t.border }}">{{ t.glyph }}</button>
+            </sc-for>
+          </div>
+          <div style="position:relative;flex:1;min-width:0">
+            <canvas ref="{{ canvasRef }}" style="position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair"></canvas>
+            <sc-if value="{{ textAt }}" hint-placeholder-val="{{ false }}">
+              <input ref="{{ textRef }}" value="{{ textVal }}" sc-camel-on-change="{{ onTextVal }}" sc-camel-on-key-down="{{ onTextKey }}" sc-camel-on-blur="{{ commitText }}" placeholder="Texte puis Entrée" style="position:absolute;left:{{ textX }};top:{{ textY }};z-index:5;width:180px;background:#0a0d16;border:1px solid #f0b45b;border-radius:6px;padding:5px 8px;color:#f0b45b;font-size:12px;outline:none">
+            </sc-if>
+            <sc-if value="{{ loading }}" hint-placeholder-val="{{ true }}">
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:12px;color:#8d93a8">Chargement des bougies…</div>
+            </sc-if>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7186;border-top:1px solid #161b28"><span>{{ toolHint }}</span><span>BLH {{ tf }} : {{ blhSignals }} signaux · Structure : {{ msSetups }} configurations</span></div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ isSummaryTab }}" hint-placeholder-val="{{ false }}">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
+      <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:16px;font-weight:600">Dernier plan du bot</div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#8d93a8">{{ lastPlan.time }}</div></div>
+        <div style="font-size:30px;font-weight:600;color:{{ lastPlan.color }}">{{ lastPlan.dir }} · {{ symbolLabel }}</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#8d93a8"><span>Score de confiance</span><span style="font-family:'JetBrains Mono',monospace;color:{{ lastPlan.confColor }}">{{ lastPlan.conf }}</span></div>
+          <div style="height:6px;background:#0a0d16;border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;width:{{ lastPlan.confPct }};background:{{ lastPlan.confColor }}"></div></div>
+          <div style="font-size:11px;color:#6b7186">{{ lastPlan.confWhy }}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:1px;background:#1a2030;border-radius:12px;overflow:hidden">
+          <sc-for list="{{ lastPlan.levels }}" as="l" hint-placeholder-count="5">
+            <div style="display:flex;justify-content:space-between;padding:12px 14px;background:#0d111b;font-size:14px"><span style="color:{{ l.color }};font-weight:600">{{ l.name }}</span><span style="font-family:'JetBrains Mono',monospace">{{ l.price }}</span></div>
+          </sc-for>
+        </div>
+        <div style="font-size:13px;color:#8d93a8">Risque / rendement : 1 : 1 · 1 : 2 · 1 : 3 — statut : <span style="color:#e9ebf2">{{ lastPlan.status }}</span></div>
+      </div>
+      <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-content:start">
+        <div style="grid-column:span 2;font-size:16px;font-weight:600">Performance · {{ symbolLabel }} {{ tf }}</div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;color:#8d93a8">Résultat net</div><div style="font-family:'JetBrains Mono',monospace;font-size:26px;color:{{ netColor }}">{{ netR }}</div></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;color:#8d93a8">Réussite</div><div style="font-family:'JetBrains Mono',monospace;font-size:26px">{{ winRate }}</div></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;color:#8d93a8">Trades clôturés</div><div style="font-family:'JetBrains Mono',monospace;font-size:20px">{{ stats.closed }}</div></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;color:#8d93a8">Drawdown max</div><div style="font-family:'JetBrains Mono',monospace;font-size:20px">{{ drawdown }}</div></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;color:#8d93a8">Gagnants / perdants</div><div style="font-family:'JetBrains Mono',monospace;font-size:20px">{{ stats.wins }} / {{ stats.losses }}</div></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;color:#8d93a8">Exclus</div><div style="font-family:'JetBrains Mono',monospace;font-size:20px">{{ stats.excluded }}</div></div>
+      </div>
+      <div style="grid-column:1 / -1;background:#11151f;border:1px solid #1a2030;border-radius:16px;overflow:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #1a2030;min-width:640px">
+          <div style="font-size:16px;font-weight:600">Surveillance multi-périodes · {{ symbolLabel }}</div>
+          <button sc-camel-on-click="{{ refreshMtf }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:6px 12px;font-size:12px;cursor:pointer">{{ mtfBtn }}</button>
+        </div>
+        <div style="min-width:640px">
+          <div style="display:grid;grid-template-columns:0.6fr 1fr 1fr 1.2fr 1fr 0.8fr;gap:10px;padding:12px 20px;font-size:12px;color:#8d93a8;border-bottom:1px solid #1a2030"><div>Période</div><div>Tendance EMA</div><div>Structure</div><div>Dernier signal</div><div>Prix</div><div style="text-align:right">Net R</div></div>
+          <sc-for list="{{ mtf }}" as="m" hint-placeholder-count="5">
+            <div style="display:grid;grid-template-columns:0.6fr 1fr 1fr 1.2fr 1fr 0.8fr;gap:10px;padding:12px 20px;font-family:'JetBrains Mono',monospace;font-size:13px;border-bottom:1px solid #151a26;align-items:center">
+              <div style="font-weight:700">{{ m.tf }}</div><div style="color:{{ m.trendColor }}">{{ m.trend }}</div><div style="color:{{ m.structColor }}">{{ m.struct }}</div><div style="color:{{ m.sigColor }}">{{ m.sig }}</div><div>{{ m.price }}</div><div style="text-align:right;color:{{ m.netColor }}">{{ m.net }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ isSummaryTab }}" hint-placeholder-val="{{ false }}">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px">
+      <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap"><div style="font-size:16px;font-weight:600">Résultats par heure (UTC)</div><div style="font-size:12px;color:#8d93a8">{{ bestHour }}</div></div>
+        <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px">
+          <sc-for list="{{ byHour }}" as="c" hint-placeholder-count="24">
+            <div title="{{ c.tip }}" style="aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-family:'JetBrains Mono',monospace;font-size:10px;background:{{ c.bg }};color:{{ c.color }}"><span>{{ c.h }}</span><span style="font-size:9px">{{ c.r }}</span></div>
+          </sc-for>
+        </div>
+        <div style="font-size:16px;font-weight:600;margin-top:6px">Par jour de la semaine</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ byDay }}" as="d" hint-placeholder-count="7">
+            <div style="display:grid;grid-template-columns:42px minmax(0,1fr) 110px;gap:10px;align-items:center;font-size:12px">
+              <span style="color:#8d93a8">{{ d.label }}</span>
+              <div style="height:8px;background:#0a0d16;border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;width:{{ d.width }};background:{{ d.color }}"></div></div>
+              <span style="font-family:'JetBrains Mono',monospace;text-align:right;color:{{ d.color }}">{{ d.value }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px;overflow:auto">
+        <div style="font-size:16px;font-weight:600">Comparateur de stratégies · {{ symbolLabel }} {{ tf }}</div>
+        <div style="min-width:520px;display:flex;flex-direction:column">
+          <div style="display:grid;grid-template-columns:1.8fr 0.7fr 0.7fr 0.7fr 0.9fr 0.8fr 0.8fr;gap:8px;padding:8px 0;font-size:11px;color:#8d93a8;border-bottom:1px solid #1a2030"><div>Stratégie</div><div>Signaux</div><div>Clos</div><div>Réussite</div><div>Net</div><div>DD max</div><div></div></div>
+          <sc-for list="{{ compare }}" as="c" hint-placeholder-count="4">
+            <div style="display:grid;grid-template-columns:1.8fr 0.7fr 0.7fr 0.7fr 0.9fr 0.8fr 0.8fr;gap:8px;padding:11px 0;border-bottom:1px solid #151a26;align-items:center;font-size:13px">
+              <div style="display:flex;flex-direction:column;gap:3px"><span style="font-weight:600">{{ c.name }}</span><sc-if value="{{ c.badge }}" hint-placeholder-val="{{ false }}"><span style="align-self:flex-start;font-size:10px;font-weight:700;color:#0a0d16;background:#3fd2a4;border-radius:99px;padding:2px 7px">{{ c.badge }}</span></sc-if></div>
+              <div style="font-family:'JetBrains Mono',monospace">{{ c.signals }}</div><div style="font-family:'JetBrains Mono',monospace">{{ c.closed }}</div><div style="font-family:'JetBrains Mono',monospace">{{ c.win }}</div><div style="font-family:'JetBrains Mono',monospace;color:{{ c.netColor }}">{{ c.net }}</div><div style="font-family:'JetBrains Mono',monospace">{{ c.dd }}</div>
+              <button sc-camel-on-click="{{ c.select }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer;padding:5px 8px;font-size:11px">Afficher</button>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ isOpsTab }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;overflow:auto">
+      <div style="min-width:760px;display:flex;flex-direction:column">
+        <div style="display:grid;grid-template-columns:1.4fr 0.8fr 1fr 1fr 1fr 1.2fr 0.8fr 0.7fr;gap:10px;padding:14px 20px;font-size:12px;color:#8d93a8;border-bottom:1px solid #1a2030"><div>Heure</div><div>Sens</div><div>Entrée</div><div>Stop loss</div><div>TP3</div><div>Statut</div><div>Confiance</div><div style="text-align:right">R</div></div>
+        <sc-for list="{{ ops }}" as="o" hint-placeholder-count="6">
+          <div style="display:grid;grid-template-columns:1.4fr 0.8fr 1fr 1fr 1fr 1.2fr 0.8fr 0.7fr;gap:10px;padding:13px 20px;font-family:'JetBrains Mono',monospace;font-size:13px;border-bottom:1px solid #151a26">
+            <div style="color:#8d93a8">{{ o.time }}</div><div style="color:{{ o.color }};font-weight:700">{{ o.dir }}</div><div>{{ o.entry }}</div><div>{{ o.stop }}</div><div>{{ o.tp }}</div><div style="color:#c4c8d6">{{ o.status }}</div><div style="color:{{ o.confColor }}">{{ o.conf }}</div><div style="text-align:right;color:{{ o.rColor }}">{{ o.r }}</div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noOps }}" hint-placeholder-val="{{ false }}"><div style="padding:28px 20px;color:#8d93a8;font-size:14px">Aucun signal sur la période chargée.</div></sc-if>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <!-- POSITIONS -->
+  <sc-if value="{{ isPositions }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Positions" style="flex:1;padding:24px;display:flex;flex-direction:column;gap:18px;max-width:1100px;width:100%;margin:0 auto">
+    <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div style="font-size:16px;font-weight:600">Calculateur de risque &amp; taille de position</div><button class="terminal-button" sc-camel-on-click="{{ registerPlan }}" disabled="{{ cannotRegisterPlan }}">Enregistrer le dernier plan</button><button sc-camel-on-click="{{ fillFromPlan }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:6px 12px;font-size:12px;cursor:pointer">Remplir avec le dernier plan</button></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
+        <sc-for list="{{ calcFields }}" as="f" hint-placeholder-count="4">
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">{{ f.label }}
+            <input value="{{ f.value }}" sc-camel-on-change="{{ f.onChange }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
+          </label>
+        </sc-for>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:#1a2030;border-radius:12px;overflow:hidden">
+        <sc-for list="{{ calcOut }}" as="o" hint-placeholder-count="4">
+          <div style="background:#0d111b;padding:14px;display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;color:#8d93a8">{{ o.label }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:18px;color:{{ o.color }}">{{ o.value }}</div></div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="font-size:22px;font-weight:600;letter-spacing:-0.02em">Positions</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <sc-raw-select value="{{ fStatus }}" sc-camel-on-change="{{ onFStatus }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:8px 10px;color:#e9ebf2;font-size:12px"><option value="open">Ouvertes</option><option value="closed">Clôturées</option><option value="all">Toutes</option></sc-raw-select>
+        <sc-raw-select value="{{ fDir }}" sc-camel-on-change="{{ onFDir }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:8px 10px;color:#e9ebf2;font-size:12px"><option value="all">BUY + SELL</option><option value="1">BUY</option><option value="-1">SELL</option></sc-raw-select>
+
+      </div>
+    </div>
+    <sc-for list="{{ positionsF }}" as="p" hint-placeholder-count="2">
+      <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px;align-items:center">
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="font-weight:700;color:{{ p.color }}">{{ p.dir }}</div><div style="font-size:13px;color:#8d93a8">{{ p.symbol }} · {{ p.time }}</div></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;color:#8d93a8">Entrée</div><div style="font-family:'JetBrains Mono',monospace">{{ p.entry }}</div></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;color:#8d93a8">Prix actuel</div><div style="font-family:'JetBrains Mono',monospace">{{ p.price }}</div></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;color:#8d93a8">Stop loss</div><div style="font-family:'JetBrains Mono',monospace;color:#f2707a">{{ p.stop }}</div></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;color:#8d93a8">Objectifs</div><div style="font-family:'JetBrains Mono',monospace;color:#3fd2a4;font-size:13px">{{ p.tps }}</div></div>
+        <div style="display:flex;flex-direction:column;gap:4px;text-align:right"><div style="font-size:12px;color:#8d93a8">{{ p.rLabel }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:20px;color:{{ p.rColor }}">{{ p.r }}</div></div>
+      </div>
+    </sc-for>
+    <sc-if value="{{ noPositionsF }}" hint-placeholder-val="{{ false }}"><div style="background:#11151f;border:1px dashed #232a3b;border-radius:16px;padding:40px;text-align:center;color:#8d93a8">Aucune position pour ces filtres.</div></sc-if>
+  </div>
+  </sc-if>
+
+  <!-- CALENDAR -->
+  <sc-if value="{{ isCalendar }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Calendrier" style="flex:1;padding:24px;display:flex;flex-direction:column;gap:18px;max-width:1100px;width:100%;margin:0 auto">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><div style="font-size:26px;font-weight:600;letter-spacing:-0.02em">Calendrier économique</div><div style="font-size:13px;color:#8d93a8">{{ calendarLabel }}</div></div>
+    <sc-for list="{{ calendar }}" as="d" hint-placeholder-count="3">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:13px;color:#9d8cff;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.08em">{{ d.day }}</div>
+        <div style="background:#11151f;border:1px solid #1a2030;border-radius:14px;overflow:hidden">
+          <sc-for list="{{ d.events }}" as="e" hint-placeholder-count="2">
+            <div style="display:grid;grid-template-columns:70px 60px minmax(0,1fr) 90px 90px;gap:12px;padding:14px 18px;border-bottom:1px solid #151a26;align-items:center;font-size:14px">
+              <div style="font-family:'JetBrains Mono',monospace;color:#8d93a8">{{ e.time }}</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-weight:700">{{ e.ccy }}</div>
+              <div style="display:flex;align-items:center;gap:10px;min-width:0"><div style="width:8px;height:8px;border-radius:50%;flex:none;background:{{ e.impact }}"></div>{{ e.name }}</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#8d93a8"><a href="{{ e.url }}" target="_blank" rel="noopener noreferrer" style="color:#b9adff">{{ e.source }}</a></div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#c4c8d6">Horaire à vérifier</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+  </sc-if>
+
+  <!-- HISTORY -->
+  <sc-if value="{{ isHistory }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Historique" style="flex:1;padding:24px;display:flex;flex-direction:column;gap:18px;max-width:1100px;width:100%;margin:0 auto">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><div style="font-size:26px;font-weight:600;letter-spacing:-0.02em">Historique</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:{{ netColor }}">{{ netR }} · {{ stats.closed }} trades</div></div>
+    <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;overflow:auto">
+      <div style="min-width:700px">
+        <div style="display:grid;grid-template-columns:1.3fr 1.3fr 0.7fr 1fr 1fr 0.7fr;gap:10px;padding:14px 20px;font-size:12px;color:#8d93a8;border-bottom:1px solid #1a2030"><div>Ouverture</div><div>Clôture</div><div>Sens</div><div>Entrée</div><div>Sortie</div><div style="text-align:right">R</div></div>
+        <sc-for list="{{ history }}" as="h" hint-placeholder-count="6">
+          <div style="display:grid;grid-template-columns:1.3fr 1.3fr 0.7fr 1fr 1fr 0.7fr;gap:10px;padding:13px 20px;font-family:'JetBrains Mono',monospace;font-size:13px;border-bottom:1px solid #151a26">
+            <div style="color:#8d93a8">{{ h.time }}</div><div style="color:#8d93a8">{{ h.closed }}</div><div style="color:{{ h.color }};font-weight:700">{{ h.dir }}</div><div>{{ h.entry }}</div><div>{{ h.exit }}</div><div style="text-align:right;color:{{ h.rColor }}">{{ h.r }}</div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noHistory }}" hint-placeholder-val="{{ false }}"><div style="padding:28px 20px;color:#8d93a8;font-size:14px">Aucun trade clôturé sur la période.</div></sc-if>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- PROFILE -->
+  <sc-if value="{{ isProfile }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Profil" style="flex:1;padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;max-width:1100px;width:100%;margin:0 auto;align-content:start">
+    <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:14px"><div style="width:52px;height:52px;border-radius:14px;background:#2a2450;color:#c9bfff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px">{{ initials }}</div><div style="display:flex;flex-direction:column;gap:3px"><div data-no-i18n="true" style="font-size:18px;font-weight:600">{{ displayName }}</div><div style="font-size:13px;color:#8d93a8">{{ displayEmail }}</div></div></div>
+      <div style="display:flex;flex-direction:column;gap:1px;background:#1a2030;border-radius:12px;overflow:hidden;font-size:14px">
+        <div style="display:flex;justify-content:space-between;padding:13px 14px;background:#0d111b"><span style="color:#8d93a8">Accès au compte</span><span style="color:#3fd2a4">{{ accountBadge }}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:13px 14px;background:#0d111b"><span style="color:#8d93a8">Échéance</span><span>{{ renewDate }}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:13px 14px;background:#0d111b"><span style="color:#8d93a8">Payé avec</span><span>{{ paidWith }}</span></div>
+      </div>
+      <button sc-camel-on-click="{{ goPayment }}" disabled="{{ financeUnavailable }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:12px;padding:13px;font-weight:600;font-size:14px;cursor:pointer">Renouveler en crypto</button>
+    </div>
+    <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:18px">
+      <div style="font-size:16px;font-weight:600">Préférences</div>
+      <label style="display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:14px">Langue
+        <sc-raw-select value="{{ lang }}" sc-camel-on-change="{{ onLang }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:8px 10px;color:#e9ebf2;font-size:13px"><option>Français</option><option>English</option><option>Español</option><option>العربية</option></sc-raw-select>
+      </label>
+      <sc-for list="{{ prefs }}" as="p" hint-placeholder-count="2">
+        <button sc-camel-on-click="{{ p.toggle }}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:none;border:0;color:#e9ebf2;font-size:14px;padding:0;cursor:pointer;text-align:left">{{ p.label }}
+          <div style="width:40px;height:22px;border-radius:99px;padding:3px;display:flex;background:{{ p.track }};justify-content:{{ p.justify }}"><div style="width:16px;height:16px;border-radius:50%;background:#e9ebf2"></div></div>
+        </button>
+      </sc-for>
+      <sc-if value="{{ isAdminUser }}"><button sc-camel-on-click="{{ goAdmin }}" style="background:none;border:1px solid #2a3145;color:#e9ebf2;border-radius:12px;padding:12px;font-size:14px;cursor:pointer">Panneau admin</button></sc-if>
+      <button sc-camel-on-click="{{ logout }}" style="margin-top:auto;background:none;border:1px solid #3a2530;color:#f2707a;border-radius:12px;padding:12px;font-size:14px;cursor:pointer">Se déconnecter</button>
+    </div>
+    <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><div style="font-size:16px;font-weight:600">Parrainage</div><div style="font-size:12px;color:#3fd2a4">Activation à configurer</div></div>
+      <div style="display:flex;gap:8px"><div style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:12px;background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;overflow-wrap:anywhere">{{ refLink }}</div><button sc-camel-on-click="{{ copyRef }}" disabled="{{ financeUnavailable }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer">{{ refCopyLabel }}</button></div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:#1a2030;border-radius:12px;overflow:hidden">
+        <sc-for list="{{ refStats }}" as="r" hint-placeholder-count="3"><div style="background:#0d111b;padding:12px;display:flex;flex-direction:column;gap:4px"><div style="font-size:11px;color:#8d93a8">{{ r.label }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:16px;color:{{ r.color }}">{{ r.value }}</div></div></sc-for>
+      </div>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Adresse USDT (TRC20) pour les retraits
+        <input value="{{ refWallet }}" sc-camel-on-change="{{ onRefWallet }}" disabled="{{ financeUnavailable }}" placeholder="T…" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-size:13px;outline:none;font-family:'JetBrains Mono',monospace">
+      </label>
+      <button sc-camel-on-click="{{ withdrawRef }}" disabled="{{ financeUnavailable }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:10px;padding:11px;font-weight:600;font-size:13px;cursor:pointer">Retirer les commissions</button>
+      <sc-if value="{{ refMsg }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;color:{{ refMsgColor }}">{{ refMsg }}</div></sc-if>
+    </div>
+    <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:16px;font-weight:600">Factures</div><p class="terminal-mini">Aucune facture disponible. Paiements non activés.</p>
+      <div style="display:flex;flex-direction:column;gap:1px;background:#1a2030;border-radius:12px;overflow:hidden">
+        <sc-for list="{{ invoices }}" as="f" hint-placeholder-count="3">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;background:#0d111b;font-size:13px">
+            <div style="display:flex;flex-direction:column;gap:3px;min-width:0"><span style="font-family:'JetBrains Mono',monospace">{{ f.id }}</span><span style="font-size:12px;color:#8d93a8">{{ f.date }} · {{ f.method }}</span></div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="font-family:'JetBrains Mono',monospace">{{ f.amount }}</span><button sc-camel-on-click="{{ f.download }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer;padding:5px 10px;font-size:11px">Télécharger</button></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="font-size:16px;font-weight:600">Sécurité</div><span style="font-size:11px;font-weight:700;border-radius:99px;padding:3px 9px;background:{{ tfaBadgeBg }};color:{{ tfaBadgeColor }}">{{ tfaBadge }}</span></div>
+      <div style="font-size:14px;color:#c4c8d6;line-height:1.5">{{ securityInfo }}</div>
+      <sc-if value="{{ tfaSetup }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+          <div role="img" aria-label="QR code 2FA" style="width:120px;height:120px;flex:none;border-radius:10px;border:6px solid #fff;background:#fff url({{ tfaQr }}) center/contain no-repeat"></div>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:0;flex:1"><div style="font-size:12px;color:#8d93a8">Clé secrète</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;overflow-wrap:anywhere">{{ tfaSecret }}</div></div>
+        </div>
+        <div style="display:flex;gap:8px"><input value="{{ tfaCode }}" sc-camel-on-change="{{ onTfaCode }}" inputmode="numeric" maxlength="6" placeholder="Code à 6 chiffres" style="flex:1;min-width:0;background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-size:13px;outline:none;font-family:'JetBrains Mono',monospace;letter-spacing:0.2em"><button sc-camel-on-click="{{ verifyTfa }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:9px;padding:0 16px;font-weight:600;font-size:13px;cursor:pointer">Vérifier</button></div>
+      </sc-if>
+      <sc-if value="{{ tfaBackupShow }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;color:#8d93a8">Codes de secours — conservez-les en lieu sûr</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;font-family:'JetBrains Mono',monospace;font-size:12px"><sc-for list="{{ tfaBackup }}" as="b" hint-placeholder-count="8"><div style="background:#0a0d16;border:1px solid #232a3b;border-radius:6px;padding:6px;text-align:center">{{ b }}</div></sc-for></div></div>
+      </sc-if>
+      <sc-if value="{{ tfaMsg }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;color:{{ tfaMsgColor }}">{{ tfaMsg }}</div></sc-if>
+      <button sc-camel-on-click="{{ toggleTfa }}" style="margin-top:auto;background:none;border:1px solid #2a3145;color:#e9ebf2;border-radius:12px;padding:12px;font-size:14px;cursor:pointer">{{ tfaBtn }}</button>
+    </div>
+    <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px;grid-column:1 / -1">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-size:16px;font-weight:600">Paramètres de trading</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button sc-camel-on-click="{{ undoSettings }}" disabled="{{ noUndo }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer">Annuler</button>
+          <button sc-camel-on-click="{{ exportSettings }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer">Exporter JSON</button>
+          <button sc-camel-on-click="{{ importSettings }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer">Importer JSON</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <div style="font-size:12px;color:#8d93a8;margin-right:4px">Profil</div>
+        <sc-for list="{{ setProfiles }}" as="p" hint-placeholder-count="3">
+          <button sc-camel-on-click="{{ p.select }}" style="border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;background:{{ p.bg }};color:{{ p.color }};border:1px solid {{ p.border }}">{{ p.label }}</button>
+        </sc-for>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Fuseau horaire
+          <sc-raw-select value="{{ setTz }}" sc-camel-on-change="{{ onSetTz }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-size:13px"><option>Europe/Paris</option><option>UTC</option><option>Africa/Casablanca</option><option>America/New_York</option><option>Asia/Dubai</option></sc-raw-select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Taille de contrat (XAU)
+          <input value="{{ setContract }}" sc-camel-on-change="{{ onSetContract }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Pas de lot
+          <input value="{{ setLotStep }}" sc-camel-on-change="{{ onSetLotStep }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Risque par défaut (%)
+          <input value="{{ setRisk }}" sc-camel-on-change="{{ onSetRisk }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
+        </label>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid #1a2030;padding-top:14px">
+        <div style="font-size:14px;font-weight:600">Sessions de trading (UTC)</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <sc-for list="{{ sessionChips }}" as="c" hint-placeholder-count="3">
+            <button sc-camel-on-click="{{ c.toggle }}" style="border-radius:999px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;background:{{ c.bg }};color:{{ c.color }};border:1px solid {{ c.border }}">{{ c.label }}</button>
+          </sc-for>
+        </div>
+        <button sc-camel-on-click="{{ toggleSessionFilter }}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:none;border:0;color:#e9ebf2;font-size:14px;padding:0;cursor:pointer;text-align:left">Ignorer les signaux BLH hors des sessions choisies
+          <div style="width:40px;height:22px;border-radius:99px;padding:3px;display:flex;background:{{ sfTrack }};justify-content:{{ sfJustify }}"><div style="width:16px;height:16px;border-radius:50%;background:#e9ebf2"></div></div>
+        </button>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Heures à éviter (UTC, ex. 21-23, 12)
+          <input value="{{ setAvoid }}" sc-camel-on-change="{{ onSetAvoid }}" placeholder="21-23" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-size:13px;outline:none;font-family:'JetBrains Mono',monospace">
+        </label>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid #1a2030;padding-top:14px">
+        <div style="font-size:14px;font-weight:600">Règles de risque</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px">
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Perte max par jour (R)<input value="{{ setMaxLoss }}" sc-camel-on-change="{{ onSetMaxLoss }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-size:13px;outline:none;font-family:'JetBrains Mono',monospace"></label>
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Trades max par jour<input value="{{ setMaxTrades }}" sc-camel-on-change="{{ onSetMaxTrades }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-size:13px;outline:none;font-family:'JetBrains Mono',monospace"></label>
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Objectif mensuel (R)<input value="{{ setGoal }}" sc-camel-on-change="{{ onSetGoal }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-size:13px;outline:none;font-family:'JetBrains Mono',monospace"></label>
+        </div>
+        <button sc-camel-on-click="{{ toggleMonthly }}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:none;border:0;color:#e9ebf2;font-size:14px;padding:0;cursor:pointer;text-align:left">Rappel local pour le rapport mensuel
+          <div style="width:40px;height:22px;border-radius:99px;padding:3px;display:flex;background:{{ mmTrack }};justify-content:{{ mmJustify }}"><div style="width:16px;height:16px;border-radius:50%;background:#e9ebf2"></div></div>
+        </button>
+      </div>
+      <button sc-camel-on-click="{{ toggleConfirmed }}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:none;border:0;color:#e9ebf2;font-size:14px;padding:0;cursor:pointer;text-align:left">Signaux sur bougies confirmées uniquement
+        <div style="width:40px;height:22px;border-radius:99px;padding:3px;display:flex;background:{{ confTrack }};justify-content:{{ confJustify }}"><div style="width:16px;height:16px;border-radius:50%;background:#e9ebf2"></div></div>
+      </button>
+      <sc-if value="{{ setMsg }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;color:#3fd2a4">{{ setMsg }}</div><button class="terminal-quiet" sc-camel-on-click="{{ retrySettings }}">Réessayer l’enregistrement</button></sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- JOURNAL -->
+  <sc-if value="{{ isJournal }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Journal" style="flex:1;padding:24px;display:flex;flex-direction:column;gap:18px;max-width:1100px;width:100%;margin:0 auto"><div class="terminal-actions"><button class="terminal-quiet" sc-camel-on-click="{{ refreshWorkspace }}">Actualiser le journal</button><sc-if value="{{ workspacePending }}"><button class="terminal-button" sc-camel-on-click="{{ retryJournal }}">Réessayer les brouillons</button></sc-if></div><div class="terminal-fields"><sc-for list="{{ periodWins }}" as="p"><div class="terminal-card"><strong>{{ p.label }}</strong><span>{{ p.wins }} gagnants · {{ p.losses }} perdants</span><span class="terminal-mini">TP1 / TP2 / TP3 : {{ p.tp }}</span></div></sc-for></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="font-size:26px;font-weight:600;letter-spacing:-0.02em">Journal de trading</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div style="display:flex;gap:4px;background:#11151f;border:1px solid #1f2536;border-radius:10px;padding:3px">
+          <sc-for list="{{ jRanges }}" as="r" hint-placeholder-count="3">
+            <button sc-camel-on-click="{{ r.select }}" style="border:0;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;background:{{ r.bg }};color:{{ r.color }}">{{ r.label }}</button>
+          </sc-for>
+        </div>
+        <button sc-camel-on-click="{{ exportCsv }}" style="background:#11151f;border:1px solid #2a3145;color:#e9ebf2;border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer">Exporter CSV</button>
+        <button sc-camel-on-click="{{ monthlyReport }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">Rapport mensuel</button>
+        <button sc-camel-on-click="{{ printJournal }}" style="background:#11151f;border:1px solid #2a3145;color:#e9ebf2;border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer">PDF</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:#1a2030;border:1px solid #1a2030;border-radius:14px;overflow:hidden">
+      <sc-for list="{{ jStats }}" as="k" hint-placeholder-count="6">
+        <div style="background:#11151f;padding:16px;display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;color:#8d93a8">{{ k.label }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:20px;color:{{ k.color }}">{{ k.value }}</div></div>
+      </sc-for>
+    </div>
+    <div style="background:#11151f;border:1px solid {{ ruleBorder }};border-radius:14px;padding:16px 18px;display:flex;flex-wrap:wrap;gap:16px 28px;align-items:center">
+      <div style="display:flex;flex-direction:column;gap:4px;min-width:200px"><div style="font-size:12px;color:#8d93a8">Règles de risque du jour</div><div style="font-weight:700;color:{{ ruleColor }}">{{ ruleStatus }}</div></div>
+      <sc-for list="{{ rules }}" as="r" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;gap:6px;flex:1 1 160px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#8d93a8"><span>{{ r.label }}</span><span style="font-family:'JetBrains Mono',monospace;color:#e9ebf2">{{ r.value }}</span></div>
+          <div style="height:6px;background:#0a0d16;border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;width:{{ r.pct }};background:{{ r.color }}"></div></div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <sc-for list="{{ journal }}" as="j" hint-placeholder-count="4">
+        <div style="background:#11151f;border:1px solid #1a2030;border-radius:14px;padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;align-items:start">
+          <div style="display:flex;flex-direction:column;gap:4px"><div style="font-weight:700;color:{{ j.color }}">{{ j.dir }} · {{ j.symbol }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#8d93a8">{{ j.time }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#c4c8d6">E {{ j.entry }} · SL {{ j.stop }}</div></div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:12px;color:#8d93a8">Objectifs atteints</div>
+            <div style="display:flex;gap:6px">
+              <sc-for list="{{ j.tps }}" as="tp" hint-placeholder-count="3">
+                <button sc-camel-on-click="{{ tp.toggle }}" style="border-radius:8px;padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;background:{{ tp.bg }};color:{{ tp.color }};border:1px solid {{ tp.border }}">{{ tp.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:12px;color:#8d93a8">Résultat (R)</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input value="{{ j.r }}" sc-camel-on-change="{{ j.onR }}" placeholder="{{ j.autoR }}" style="width:90px;background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:8px 10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
+              <sc-raw-select aria-label="Statut du trade" value="{{ j.statusValue }}" sc-camel-on-change="{{ j.onStatus }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:8px;color:#e9ebf2;font-size:12px"><option value="planned">Planifié</option><option value="active">En cours</option><option value="win">Gagnant</option><option value="loss">Perdant</option><option value="breakeven">Break-even</option><option value="cancelled">Annulé</option><option value="snapshot">Observation</option></sc-raw-select>
+            </div>
+          </div>
+          <textarea value="{{ j.note }}" sc-camel-on-change="{{ j.onNote }}" rows="2" placeholder="Note : contexte, émotion, erreur…" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:9px 10px;color:#e9ebf2;font-size:13px;outline:none;resize:vertical;font-family:inherit"></textarea><button class="terminal-quiet" sc-camel-on-click="{{ j.save }}">Enregistrer le trade</button>
+        </div>
+      </sc-for>
+      <sc-if value="{{ noJournal }}" hint-placeholder-val="{{ false }}"><div style="background:#11151f;border:1px dashed #232a3b;border-radius:14px;padding:32px;text-align:center;color:#8d93a8">Aucun trade sur cette période.</div></sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ADMIN -->
+  <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Admin" style="flex:1;padding:24px;display:flex;flex-direction:column;gap:18px;max-width:1100px;width:100%;margin:0 auto"><div class="terminal-actions"><button class="terminal-quiet" sc-camel-on-click="{{ refreshAdmin }}">Actualiser</button><button class="terminal-button" sc-camel-on-click="{{ adminSupport }}">Tickets des clients</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div style="font-size:26px;font-weight:600;letter-spacing:-0.02em">Administration</div><button sc-camel-on-click="{{ backProfile }}" style="background:none;border:1px solid #2a3145;color:#e9ebf2;border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer">Retour</button></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:#1a2030;border:1px solid #1a2030;border-radius:14px;overflow:hidden">
+      <sc-for list="{{ adminKpis }}" as="k" hint-placeholder-count="4">
+        <div style="background:#11151f;padding:16px;display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;color:#8d93a8">{{ k.label }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:22px">{{ k.value }}</div></div>
+      </sc-for>
+    </div>
+    <p class="terminal-mini">Paiements : prestataire à connecter.</p>
+    <div style="font-size:16px;font-weight:600">Utilisateurs</div>
+    <div style="background:#11151f;border:1px solid #1a2030;border-radius:14px;overflow:auto">
+      <div style="min-width:720px">
+        <div style="display:grid;grid-template-columns:1.4fr 1.6fr 0.9fr 1fr 0.9fr;gap:10px;padding:12px 18px;font-size:12px;color:#8d93a8;border-bottom:1px solid #1a2030"><div>Nom</div><div>E-mail</div><div>Statut</div><div>Création</div><div style="text-align:right">Action</div></div>
+        <sc-for list="{{ adminUsers }}" as="u" hint-placeholder-count="4">
+          <div style="display:grid;grid-template-columns:1.4fr 1.6fr 0.9fr 1fr 0.9fr;gap:10px;padding:13px 18px;border-bottom:1px solid #151a26;align-items:center;font-size:13px">
+            <div>{{ u.name }}</div><div style="color:#8d93a8">{{ u.email }}</div><div style="color:{{ u.stColor }}">{{ u.status }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:12px">{{ u.until }}</div>
+            <div style="text-align:right"><button sc-camel-on-click="{{ u.toggle }}" disabled="{{ u.protected }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer">{{ u.action }}</button><button class="terminal-quiet" sc-camel-on-click="{{ u.recover }}">Récupération</button><button class="terminal-quiet" sc-camel-on-click="{{ u.remove }}" disabled="{{ u.protected }}">Supprimer</button></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- SUPPORT -->
+  <sc-if value="{{ isSupport }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Support" style="flex:1;padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;max-width:1100px;width:100%;margin:0 auto;align-content:start"><sc-if value="{{ supportError }}"><p role="status" class="terminal-notice" style="grid-column:1 / -1">{{ supportError }}</p></sc-if><div class="terminal-actions" style="grid-column:1 / -1"><button class="terminal-quiet" sc-camel-on-click="{{ refreshTickets }}">Actualiser</button><sc-if value="{{ viewing }}"><button class="terminal-quiet" sc-camel-on-click="{{ backTickets }}">Retour aux tickets</button></sc-if><sc-if value="{{ hasMoreTickets }}"><button class="terminal-quiet" sc-camel-on-click="{{ loadMoreTickets }}">Plus de tickets</button></sc-if><sc-if value="{{ olderMessages }}"><button class="terminal-quiet" sc-camel-on-click="{{ loadOlder }}">Messages précédents</button></sc-if></div>
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="font-size:26px;font-weight:600;letter-spacing:-0.02em">Support</div>
+        <button sc-camel-on-click="{{ newTicket }}" disabled="{{ supportUnavailable }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:10px;padding:9px 14px;font-weight:600;font-size:13px;cursor:pointer">Nouveau ticket</button>
+      </div>
+      <sc-for list="{{ tickets }}" as="t" hint-placeholder-count="3">
+        <button sc-camel-on-click="{{ t.select }}" style="display:flex;flex-direction:column;gap:6px;text-align:left;padding:14px 16px;border-radius:14px;cursor:pointer;color:#e9ebf2;background:{{ t.bg }};border:1px solid {{ t.border }}">
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8d93a8">#{{ t.id }} · {{ t.cat }}</span><span style="font-size:11px;font-weight:600;border-radius:99px;padding:3px 8px;background:{{ t.stBg }};color:{{ t.stColor }}">{{ t.status }}</span></div>
+          <div style="font-weight:600;font-size:14px">{{ t.subject }}</div>
+          <div style="font-size:12px;color:#8d93a8">{{ t.last }}</div>
+        </button>
+      </sc-for>
+      <div style="font-size:12px;color:#6b7186;line-height:1.5">Ouvrez un ticket distinct pour chaque demande. Vos réponses restent dans le ticket concerné.</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
+        <div style="font-size:16px;font-weight:600">Questions fréquentes</div>
+        <sc-for list="{{ faq }}" as="q" hint-placeholder-count="5">
+          <details style="background:#11151f;border:1px solid #1f2536;border-radius:12px;padding:12px 14px">
+            <summary style="cursor:pointer;font-size:14px;font-weight:600">{{ q.q }}</summary>
+            <div style="margin-top:8px;font-size:13px;color:#a3a9bd;line-height:1.55">{{ q.a }}</div>
+          </details>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;display:flex;flex-direction:column;min-height:520px;min-width:0">
+      <sc-if value="{{ composing }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:18px;font-weight:600">Ouvrir un ticket</div>
+          <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#8d93a8">Catégorie
+            <sc-raw-select value="{{ draftCat }}" sc-camel-on-change="{{ onDraftCat }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:10px;padding:12px;color:#e9ebf2;font-size:14px"><option>Paiement</option><option>Abonnement</option><option>Bot / signaux</option><option>Compte</option><option>Autre</option></sc-raw-select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#8d93a8">Sujet
+            <input value="{{ draftSubject }}" sc-camel-on-change="{{ onDraftSubject }}" placeholder="Résumez votre demande" style="background:#0a0d16;border:1px solid #232a3b;border-radius:10px;padding:12px;color:#e9ebf2;font-size:14px;outline:none">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#8d93a8">Message
+            <textarea value="{{ draftBody }}" sc-camel-on-change="{{ onDraftBody }}" rows="6" placeholder="Décrivez le problème, ajoutez le TxID si c'est un paiement" style="background:#0a0d16;border:1px solid #232a3b;border-radius:10px;padding:12px;color:#e9ebf2;font-size:14px;outline:none;resize:vertical;font-family:inherit"></textarea>
+          </label>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button sc-camel-on-click="{{ cancelTicket }}" style="background:none;border:1px solid #2a3145;color:#e9ebf2;border-radius:10px;padding:11px 16px;font-size:14px;cursor:pointer">Annuler</button>
+            <button sc-camel-on-click="{{ submitTicket }}" disabled="{{ supportBusy }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:10px;padding:11px 18px;font-weight:600;font-size:14px;cursor:pointer">Envoyer</button>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ viewing }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #1a2030">
+          <div style="display:flex;flex-direction:column;gap:3px;min-width:0"><div style="font-weight:600">{{ cur.subject }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8d93a8">#{{ cur.id }} · {{ cur.cat }}</div></div>
+          <button sc-camel-on-click="{{ toggleClose }}" disabled="{{ supportBusy }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:7px 12px;font-size:12px;cursor:pointer">{{ closeLabel }}</button>
+        </div>
+        <div ref="{{ msgBoxRef }}" style="flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px;max-height:440px">
+          <sc-for list="{{ cur.msgs }}" as="m" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:4px;max-width:78%;align-self:{{ m.align }}">
+              <div style="font-size:11px;color:#6b7186;text-align:{{ m.textAlign }}">{{ m.who }} · {{ m.time }}</div>
+              <div data-no-i18n="true" style="padding:11px 14px;border-radius:14px;font-size:14px;line-height:1.5;white-space:pre-wrap;background:{{ m.bg }};color:{{ m.color }}">{{ m.text }}</div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ typing }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;color:#8d93a8">Le support écrit…</div></sc-if>
+        </div>
+        <div style="display:flex;gap:8px;padding:14px;border-top:1px solid #1a2030">
+          <input value="{{ reply }}" sc-camel-on-change="{{ onReply }}" sc-camel-on-key-down="{{ onReplyKey }}" placeholder="{{ replyPh }}" disabled="{{ curClosed }}" style="flex:1;min-width:0;background:#0a0d16;border:1px solid #232a3b;border-radius:10px;padding:12px;color:#e9ebf2;font-size:14px;outline:none">
+          <button sc-camel-on-click="{{ sendReply }}" disabled="{{ supportBusy }}" disabled="{{ curClosed }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:10px;padding:0 18px;font-weight:600;font-size:14px;cursor:pointer">Envoyer</button>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- Bottom nav -->
+  <nav style="position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:10px 16px 14px;background:linear-gradient(transparent,#0a0d16 40%);z-index:30">
+    <div style="display:flex;gap:4px;background:#11151f;border:1px solid #232a3b;border-radius:18px;padding:6px;box-shadow:0 12px 40px rgba(0,0,0,0.5)">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+        <button sc-camel-on-click="{{ n.select }}" style="display:flex;flex-direction:column;align-items:center;gap:5px;border:0;border-radius:13px;padding:9px 10px;min-width:64px;cursor:pointer;font-size:12px;font-weight:600;background:{{ n.bg }};color:{{ n.color }}">
+          <div style="width:6px;height:6px;transform:rotate(45deg);background:{{ n.dot }}"></div>{{ n.label }}
+        </button>
+      </sc-for>
+    </div>
+  </nav>
 </div>
-<section class="chart-stage">
-<div class="chart-heading">
-<strong>Or / Dollar américain <span id="chart-period">5 min</span> · Twelve Data</strong>
-<span id="ohlc">
-</span>
+</sc-if>
 </div>
-<div class="indicator-legend">
-<span class="teal">● BOS</span>
-<span>Fibonacci 50–61,8 %</span>
-<span class="teal">TP</span>
-<span class="red">SL</span>
-<span class="orange">Lignes manuelles</span>
-</div>
-<div class="structure-scroll">
-<svg id="structure-chart" role="img" tabindex="0" aria-label="Graphique XAU/USD : chandeliers, BOS, Fibonacci et risque rendement. Flèches pour déplacer ; plus et moins pour zoomer.">
-</svg>
-<div id="chart-empty">Chargement des bougies…</div>
-</div>
-<div class="chart-bottom">
-<span id="indicator-status" aria-live="polite">
-</span>
-<span>UTC · <span id="candle-state">Chargement…</span> · Smart : signaux provisoires avant clôture</span>
-</div>
-</section>
-</main>
-<footer class="terminal-footer">
-<p id="feed-update" aria-live="polite">Connexion à Twelve Data…</p>
-<p id="heat-status" hidden>
-</p>
-<div id="setup-detail" aria-live="polite">
-</div>
-<p id="tool-status">Molette : zoom · Glisser : déplacer · Axe droit : échelle du prix · Double-clic : échelle automatique</p>
-</footer>
-<script src="core.js?v=20261005-followup"></script>
-<script src="structure.js">
-</script>
-<script src="live.js">
-</script>
-<script src="blh-clean.js?v=20261007">
-</script>
-<script src="pa-liquidity.js?v=20261007">
-</script>
-<script src="smart.js?v=20261005-followup">
-</script>
-<script src="heatmap.js">
-</script>
-<script src="auth.js?v=20261007-single-session">
-</script>
-<script src="indicator-performance.js?v=20261007"></script>
-<script src="feed-status.js?v=20261007-feed"></script>
-<script src="indicator.js?v=20261007-single-session">
-</script>
-<script src="app.js">
-</script>
-<script src="i18n.js?v=20261005-followup">
-</script>
-<script src="portal.js?v=20261005-followup">
-</script>
-<script src="workspace.js?v=20261007-single-session">
-</script>
-<script src="admin.js">
-</script>
-<script src="support.js?v=20261007-support"></script>
-<script src="dashboard.js?v=20261007"></script><script src="desk.js?v=20261007-feed"></script><link rel="stylesheet" href="desk.css?v=20261005-followup">
-<link rel="stylesheet" href="professional.css?v=20261007-ui">
-<script src="professional.js?v=20261007-ui"></script>
-<script src="tickets.js?v=20261007-ui"></script>
-</body>
-</html>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">External terminal</script>
+
+
+<script src="/vendor/react.js"></script>
+<script src="/vendor/react-dom.js"></script>
+<script src="/vendor/design-runtime.js"></script>
+<script src="/core.js"></script>
+<script src="/live.js"></script>
+<script src="/structure.js"></script>
+<script src="/smart.js"></script>
+<script src="/blh-clean.js"></script>
+<script src="/pa-liquidity.js"></script>
+<script src="/heatmap.js"></script>
+<script src="/indicator-performance.js"></script>
+<script src="/terminal-original.js"></script>
+<script src="/terminal-api.js"></script>
+<script src="/terminal.js"></script>
+</body></html>

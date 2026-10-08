@@ -78,40 +78,4 @@ const PALiquidity = {
   }
 };
 
-function renderPALiquidity(model, x, y, width, layer = 'shapes', colors = {}) {
-  if (!model) return '';
-  const bull = colors.bull || '#089981', bear = colors.bear || '#f23645', equal = colors.equal || '#5b9cf6';
-  const fmt = price => Number(price).toFixed(2);
-  let out = '<g data-indicator="pa-liquidity" pointer-events="none">';
-  if (layer === 'shapes') {
-    for (const level of [model.equalHigh, model.equalLow]) if (level && x(level.index) >= 0 && x(level.from) <= width) {
-      out += `<line x1="${x(level.from)}" y1="${y(level.fromPrice)}" x2="${width}" y2="${y(level.price)}" stroke="${equal}" stroke-width="1" stroke-dasharray="3 4" opacity=".7"/>`;
-    }
-    for (const event of model.events) if ((event.type === 'BOS' || event.type === 'CHoCH') && x(event.index) >= 0 && x(event.from) <= width) {
-      const color = event.direction === 1 ? bull : bear;
-      out += `<line x1="${x(event.from)}" y1="${y(event.price)}" x2="${x(event.index)}" y2="${y(event.price)}" stroke="${color}" stroke-width="1.4" opacity=".85"/>`;
-    }
-    const p = model.plan;
-    if (p && x(p.index) <= width) {
-      for (const [price,color,dashed] of [[p.entry,equal,false],[p.stop,bear,true],[p.target,bull,true]]) {
-        out += `<line x1="${Math.max(0,x(p.index))}" y1="${y(price)}" x2="${width}" y2="${y(price)}" stroke="${color}" stroke-width="${dashed?1.5:2}" ${dashed?'stroke-dasharray="5 4"':''}/>`;
-      }
-    }
-  } else {
-    for (const event of model.events) if (x(event.index) >= 0 && x(event.index) <= width) {
-      const color = event.type === 'EQH' || event.type === 'EQL' ? equal : event.direction === 1 ? bull : bear;
-      const anchor = event.direction === -1 || event.type === 'EQH' ? -9 : 17;
-      out += `<text x="${x(event.index)}" y="${y(event.price)+anchor}" text-anchor="middle" fill="${color}" font-size="10" font-weight="700">${event.type}</text>`;
-    }
-    const p = model.plan;
-    if (p && x(p.index) <= width) {
-      const bx = Math.max(2, width - 101);
-      for (const [price,name,color] of [[p.entry,'ENTRY',equal],[p.stop,'SL',bear],[p.target,'TP',bull]]) {
-        out += `<rect x="${bx}" y="${y(price)-10}" width="98" height="17" rx="3" fill="${color}"/><text x="${bx+4}" y="${y(price)+2}" fill="#071a14" font-size="10" font-weight="700">${name} ${fmt(price)}</text>`;
-      }
-    }
-  }
-  return out + '</g>';
-}
-
-if (typeof module !== 'undefined') module.exports = { PALiquidity, renderPALiquidity };
+if(typeof module!=='undefined')module.exports={PALiquidity};

@@ -3,15 +3,15 @@
   "short_name": "PIP Admin",
   "description": "Administration sécurisée de la plateforme PIPVORIA.",
   "lang": "fr",
-  "start_url": "/?view=admin",
+  "start_url": "/#admin",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#edfaff",
-  "theme_color": "#d9f7ff",
+  "background_color": "#0a0d16",
+  "theme_color": "#0a0d16",
   "icons": [
     {
-      "src": "/pipvoria-admin-icon.svg",
+      "src": "/pipvoria-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

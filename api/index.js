@@ -1,5 +1,6 @@
 import "../public/core.js";
 import { ticketApi } from '../lib/support-tickets.js';
+import { additionalMarket } from '../lib/terminal-market.js';
 export const config = { runtime: "edge" };
 
 const ACCESS_COOKIE = "blh_access";
@@ -864,6 +865,24 @@ export default async function handler(request) {
     if (route === "profile/avatar") return await profileAvatar(request);
     if (route === "gold" && request.method === "GET") return await marketData(request, url);
     if (route === "gold/price" && request.method === "GET") return await goldPrice(request);
+    if (route === 'market' && request.method === 'GET') {
+      const session=await currentSession(request);if(!session)return json({error:'authentication_required'},401);
+      try{return sessionJson(await additionalMarket(url.searchParams.get('symbol'),url.searchParams.get('interval')),200,session);}
+      catch(error){return json({error:error.message==='invalid_market'?'invalid_market':'market_data_unavailable'},error.message==='invalid_market'?400:503);}
+    }
+    if (route === 'terminal/capabilities' && request.method === 'GET') {
+      const session=await currentSession(request);if(!session)return json({error:'authentication_required'},401);
+      return sessionJson({billingConfigured:false,referralConfigured:false,mfaConfigured:false,calendar:[
+        {at:'2026-10-14T12:30:00Z',name:'Inflation CPI · septembre',url:'https://www.bls.gov/schedule/2026/10_sched_list.htm',source:'BLS'},
+        {at:'2026-10-15T12:30:00Z',name:'Inflation PPI · septembre',url:'https://www.bls.gov/schedule/2026/10_sched_list.htm',source:'BLS'},
+        {at:'2026-10-28T18:00:00Z',name:'Décision de la Fed · FOMC',url:'https://www.federalreserve.gov/newsevents/2026-october.htm',source:'Federal Reserve'},
+        {at:'2026-10-30T12:30:00Z',name:'Coût de l’emploi · T3',url:'https://www.bls.gov/schedule/2026/10_sched_list.htm',source:'BLS'},
+        {at:'2026-11-03T15:00:00Z',name:'Offres d’emploi JOLTS · septembre',url:'https://www.bls.gov/schedule/2026/11_sched_list.htm',source:'BLS'},
+        {at:'2026-11-06T13:30:00Z',name:'Emploi américain · octobre',url:'https://www.bls.gov/schedule/2026/11_sched_list.htm',source:'BLS'},
+        {at:'2026-11-10T13:30:00Z',name:'Inflation CPI · octobre',url:'https://www.bls.gov/schedule/2026/11_sched_list.htm',source:'BLS'},
+        {at:'2026-11-13T13:30:00Z',name:'Inflation PPI · octobre',url:'https://www.bls.gov/schedule/2026/11_sched_list.htm',source:'BLS'}
+      ]},200,session);
+    }
     if (route === "workspace" && request.method === "GET") return await workspaceData(request);
     if (route === "admin/users" && request.method === "GET" && sameOrigin(request)) return await listAdminUsers(request);
     if (route === 'support/messages' && request.method === 'GET' && sameOrigin(request)) return await supportMessages(request, url);

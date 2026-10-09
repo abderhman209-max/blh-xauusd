@@ -1,6 +1,6 @@
 /* Supplied interface, connected to the existing Pipvoria account and engines. */
 class Terminal extends OriginalTerminal {
-  state={screen:'auth',authMode:'login',name:'',email:'',password:'',authError:'Vérification de la session…',authBusy:true,
+  state={screen:'landing',authMode:'login',name:'',email:'',password:'',authError:'',authBusy:true,
     crypto:'none',payStep:-1,payLeft:0,copied:false,prices:{},appTab:'trader',tab:'chart',symbol:'XAU',tf:'5m',demo:false,
     ind:{ema:true,zone:true,plan:true,structure:true,pa:false,planner:false,heat:false,heatProfile:true},indOpen:false,notifOpen:false,detailsOpen:false,
     bars:[],loading:false,source:'',hover:null,lang:'Français',prefSignals:true,prefSound:false,paidWith:'Non configuré',tool:'cursor',trendPending:false,fs:false,
@@ -18,7 +18,7 @@ class Terminal extends OriginalTerminal {
     this.session=new TerminalSession({onLock:reason=>this.lock(reason)});
     this.onKey=e=>{if(e.key==='Escape')this.setState({indOpen:false,notifOpen:false,textAt:null});if(e.key==='Enter'&&this.state.screen==='auth'&&e.target.tagName==='INPUT'){e.preventDefault();this.submitAuth();}};
     this.onFs=()=>this.setState({fs:!!document.fullscreenElement});
-    this.onHash=()=>{if(this.session.user)this.route(location.hash.slice(1));};
+    this.onHash=()=>{if(this.session.user&&this.state.screen==='app')this.route(location.hash.slice(1));else this.publicRoute();};
     this.onVisible=()=>{if(!document.hidden)this.checkSession();};
     window.addEventListener('keydown',this.onKey);window.addEventListener('hashchange',this.onHash);document.addEventListener('fullscreenchange',this.onFs);document.addEventListener('visibilitychange',this.onVisible);
     this.ageT=setInterval(()=>this.setState({now:Date.now()}),1000);
@@ -26,7 +26,7 @@ class Terminal extends OriginalTerminal {
     this.sessionT=setInterval(()=>this.checkSession(),15000);
     this.priceT=setInterval(()=>this.tickPrice(),5000);
     this.supportT=setInterval(()=>{if(this.session.user&&this.state.appTab==='support'&&!document.hidden)this.loadTickets(true);},15000);
-    this.restore();
+    this.publicRoute();this.restore();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   }
   componentWillUnmount(){for(const t of [this.ageT,this.poll,this.sessionT,this.priceT,this.supportT,this.wlT,this.rpT,this.settingsT])clearInterval(t);
@@ -71,11 +71,16 @@ class Terminal extends OriginalTerminal {
       if(reset){this.setState({authMode:'login',password:'',authBusy:false,authError:'Mot de passe mis à jour. Reconnectez-vous.'});return;}
       if(!this.session.accept(data.user))throw Error('authentication_required');await this.unlock(data.user);
     }catch(error){const messages={invalid_credentials:'Adresse e-mail ou mot de passe incorrect.',account_exists:'Ce compte existe déjà.',weak_password:'Choisissez un mot de passe plus fort.',rate_limit:'Trop de tentatives. Réessayez plus tard.',session_registry_not_configured:'Connexion temporairement indisponible.'};this.setState({authBusy:false,authError:messages[error.message]||'Impossible de valider la demande. Réessayez.'});}}
-  async logout(){window.BLH_AUTH={authenticated:false,user:null};try{await this.session.signOut();this.setState({authBusy:false,authError:''});}catch{this.setState({authBusy:false,authError:'Déconnexion non confirmée. L’accès reste bloqué. Réessayez.'});}}
+  async logout(){window.BLH_AUTH={authenticated:false,user:null};try{await this.session.signOut();this.go('landing');this.setState({authBusy:false,authError:''});}catch{this.setState({screen:'auth',authBusy:false,authError:'Déconnexion non confirmée. L’accès reste bloqué. Réessayez.'});}}
   route(route){const map={signals:'trader',performance:'journal',weekly:'journal',news:'calendar',calendar:'calendar',history:'history',support:'support',settings:'profile',access:'profile',positions:'positions',profile:'profile',journal:'journal',admin:'admin'};
     const tab=map[route]||'trader';this.setState({appTab:tab==='admin'&&!this.session.user?.isAdmin?'profile':tab});if(tab==='admin'&&this.session.user?.isAdmin)this.loadAdmin();}
   navigate(tab){if(tab==='admin'&&!this.session.user?.isAdmin)return;const route=tab==='trader'?'signals':tab;history.replaceState(null,'',location.pathname+'#'+route);this.route(route);window.scrollTo(0,0);}
-  go(screen){if(screen==='app'&&!this.session.user)return;this.setState({screen,authError:'',notifOpen:false});}
+  publicRoute(){if(this.session?.pendingLogout)return;const hash=location.hash.slice(1);if(hash.includes('access_token='))return;
+    const landing=['','features','pricing'].includes(hash);this.setState({screen:landing?'landing':'auth',authMode:hash==='signup'?'signup':'login',authError:''});}
+  openAuth(mode){if(this.session?.pendingLogout)return;this.setState({authMode:mode,password:'',authError:''},()=>this.go('auth'));}
+  go(screen){if(screen==='app'&&!this.session.user||this.session?.pendingLogout)return;
+    if(screen==='landing'||screen==='auth')history.replaceState(null,'',location.pathname+(screen==='auth'?'#'+(this.state.authMode==='signup'?'signup':'login'):''));
+    this.setState({screen,authError:'',notifOpen:false});window.scrollTo(0,0);}
   fmtT(t){return t?new Date(t).toLocaleString('fr-FR',{timeZone:this.ex.set.tz,day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';}
   async marketBars(symbol,tf,signal){
     if(symbol==='XAU'){const data=await this.session.request('gold',{query:{interval:this.interval(tf)},signal});return data;}
@@ -222,6 +227,7 @@ class Terminal extends OriginalTerminal {
     const positions=rows.filter(r=>r.kind==='trade'&&(this.ex.fStatus==='all'||(this.ex.fStatus==='open'?['planned','active'].includes(r.status):closed.includes(r.status)))&&(this.ex.fDir==='all'||(this.ex.fDir==='1'?r.direction==='buy':r.direction==='sell')));
     const notice=msg=>this.setState({notice:msg});const pending=label=>()=>notice(label+' : activation du service requise.');
     const goal=Number(this.ex.set.goalR)||null;
+    Object.assign(v,{isLanding:s.screen==='landing',goLanding:()=>this.go('landing'),goLogin:()=>this.openAuth('login'),goSignup:()=>this.openAuth('signup'),landingError:s.authBusy?'':s.authError});
     const chosen=s.resultsOf==='blh'?this.perf:s.resultsOf==='ms'?this.msPerf:s.resultsOf==='planner'?this.plannerPerf:this.paPerf;
     Object.assign(v,{authBusy:s.authBusy,isAuth:s.screen==='auth',isSignup:s.authMode==='signup',authTitle:s.authMode==='recover'?'Réinitialiser le mot de passe':s.authMode==='reset'?'Nouveau mot de passe':s.authMode==='signup'?'Créer votre compte':'Bon retour',authCta:s.authBusy?'Vérification…':s.authMode==='recover'?'Envoyer le lien':s.authMode==='reset'?'Mettre à jour':s.authMode==='signup'?'Créer le compte':'Se connecter',submitAuth:()=>this.submitAuth(),forgotPassword:()=>this.setState({authMode:'recover',authError:'',password:''}),recoverMode:s.authMode==='recover',logoutPending:this.session?.pendingLogout,retryLogout:()=>this.logout(),financeUnavailable:true,supportUnavailable:this.sup.configured!==true||this.sup.admin===true,supportBusy:this.sup.busy,cannotRegisterPlan:!this.model?.plan||s.demo||!!this.rp,
       mobileToolHint:this.rp?'Replay : avancez bougie par bougie.':s.tool==='cursor'?'Glissez horizontalement pour parcourir. Boutons + / − pour zoomer.':s.tool==='hline'?'Touchez le graphique pour placer une ligne.':s.tool==='text'?'Touchez le graphique pour ajouter du texte.':'Touchez deux points du graphique pour tracer.',mobileResultsOpen:s.mobileResultsOpen,mobileResultsLabel:s.mobileResultsOpen?'Réduire':'Afficher',toggleMobileResults:()=>this.setState({mobileResultsOpen:!s.mobileResultsOpen}),mobileSecondaryActive:['calendar','history'].includes(s.appTab),goCalendar:()=>this.navigate('calendar'),goHistory:()=>this.navigate('history'),supportDetailVisible:this.sup.composing||this.sup.tickets.some(t=>t.id===this.sup.cur),notice:s.notice,clearNotice:()=>notice(''),retryFeed:()=>this.load(),refreshWorkspace:()=>this.loadWorkspace(),retrySettings:()=>{this.settingsReady?this.queueSettings():this.loadSettings();},

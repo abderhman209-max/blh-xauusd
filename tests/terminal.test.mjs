@@ -8,10 +8,22 @@ const C=globalThis.PIPVORIA_CORE;
 function session(fetcher){const ctx={URLSearchParams,globalThis:null};ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('public/terminal-api.js','utf8'),ctx);return new ctx.TerminalSession({fetcher});}
 const response=(body,status=200)=>({ok:status<400,status,json:async()=>body});
 function terminalApp(){
-  const ctx={Date,Intl,URLSearchParams,structuredClone,console,ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;vm.createContext(ctx);
+  const ctx={Date,Intl,URLSearchParams,structuredClone,console,location:{pathname:'/',hash:'',search:''},history:{replaceState(_a,_b,url){ctx.location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},scrollTo(){},ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;vm.createContext(ctx);
   for(const name of ['core','structure','smart','blh-clean','pa-liquidity','heatmap','indicator-performance','terminal-original','terminal'])vm.runInContext(fs.readFileSync('public/'+name+'.js','utf8'),ctx);
   return vm.runInContext('new Terminal()',ctx);
 }
+test('public landing survives a missing session, while login/signup and protected links open auth',async()=>{
+  const app=terminalApp();app.session={restore:async()=>{const error=Error('authentication_required');error.status=401;throw error;}};
+  assert.equal(app.state.screen,'landing');await app.restore();assert.equal(app.state.screen,'landing');assert.equal(app.state.authBusy,false);
+  app.openAuth('signup');assert.equal(app.state.screen,'auth');assert.equal(app.state.authMode,'signup');app.publicRoute();assert.equal(app.state.authMode,'signup');
+  app.openAuth('login');app.publicRoute();assert.equal(app.state.authMode,'login');
+  app.go('landing');app.publicRoute();assert.equal(app.state.screen,'landing');
+  app.navigate('calendar');app.publicRoute();assert.equal(app.state.screen,'auth');
+});
+test('successful logout returns to landing; unconfirmed logout keeps the auth retry screen',async()=>{
+  const app=terminalApp();app.session={signOut:async()=>{}};await app.logout();assert.equal(app.state.screen,'landing');
+  app.session={signOut:async()=>{throw Error('offline');}};await app.logout();assert.equal(app.state.screen,'auth');assert.match(app.state.authError,/Réessayez/);
+});
 test('a first finger tap places a drawing without prior hover; a cancelled scroll never draws',()=>{
   const app=terminalApp(),handlers={},drawings=[];let captured=null;
   app.draw=()=>{};app.pW=400;app.inv={price:y=>4300-y,time:x=>x};app.addLine=line=>drawings.push(line);app.state.tool='hline';

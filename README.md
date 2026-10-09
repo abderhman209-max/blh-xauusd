@@ -2,6 +2,8 @@
 
 Plateforme Pipvoria avec le design original fourni dans « Site trading en JavaScript.zip ». Interface intégrée directement, sans iframe, avec les API Supabase existantes.
 
+La page publique reprend la landing page du design fourni. Les boutons ouvrent `#login` et `#signup` ; les liens directs vers le terminal restent protégés. Le tarif de 49 USDT est celui prévu dans le design, avec paiement explicitement indisponible tant que le prestataire n’est pas connecté.
+
 ## Fonctionnalités actuelles
 
 - Graphiques XAU/USD, BTC/USD, ETH/USD et SOL/USD ; EUR/USD et Nasdaq 100 selon disponibilité du fournisseur (cotation susceptible d’être différée)

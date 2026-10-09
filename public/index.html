@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<html><head>
-<title>Pipvoria</title><meta name="theme-color" content="#0a0d16"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/pipvoria-icon.svg"><link rel="stylesheet" href="/terminal.css">
+<html lang="fr"><head>
+<title>Pipvoria · Bot BLH et terminal de trading</title><meta name="description" content="Découvrez Pipvoria : structure de marché, plans de trade avec entrée, stop loss et TP1 à TP3, graphiques et journal personnel."><meta name="theme-color" content="#0a0d16"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/pipvoria-icon.svg"><link rel="stylesheet" href="/terminal.css">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
@@ -263,10 +263,99 @@ select option{background:#11151f;color:#e9ebf2}
 </helmet>
 <div style="min-height:100vh;background:#0a0d16;color:#e9ebf2">
 
+<!-- LANDING -->
+<sc-if value="{{ isLanding }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Landing" style="max-width:1200px;margin:0 auto;padding:0 28px">
+  <header class="landing-header" style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 0;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:14px;height:14px;background:#9d8cff;transform:rotate(45deg);border-radius:2px"></div>
+      <div style="font-weight:700;font-size:20px;letter-spacing:-0.02em">Pipvoria</div>
+    </div>
+    <nav class="landing-nav" aria-label="Navigation principale" style="display:flex;align-items:center;gap:26px;font-size:14px;color:#8d93a8">
+      <a href="#features" style="color:#8d93a8">Le bot</a>
+      <a href="#pricing" style="color:#8d93a8">Tarif</a>
+      <sc-raw-select value="{{ lang }}" sc-camel-on-change="{{ onLang }}" aria-label="Langue" style="background:#11151f;border:1px solid #232a3b;border-radius:9px;padding:7px 8px;color:#e9ebf2;font-size:13px"><option>Français</option><option>English</option><option>Español</option><option>العربية</option></sc-raw-select>
+      <button sc-camel-on-click="{{ goLogin }}" style="background:none;border:0;color:#e9ebf2;font-size:14px;cursor:pointer;padding:0">Connexion</button>
+      <button sc-camel-on-click="{{ goSignup }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:999px;padding:10px 18px;font-weight:600;font-size:14px;cursor:pointer">Commencer</button>
+    </nav>
+  </header>
+
+  <section class="landing-hero" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:48px;align-items:center;padding:72px 0 88px">
+    <div style="display:flex;flex-direction:column;gap:26px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.12em;color:#9d8cff;text-transform:uppercase">Bot BLH · XAU/USD · 5 min</div>
+      <h1 style="margin:0;font-size:clamp(40px,5.4vw,68px);line-height:1.02;letter-spacing:-0.035em;font-weight:600;text-wrap:balance">Le bot lit la structure.<br>Vous gardez la main.</h1>
+      <p style="margin:0;font-size:18px;line-height:1.55;color:#a3a9bd;max-width:520px;text-wrap:pretty">Balayages de liquidité, BOS / CHoCH et plan de trade complet — entrée, stop loss, TP1 à TP3 — tracés en direct sur un graphique de marché réel.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button sc-camel-on-click="{{ goSignup }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:999px;padding:15px 26px;font-weight:600;font-size:15px;cursor:pointer">Créer un compte</button>
+        <a href="#pricing" style="display:flex;align-items:center;border:1px solid #2a3145;color:#e9ebf2;border-radius:999px;padding:14px 24px;font-size:15px">Voir le tarif</a>
+      </div>
+    </div>
+    <div style="background:#11151f;border:1px solid #1f2536;border-radius:20px;padding:26px;display:flex;flex-direction:column;gap:22px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#8d93a8">XAU/USD · 5 min · aperçu</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#3fd2a4"><div style="width:7px;height:7px;border-radius:50%;background:#3fd2a4"></div>Plan de trade</div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:clamp(26px,4vw,44px);font-weight:500;letter-spacing:-0.02em">ENTRY → TP3</div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:#1f2536;border-radius:12px;overflow:hidden">
+        <div style="background:#141926;padding:14px;display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;color:#8d93a8">Entrée</div><div style="font-weight:600;color:#9d8cff">BUY / SELL</div></div>
+        <div style="background:#141926;padding:14px;display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;color:#8d93a8">Protection</div><div style="font-weight:600">Stop loss</div></div>
+        <div style="background:#141926;padding:14px;display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;color:#8d93a8">Objectifs</div><div style="font-weight:600;color:#3fd2a4">TP1 · TP2 · TP3</div></div>
+      </div>
+      <div style="font-size:12px;color:#6b7186;line-height:1.5">Aperçu des niveaux du bot. Connectez-vous pour consulter les graphiques et les calculs sur les bougies clôturées. Aucun ordre automatique n’est passé.</div>
+    </div>
+  </section>
+
+  <section class="landing-features" id="features" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1px;background:#1f2536;border:1px solid #1f2536;border-radius:20px;overflow:hidden">
+    <div style="background:#0d111b;padding:34px;display:flex;flex-direction:column;gap:12px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9d8cff">01</div>
+      <div style="font-size:21px;font-weight:600;letter-spacing:-0.01em">Structure de marché</div>
+      <div style="color:#a3a9bd;line-height:1.55;font-size:15px">Pivots, balayages de liquidité acheteuse et vendeuse, cassures BOS et CHoCH, zones d'offre et de demande.</div>
+    </div>
+    <div style="background:#0d111b;padding:34px;display:flex;flex-direction:column;gap:12px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9d8cff">02</div>
+      <div style="font-size:21px;font-weight:600;letter-spacing:-0.01em">Plan de trade complet</div>
+      <div style="color:#a3a9bd;line-height:1.55;font-size:15px">Chaque signal BUY ou SELL arrive avec son entrée, son stop loss basé sur l'ATR et trois objectifs à 1R, 2R et 3R.</div>
+    </div>
+    <div style="background:#0d111b;padding:34px;display:flex;flex-direction:column;gap:12px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#9d8cff">03</div>
+      <div style="font-size:21px;font-weight:600;letter-spacing:-0.01em">Résultats vérifiables</div>
+      <div style="color:#a3a9bd;line-height:1.55;font-size:15px">Test historique en R sur les bougies clôturées : trades, réussite, drawdown. Pas de chiffres inventés.</div>
+    </div>
+  </section>
+
+  <section class="landing-pricing" id="pricing" style="padding:96px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:48px;align-items:center">
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.12em;color:#9d8cff;text-transform:uppercase">Abonnement</div>
+      <h2 style="margin:0;font-size:44px;letter-spacing:-0.03em;font-weight:600;line-height:1.05">Une formule. Tout inclus.<br>Accès au terminal.</h2>
+      <p style="margin:0;color:#a3a9bd;line-height:1.55">Graphiques, signaux et journal réunis dans votre espace personnel.</p>
+    </div>
+    <div style="background:#11151f;border:1px solid #2a2f4a;border-radius:20px;padding:34px;display:flex;flex-direction:column;gap:22px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <div style="font-size:18px;font-weight:600">Pipvoria Pro</div>
+        <div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:500">49</span><span style="color:#8d93a8">USDT / mois · tarif prévu</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;font-size:15px;color:#c4c8d6">
+        <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>Bot BLH XAUUSD M5 CLEAN en direct</div>
+        <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>BLH sur XAU/USD 5 min · autres indicateurs de 1m à 1h</div>
+        <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>Positions, historique et calendrier économique</div>
+        <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>Alertes de signal et calculateur de risque</div>
+      </div>
+      <button sc-camel-on-click="{{ goSignup }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:12px;padding:15px;font-weight:600;font-size:15px;cursor:pointer">Créer un compte</button><p style="margin:0;color:#a3a9bd;font-size:13px;line-height:1.5">Les paiements et abonnements ne sont pas encore activés. Aucun paiement n’est demandé à l’inscription.</p>
+    </div>
+  </section>
+
+  <sc-if value="{{ landingError }}"><p role="status" class="terminal-notice">{{ landingError }}</p></sc-if>
+  <footer style="border-top:1px solid #1a2030;padding:28px 0 40px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;color:#6b7186">
+    <div>© 2026 Pipvoria</div>
+    <div style="max-width:620px;line-height:1.5">Le trading comporte un risque de perte en capital. Les signaux sont fournis à titre informatif et ne constituent pas un conseil en investissement.</div>
+  </footer>
+</div>
+</sc-if>
+
 <!-- AUTH -->
 <sc-if value="{{ isAuth }}" hint-placeholder-val="{{ false }}">
 <div data-screen-label="Auth" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;gap:28px">
-  <button sc-camel-on-click="{{ goLogin }}" style="display:flex;align-items:center;gap:10px;background:none;border:0;color:#e9ebf2;cursor:pointer">
+  <button sc-camel-on-click="{{ goLanding }}" aria-label="Retour à l’accueil" style="display:flex;align-items:center;gap:10px;background:none;border:0;color:#e9ebf2;cursor:pointer">
     <div style="width:12px;height:12px;background:#9d8cff;transform:rotate(45deg);border-radius:2px"></div>
     <div style="font-weight:700;font-size:19px">Pipvoria</div>
   </button>

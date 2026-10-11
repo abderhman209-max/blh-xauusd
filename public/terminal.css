@@ -13,6 +13,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .terminal-actions{display:flex;gap:8px;flex-wrap:wrap}.terminal-rows{display:flex;flex-direction:column;gap:10px}
 .terminal-mini{font-size:12px;color:#8d93a8}.terminal-rows p{margin:0}
 .terminal-mobile-only{display:none!important}
+.terminal-approval-heading,.terminal-approval-request{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.terminal-approval-count{font-size:12px;color:#f0b45b;background:#2b2414;border:1px solid #5a4520;padding:6px 10px;border-radius:999px}
+.terminal-approval-request{border-top:1px solid #232a3b;padding-top:16px}
+.terminal-approval-request>div:first-child{display:flex;flex-direction:column;gap:6px;min-width:0;overflow-wrap:anywhere;flex:1 1 250px}
+.terminal-approval-request button{min-height:44px}
+@media(max-width:767px){.terminal-approval-requests{padding:18px}.terminal-approval-request>.terminal-actions{width:100%}.terminal-approval-request button{flex:1}}
 .landing-nav{flex-wrap:wrap;justify-content:flex-end}
 .landing-nav>a,.landing-nav>button,.landing-nav>select{min-height:44px;display:flex;align-items:center}
 .landing-hero>div,.landing-pricing>div{min-width:0}

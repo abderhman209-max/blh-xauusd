@@ -30,6 +30,14 @@ Le BLH M5 conserve sa restriction XAU/USD 5 min. Les autres moteurs utilisent le
 
 Les paiements crypto, factures, parrainages rémunérés et 2FA du prototype nécessitent leurs services réels ; ils ne sont pas simulés en production. Les tickets nécessitent la migration `20261007145628_pipvoria_support_tickets.sql` sur le projet du site. Tant qu’elle n’est pas disponible, l’ancienne conversation reste accessible et la création de nouveaux tickets est explicitement désactivée.
 
+## Validation des inscriptions
+
+À partir du 11 octobre 2026 à 03:40:44 UTC, chaque nouveau compte attend l’acceptation du super admin. Les comptes créés avant cette date et les super administrateurs conservent leur accès. Les demandes apparaissent dans **Plus → Super admin → Demandes d’inscription**, avec Accepter / Refuser et une actualisation toutes les 15 secondes pendant l’ouverture du dashboard.
+
+L’inscription ne délivre aucune session du site. La confirmation de l’e-mail ne remplace pas l’acceptation. Chaque connexion, import de session, rafraîchissement et requête privée vérifie la décision avant le registre de session. Sans session revendiquée par le serveur, les nouveaux jetons Supabase n’ouvrent pas les données protégées par le registre existant.
+
+La décision est enregistrée dans `app_metadata.pipvoria_approval`, modifiable uniquement par l’API serveur avec la clé administrative : statut, date et auteur. Les rôles et les autres métadonnées sont conservés. Une demande refusée peut être acceptée plus tard. Les nouvelles actions restent compatibles avec la contrainte du journal d’audit déployé (`unban` / `ban`, avec `details.operation = approve / reject`). Aucune nouvelle migration n’est nécessaire pour cette fonctionnalité.
+
 ## Organisation
 
 - `public/` : site statique, écran de connexion et traductions.

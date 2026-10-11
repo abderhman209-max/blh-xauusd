@@ -1,7 +1,7 @@
 import {test,after} from 'node:test';import assert from 'node:assert/strict';import handler from '../api/index.js';
 import {fixtureToken,sessionRpc} from './auth-fixture.mjs';
 const originalFetch=globalThis.fetch;after(()=>{globalThis.fetch=originalFetch});process.env.SUPABASE_URL='https://fixture.invalid';process.env.SUPABASE_PUBLISHABLE_KEY='test-public-key';
-const user={id:'11111111-1111-4111-8111-111111111111',user_metadata:{pipvoria_settings:{timezone:'Europe/Paris',confirmedOnly:true}}};const id='22222222-2222-4222-8222-222222222222';const payload={symbol:'XAU/USD',interval:'5min',status:'win',closedAt:Date.now(),resultR:2,clientUpdatedAt:Date.now()};
+const user={created_at:'2026-09-01T00:00:00Z',id:'11111111-1111-4111-8111-111111111111',user_metadata:{pipvoria_settings:{timezone:'Europe/Paris',confirmedOnly:true}}};const id='22222222-2222-4222-8222-222222222222';const payload={symbol:'XAU/USD',interval:'5min',status:'win',closedAt:Date.now(),resultR:2,clientUpdatedAt:Date.now()};
 const response=(v,status=200)=>new Response(JSON.stringify(v),{status});
 process.env.SUPABASE_SECRET_KEY='fixture-secret';
 const request=(route,data,method=data?'POST':'GET')=>new Request('https://site.invalid/api?route='+route,{method,headers:{cookie:'blh_access='+fixtureToken(user.id),origin:'https://site.invalid','content-type':'application/json'},body:data?JSON.stringify(data):undefined});

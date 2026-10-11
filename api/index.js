@@ -1,6 +1,7 @@
 import "../public/core.js";
 import { ticketApi } from '../lib/support-tickets.js';
 import { additionalMarket } from '../lib/terminal-market.js';
+import { accountApproval, requireAccountApproval } from '../lib/account-approval.js';
 export const config = { runtime: "edge" };
 
 const ACCESS_COOKIE = "blh_access";
@@ -178,6 +179,7 @@ async function sessionControl(action, token, user) {
 }
 
 async function enforceSession(action, token, user) {
+  requireAccountApproval(user);
   if (!await sessionControl(action, token, user)) throw new Error('session_replaced');
 }
 
@@ -231,6 +233,8 @@ function adminUser(user) {
     bannedUntil: user.banned_until || null,
     provider: user.app_metadata?.provider || user.identities?.[0]?.provider || "email",
     isAdmin: user.app_metadata?.role === "super_admin",
+    approvalStatus: accountApproval(user),
+    reviewedAt: user.app_metadata?.pipvoria_approval?.reviewed_at || null,
   };
 }
 
@@ -251,13 +255,21 @@ async function auditAdminAction(session, target, action, details = {}) {
 async function listAdminUsers(request) {
   const authorization = await requireSuperAdmin(request);
   if (authorization.error) return authorization.error;
-  const response = await supabaseAdmin("/admin/users?page=1&per_page=1000");
-  if (!response.ok) return json({ error: "admin_users_unavailable" }, 503);
-  const result = await response.json();
-  const users = (result.users || []).map(adminUser);
+  const users = [];
+  // Read every provider page so an inscription cannot disappear after the first 1,000 users.
+  for (let page=1;page<=20;page++) {
+    const response = await supabaseAdmin(`/admin/users?page=${page}&per_page=1000`);
+    if (!response.ok) return json({ error: 'admin_users_unavailable' }, 503);
+    const result = await response.json();
+    if (!Array.isArray(result.users)) return json({ error: 'admin_users_unavailable' }, 503);
+    users.push(...result.users.map(adminUser));
+    if (result.users.length < 1000) break;
+    if (page===20) return json({ error: 'admin_users_limit' }, 503);
+  }
+  users.sort((a,b)=>Number(b.approvalStatus==='pending')-Number(a.approvalStatus==='pending') || Date.parse(b.createdAt)-Date.parse(a.createdAt));
   const auditResponse = await supabaseAdminData("admin_audit_logs?select=id,created_at,action,target_email,details&order=created_at.desc&limit=30");
   const audit = auditResponse.ok ? await auditResponse.json() : [];
-  return sessionJson({ users, audit, total: result.total ?? users.length }, 200, authorization.session);
+  return sessionJson({ users, audit, total: users.length }, 200, authorization.session);
 }
 
 async function adminUserAction(request) {
@@ -265,12 +277,27 @@ async function adminUserAction(request) {
   if (authorization.error) return authorization.error;
   const data = await body(request);
   const action = cleanText(data.action, 30);
-  if (!uuid(data.userId) || !["ban", "unban", "recovery", "delete"].includes(action)) return json({ error: "invalid_admin_action" }, 400);
+  if (!uuid(data.userId) || !["approve", "reject", "ban", "unban", "recovery", "delete"].includes(action)) return json({ error: "invalid_admin_action" }, 400);
 
   const lookup = await supabaseAdmin(`/admin/users/${encodeURIComponent(data.userId)}`);
   if (!lookup.ok) return json({ error: "user_not_found" }, 404);
   const target = await lookup.json();
   if (target.app_metadata?.role === "super_admin" && action !== "recovery") return json({ error: "protected_super_admin" }, 409);
+  if (['approve','reject'].includes(action)) {
+    const status=accountApproval(target);
+    if (!data.baseUpdatedAt || data.baseUpdatedAt!==target.updated_at ||
+      (action==='reject' ? status!=='pending' : !['pending','rejected'].includes(status))) return json({ error: 'approval_conflict' }, 409);
+    const approval={status:action==='approve'?'approved':'rejected',reviewed_at:new Date().toISOString(),reviewed_by:authorization.session.user.id};
+    const response=await supabaseAdmin(`/admin/users/${encodeURIComponent(target.id)}`,{
+      method:'PUT',body:JSON.stringify({app_metadata:{...target.app_metadata,pipvoria_approval:approval}}),
+    });
+    if (!response.ok) return json({error:'approval_update_failed'},503);
+    const updated=await response.json();
+    if (updated.id!==target.id || accountApproval(updated)!==approval.status) return json({error:'approval_update_failed'},503);
+    // Keep compatibility with the deployed audit table's ban/unban action constraint.
+    await auditAdminAction(authorization.session,target,action==='approve'?'unban':'ban',{operation:action,approval});
+    return sessionJson({ok:true,action,user:adminUser(updated)},200,authorization.session);
+  }
 
   let response;
   if (action === "recovery") {
@@ -560,9 +587,11 @@ async function signUp(request) {
     const error = safeErrors[result.code] || "signup_failed";
     return json({ error, ...(error === "email_rate_limit" ? { retryAfter: 60 } : {}) }, response.status === 429 ? 429 : 400);
   }
-  if (!result.access_token) return json({ confirmationRequired: true }, 202);
-  await enforceSession('claim', result.access_token, result.user);
-  return new Response(JSON.stringify({ user: publicUser(result.user) }), { status: 201, headers: sessionHeaders(result) });
+  // Registration creates a request, never an accepted application session.
+  if (result.access_token) await supabase('/logout?scope=local',{
+    method:'POST',headers:{authorization:`Bearer ${result.access_token}`},
+  }).catch(()=>{});
+  return json({ approvalRequired: true, confirmationRequired: !result.access_token }, 202);
 }
 
 async function recover(request) {
@@ -916,6 +945,7 @@ export default async function handler(request) {
     if (route === 'admin/support/send') return await sendSupportMessage(request, true);
     return json({ error: "not_found" }, 404);
   } catch (error) {
+    if (['account_pending','account_rejected'].includes(error?.message)) return new Response(JSON.stringify({error:error.message}),{status:401,headers:clearSessionHeaders()});
     if (error?.message === 'session_replaced') return new Response(JSON.stringify({ error: 'session_replaced' }), { status: 401, headers: clearSessionHeaders() });
     if (error?.message === 'session_control_unavailable') return json({ error: 'session_control_unavailable' }, 503);
     if (["request_too_large", "avatar_too_large"].includes(error?.message)) return json({ error: error.message }, 413);

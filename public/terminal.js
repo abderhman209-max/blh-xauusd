@@ -1,6 +1,6 @@
 /* Supplied interface, connected to the existing Pipvoria account and engines. */
 class Terminal extends OriginalTerminal {
-  state={screen:'landing',authMode:'login',name:'',email:'',password:'',authError:'',authBusy:true,
+  state={screen:'landing',authMode:'login',name:'',email:'',password:'',authError:'',authBusy:true,approvalStatus:'',approvalEmailConfirmation:false,
     crypto:'none',payStep:-1,payLeft:0,copied:false,prices:{},appTab:'trader',tab:'chart',symbol:'XAU',tf:'5m',demo:false,
     ind:{ema:true,zone:true,plan:true,structure:true,pa:false,planner:false,heat:false,heatProfile:true},indOpen:false,notifOpen:false,detailsOpen:false,
     bars:[],loading:false,source:'',hover:null,lang:'Français',prefSignals:true,prefSound:false,paidWith:'Non configuré',tool:'cursor',trendPending:false,fs:false,
@@ -26,10 +26,11 @@ class Terminal extends OriginalTerminal {
     this.sessionT=setInterval(()=>this.checkSession(),15000);
     this.priceT=setInterval(()=>this.tickPrice(),5000);
     this.supportT=setInterval(()=>{if(this.session.user&&this.state.appTab==='support'&&!document.hidden)this.loadTickets(true);},15000);
+    this.adminT=setInterval(()=>{if(this.session.user?.isAdmin&&this.state.appTab==='admin'&&!document.hidden&&!this.adminBusy)this.loadAdmin();},15000);
     this.publicRoute();this.restore();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   }
-  componentWillUnmount(){for(const t of [this.ageT,this.poll,this.sessionT,this.priceT,this.supportT,this.wlT,this.rpT,this.settingsT])clearInterval(t);
+  componentWillUnmount(){for(const t of [this.ageT,this.poll,this.sessionT,this.priceT,this.supportT,this.adminT,this.wlT,this.rpT,this.settingsT])clearInterval(t);
     window.removeEventListener('keydown',this.onKey);window.removeEventListener('hashchange',this.onHash);window.removeEventListener('pointerup',this.onUp);
     document.removeEventListener('fullscreenchange',this.onFs);document.removeEventListener('visibilitychange',this.onVisible);this.ro?.disconnect();this.marketAbort?.abort();}
   lock(reason){
@@ -39,7 +40,8 @@ class Terminal extends OriginalTerminal {
     this.sup={...this.sup,tickets:[],cur:null,reply:'',draft:{cat:'Bot / signaux',subject:'',body:''},composing:false,configured:null,admin:false,drafts:{}};
     this.biz.toasts=[];this.biz.sigSeen={};this.signalTracker.reset();this.model=null;this.perf=null;this.struct=null;this.paM=null;this.plannerM=null;this.wl={};
     this.settings=PIPVORIA_CORE.settings({timezone:'Europe/Paris'});this.settingsRevision=null;this.settingsDirty=false;this.lastSignal=null;this.applySettings();
-    this.setState({screen:'auth',authMode:'login',name:'',email:'',password:'',bars:[],source:'',notice:'',authBusy:false,authError:reason==='logout_pending'?'Déconnexion en cours…':reason==='session_replaced'?'Votre session a été remplacée par une autre connexion.':''});
+    this.adminSerial=(this.adminSerial||0)+1;this.adminBusy=null;this.adminLoading=false;this.adminError='';this.adminRejectId=null;
+    this.setState({screen:'auth',authMode:'login',name:'',email:'',password:'',bars:[],source:'',notice:'',authBusy:false,approvalStatus:reason==='account_pending'?'pending':reason==='account_rejected'?'rejected':'',approvalEmailConfirmation:false,authError:reason==='logout_pending'?'Déconnexion en cours…':reason==='session_replaced'?'Votre session a été remplacée par une autre connexion.':''});
   }
   async restore(){try{
     const hash=new URLSearchParams(location.hash.slice(1));
@@ -47,14 +49,15 @@ class Terminal extends OriginalTerminal {
       this.session.accept(data.user);if(hash.get('type')==='recovery'){this.setState({screen:'auth',authMode:'reset',authBusy:false,authError:'',password:''});return;}await this.unlock(data.user);return;}
     if(this.session.pendingLogout){await this.logout();return;}
     const user=await this.session.restore();if(user)await this.unlock(user);else this.setState({authError:'',authBusy:false});
-  }catch(error){this.setState({authBusy:false,authError:error.status===401?'':this.session.pendingLogout?'La déconnexion reste à confirmer. Réessayez.':'Session indisponible. Actualisez pour réessayer.'});}}
+  }catch(error){if(this.showApprovalError(error))return;this.setState({authBusy:false,authError:error.status===401?'':this.session.pendingLogout?'La déconnexion reste à confirmer. Réessayez.':'Session indisponible. Actualisez pour réessayer.'});}}
+  showApprovalError(error){if(!['account_pending','account_rejected'].includes(error?.message))return false;this.setState({screen:'auth',authBusy:false,password:'',authError:'',approvalStatus:error.message==='account_pending'?'pending':'rejected',approvalEmailConfirmation:false});return true;}
   async checkSession(){if(!this.session.user||document.hidden||this.checking)return;this.checking=true;try{await this.session.request('auth/session');}catch{}finally{this.checking=false;}}
   async unlock(user){
     if(!user?.id||this.session.pendingLogout)return;window.BLH_AUTH={authenticated:true,user,logout:()=>this.logout()};
     this.setState({screen:'app',name:user.name||'',email:user.email||'',password:'',authBusy:false,authError:''});
     this.route(location.hash.slice(1)||new URLSearchParams(location.search).get('view'));
     const epoch=this.session.epoch;
-    await Promise.allSettled([this.loadSettings(),this.loadWorkspace(),this.loadTickets(),this.loadCapabilities()]);
+    await Promise.allSettled([this.loadSettings(),this.loadWorkspace(),this.loadTickets(),this.loadCapabilities(),...(user.isAdmin?[this.loadAdmin()]:[])]);
     if(epoch!==this.session.epoch||!this.session.user)return;
     this.monthlyReminder();await this.load();this.loadWatch();
     this.wlT=setInterval(()=>{if(this.session.user&&!document.hidden)this.loadWatch();},60000);
@@ -67,17 +70,18 @@ class Terminal extends OriginalTerminal {
     this.setState({authBusy:true,authError:''});
     try{const route=reset?'auth/update-password':recover?'auth/recover':s.authMode==='signup'?'auth/sign-up':'auth/sign-in';
       const data=await this.session.request(route,{publicRequest:true,body:{email:s.email,password:s.password,name:s.name}});
+      if(data.approvalRequired){this.setState({screen:'auth',approvalStatus:'pending',approvalEmailConfirmation:data.confirmationRequired===true,authError:'',authBusy:false,password:''});return;}
       if(recover||data.confirmationRequired){this.setState({authError:recover?'Si ce compte existe, un lien de récupération a été envoyé.':'Vérifiez votre e-mail pour confirmer votre compte.',authBusy:false,password:''});return;}
       if(reset){this.setState({authMode:'login',password:'',authBusy:false,authError:'Mot de passe mis à jour. Reconnectez-vous.'});return;}
       if(!this.session.accept(data.user))throw Error('authentication_required');await this.unlock(data.user);
-    }catch(error){const messages={invalid_credentials:'Adresse e-mail ou mot de passe incorrect.',account_exists:'Ce compte existe déjà.',weak_password:'Choisissez un mot de passe plus fort.',rate_limit:'Trop de tentatives. Réessayez plus tard.',session_registry_not_configured:'Connexion temporairement indisponible.'};this.setState({authBusy:false,authError:messages[error.message]||'Impossible de valider la demande. Réessayez.'});}}
+    }catch(error){if(this.showApprovalError(error))return;const messages={invalid_credentials:'Adresse e-mail ou mot de passe incorrect.',email_not_confirmed:'Confirmez d’abord votre adresse e-mail avec le lien reçu.',account_disabled:'Ce compte est suspendu.',account_exists:'Ce compte existe déjà.',weak_password:'Choisissez un mot de passe plus fort.',rate_limit:'Trop de tentatives. Réessayez plus tard.',session_registry_not_configured:'Connexion temporairement indisponible.'};this.setState({authBusy:false,authError:messages[error.message]||'Impossible de valider la demande. Réessayez.'});}}
   async logout(){window.BLH_AUTH={authenticated:false,user:null};try{await this.session.signOut();this.go('landing');this.setState({authBusy:false,authError:''});}catch{this.setState({screen:'auth',authBusy:false,authError:'Déconnexion non confirmée. L’accès reste bloqué. Réessayez.'});}}
   route(route){const map={signals:'trader',performance:'journal',weekly:'journal',news:'calendar',calendar:'calendar',history:'history',support:'support',settings:'profile',access:'profile',positions:'positions',profile:'profile',journal:'journal',admin:'admin'};
     const tab=map[route]||'trader';this.setState({appTab:tab==='admin'&&!this.session.user?.isAdmin?'profile':tab});if(tab==='admin'&&this.session.user?.isAdmin)this.loadAdmin();}
   navigate(tab){if(tab==='admin'&&!this.session.user?.isAdmin)return;const route=tab==='trader'?'signals':tab;history.replaceState(null,'',location.pathname+'#'+route);this.route(route);window.scrollTo(0,0);}
   publicRoute(){if(this.session?.pendingLogout)return;const hash=location.hash.slice(1);if(hash.includes('access_token='))return;
     const landing=['','features','pricing'].includes(hash);this.setState({screen:landing?'landing':'auth',authMode:hash==='signup'?'signup':'login',authError:''});}
-  openAuth(mode){if(this.session?.pendingLogout)return;this.setState({authMode:mode,password:'',authError:''},()=>this.go('auth'));}
+  openAuth(mode){if(this.session?.pendingLogout)return;this.setState({authMode:mode,password:'',authError:'',approvalStatus:'',approvalEmailConfirmation:false},()=>this.go('auth'));}
   go(screen){if(screen==='app'&&!this.session.user||this.session?.pendingLogout)return;
     if(screen==='landing'||screen==='auth')history.replaceState(null,'',location.pathname+(screen==='auth'?'#'+(this.state.authMode==='signup'?'signup':'login'):''));
     this.setState({screen,authError:'',notifOpen:false});window.scrollTo(0,0);}
@@ -177,10 +181,17 @@ class Terminal extends OriginalTerminal {
   signalToast(name,sg,plan){if(this.rp||this.state.demo||this.state.feedErr||Date.now()-this.state.lastFetch>30000||sg.time+this.TFMS[this.state.tf]<Date.now()-this.TFMS[this.state.tf])return;
     super.signalToast(name,sg,plan);const toast=this.biz.toasts[0];if(!toast)return;const key=[this.state.symbol,this.state.tf,name,sg.time,sg.direction].join('|');
     this.session.request('notifications/create',{body:{id:crypto.randomUUID(),title:toast.title,body:toast.body+' '+toast.levels,signalKey:key,metadata:{symbol:this.SYM[this.state.symbol].label,interval:this.interval(),entry:plan?.entry,stopLoss:plan?.stop,takeProfits:plan?.tps}}}).then(data=>{if(data.notification)this.notifications.unshift(data.notification);this.forceUpdate();}).catch(()=>{});}
-  async loadAdmin(){if(!this.session.user?.isAdmin)return;try{const data=await this.session.request('admin/users');this.ex.users=data.users||[];this.adminAudit=data.audit||[];this.forceUpdate();}catch{this.setState({notice:'Administration indisponible.'});}}
-  async adminAction(user,action){if(!this.session.user?.isAdmin)return;if(['ban','unban'].includes(action)&&!confirm((action==='ban'?'Suspendre':'Réactiver')+' le compte '+user.email+' ?'))return;
+  async loadAdmin(){if(!this.session.user?.isAdmin)return;const epoch=this.session.epoch,serial=this.adminSerial=(this.adminSerial||0)+1;this.adminLoading=true;this.forceUpdate();
+    try{const data=await this.session.request('admin/users');if(epoch!==this.session.epoch||serial!==this.adminSerial||!this.session.user?.isAdmin)return;this.ex.users=data.users||[];this.adminAudit=data.audit||[];this.adminError='';}
+    catch{if(epoch===this.session.epoch&&serial===this.adminSerial)this.adminError='Demandes indisponibles. Cliquez sur Actualiser pour réessayer.';}
+    finally{if(epoch===this.session.epoch&&serial===this.adminSerial){this.adminLoading=false;this.forceUpdate();}}}
+  confirmRejection(user){if(this.adminRejectId===user.id)return this.adminAction(user,'reject');this.adminRejectId=user.id;this.forceUpdate();}
+  async adminAction(user,action){if(!this.session.user?.isAdmin||this.adminBusy)return;if(['ban','unban'].includes(action)&&!confirm((action==='ban'?'Suspendre':'Réactiver')+' le compte '+user.email+' ?'))return;
     if(action==='delete'&&(user.isAdmin||prompt('Pour supprimer le compte '+user.email+', écrivez SUPPRIMER.')!=='SUPPRIMER'))return;
-    try{await this.session.request('admin/user-action',{body:{userId:user.id,action}});await this.loadAdmin();this.setState({notice:action==='recovery'?'Lien de récupération envoyé.':'Compte mis à jour.'});}catch{this.setState({notice:'Action non enregistrée. Réessayez.'});}}
+    const epoch=this.session.epoch;this.adminBusy=user.id;this.adminRejectId=null;this.adminSerial=(this.adminSerial||0)+1;this.adminLoading=false;this.forceUpdate();
+    try{await this.session.request('admin/user-action',{body:{userId:user.id,action,...(['approve','reject'].includes(action)?{baseUpdatedAt:user.updatedAt}:{})}});if(epoch!==this.session.epoch)return;await this.loadAdmin();this.setState({notice:action==='approve'?'Compte accepté. La connexion est maintenant autorisée.':action==='reject'?'Demande refusée. L’accès reste bloqué.':action==='recovery'?'Lien de récupération envoyé.':'Compte mis à jour.'});}
+    catch(error){if(epoch===this.session.epoch){if(error.message==='approval_conflict')await this.loadAdmin();this.setState({notice:error.message==='approval_conflict'?'Cette demande a déjà été modifiée. La liste a été actualisée.':'Action non enregistrée. Réessayez.'});}}
+    finally{if(epoch===this.session.epoch){this.adminBusy=null;this.forceUpdate();}}}
   supportRoute(suffix){return(this.session.user?.isAdmin&&this.sup.admin?'admin/':'')+'support/'+suffix;}
   async loadTickets(silent=false,append=false){if(!this.session.user||this.sup.loading)return;this.sup.loading=true;
     try{const data=await this.session.request(this.supportRoute('tickets'),{query:{offset:append?this.sup.tickets.length:0}});
@@ -227,7 +238,7 @@ class Terminal extends OriginalTerminal {
     const positions=rows.filter(r=>r.kind==='trade'&&(this.ex.fStatus==='all'||(this.ex.fStatus==='open'?['planned','active'].includes(r.status):closed.includes(r.status)))&&(this.ex.fDir==='all'||(this.ex.fDir==='1'?r.direction==='buy':r.direction==='sell')));
     const notice=msg=>this.setState({notice:msg});const pending=label=>()=>notice(label+' : activation du service requise.');
     const goal=Number(this.ex.set.goalR)||null;
-    Object.assign(v,{isLanding:s.screen==='landing',goLanding:()=>this.go('landing'),goLogin:()=>this.openAuth('login'),goSignup:()=>this.openAuth('signup'),landingError:s.authBusy?'':s.authError});
+    Object.assign(v,{authFormVisible:!s.approvalStatus,waitingApproval:!!s.approvalStatus,approvalTitle:s.approvalStatus==='rejected'?'Demande refusée':'Compte en attente de validation',approvalMessage:s.approvalStatus==='rejected'?'Votre demande a été refusée par l’administrateur. L’accès au terminal reste bloqué.':'Votre demande apparaît dans le dashboard super admin. Vous pourrez vous connecter après son acceptation.',approvalEmailConfirmation:s.approvalEmailConfirmation,backToLogin:()=>this.openAuth('login'),isLanding:s.screen==='landing',goLanding:()=>this.go('landing'),goLogin:()=>this.openAuth('login'),goSignup:()=>this.openAuth('signup'),landingError:s.authBusy?'':s.authError});
     const chosen=s.resultsOf==='blh'?this.perf:s.resultsOf==='ms'?this.msPerf:s.resultsOf==='planner'?this.plannerPerf:this.paPerf;
     Object.assign(v,{authBusy:s.authBusy,isAuth:s.screen==='auth',isSignup:s.authMode==='signup',authTitle:s.authMode==='recover'?'Réinitialiser le mot de passe':s.authMode==='reset'?'Nouveau mot de passe':s.authMode==='signup'?'Créer votre compte':'Bon retour',authCta:s.authBusy?'Vérification…':s.authMode==='recover'?'Envoyer le lien':s.authMode==='reset'?'Mettre à jour':s.authMode==='signup'?'Créer le compte':'Se connecter',submitAuth:()=>this.submitAuth(),forgotPassword:()=>this.setState({authMode:'recover',authError:'',password:''}),recoverMode:s.authMode==='recover',logoutPending:this.session?.pendingLogout,retryLogout:()=>this.logout(),financeUnavailable:true,supportUnavailable:this.sup.configured!==true||this.sup.admin===true,supportBusy:this.sup.busy,cannotRegisterPlan:!this.model?.plan||s.demo||!!this.rp,
       mobileToolHint:this.rp?'Replay : avancez bougie par bougie.':s.tool==='cursor'?'Glissez horizontalement pour parcourir. Boutons + / − pour zoomer.':s.tool==='hline'?'Touchez le graphique pour placer une ligne.':s.tool==='text'?'Touchez le graphique pour ajouter du texte.':'Touchez deux points du graphique pour tracer.',mobileResultsOpen:s.mobileResultsOpen,mobileResultsLabel:s.mobileResultsOpen?'Réduire':'Afficher',toggleMobileResults:()=>this.setState({mobileResultsOpen:!s.mobileResultsOpen}),mobileSecondaryActive:['calendar','history'].includes(s.appTab),goCalendar:()=>this.navigate('calendar'),goHistory:()=>this.navigate('history'),supportDetailVisible:this.sup.composing||this.sup.tickets.some(t=>t.id===this.sup.cur),notice:s.notice,clearNotice:()=>notice(''),retryFeed:()=>this.load(),refreshWorkspace:()=>this.loadWorkspace(),retrySettings:()=>{this.settingsReady?this.queueSettings():this.loadSettings();},
@@ -261,7 +272,10 @@ class Terminal extends OriginalTerminal {
       securityInfo:'Session sécurisée sur le serveur. Une seule connexion active par compte. La 2FA nécessite l’activation du service dédié.',tfaBadge:'Session sécurisée',tfaBadgeBg:'#0f2620',tfaBadgeColor:'#3fd2a4',tfaSetup:false,tfaBackupShow:false,tfaMsg:'',tfaBtn:'Demander l’activation de la 2FA',toggleTfa:()=>this.navigate('support'),
       undoSettings:()=>{const old=this.ex.undo.pop();if(old){this.ex.set=old;this.queueSettings();this.setBars(this.state.bars);}},
       exportSettings:()=>this.download('pipvoria-reglages.json',JSON.stringify(this.captureSettings(),null,2),'application/json'),importSettings:()=>this.importSettings(),
-      adminKpis:[{label:'Utilisateurs',value:String(this.ex.users.length)},{label:'Confirmés',value:String(this.ex.users.filter(u=>u.emailConfirmedAt).length)},{label:'Suspendus',value:String(this.ex.users.filter(u=>u.bannedUntil&&Date.parse(u.bannedUntil)>Date.now()).length)},{label:'Tickets',value:String(this.sup.tickets.length)}],adminPays:[],adminUsers:this.ex.users.map(u=>({name:u.name,email:u.email,until:u.createdAt?this.fmtT(Date.parse(u.createdAt)):'—',status:u.isAdmin?'Administrateur':u.bannedUntil&&Date.parse(u.bannedUntil)>Date.now()?'Suspendu':'Actif',stColor:u.bannedUntil&&Date.parse(u.bannedUntil)>Date.now()?'#f2707a':'#3fd2a4',action:u.bannedUntil&&Date.parse(u.bannedUntil)>Date.now()?'Réactiver':'Suspendre',protected:u.isAdmin,toggle:()=>this.adminAction(u,u.bannedUntil&&Date.parse(u.bannedUntil)>Date.now()?'unban':'ban'),recover:()=>this.adminAction(u,'recovery'),remove:()=>this.adminAction(u,'delete')})),
+      adminPendingCount:this.ex.users.filter(u=>u.approvalStatus==='pending').length,adminMenuLabel:'Super admin'+(this.ex.users.some(u=>u.approvalStatus==='pending')?' · '+this.ex.users.filter(u=>u.approvalStatus==='pending').length+' en attente':''),adminLoading:this.adminLoading,adminActionsDisabled:!!this.adminBusy||!!this.adminLoading,adminError:this.adminError||'',
+      adminRequests:this.ex.users.filter(u=>u.approvalStatus==='pending'&&!u.isAdmin).map(u=>({name:u.name,email:u.email,created:u.createdAt?this.fmtT(Date.parse(u.createdAt)):'—',emailStatus:u.emailConfirmedAt?'E-mail confirmé':'E-mail à confirmer',busy:!!this.adminBusy,confirmReject:this.adminRejectId===u.id,rejectLabel:this.adminRejectId===u.id?'Confirmer le refus':'Refuser',cancelReject:()=>{this.adminRejectId=null;this.forceUpdate();},approve:()=>this.adminAction(u,'approve'),reject:()=>this.confirmRejection(u)})),
+      noAdminRequests:!this.ex.users.some(u=>u.approvalStatus==='pending')&&!this.adminLoading&&!this.adminError,
+      adminKpis:[{label:'Utilisateurs',value:String(this.ex.users.length)},{label:'En attente',value:String(this.ex.users.filter(u=>u.approvalStatus==='pending').length)},{label:'Refusés',value:String(this.ex.users.filter(u=>u.approvalStatus==='rejected').length)},{label:'Suspendus',value:String(this.ex.users.filter(u=>u.bannedUntil&&Date.parse(u.bannedUntil)>Date.now()).length)}],adminPays:[],adminUsers:this.ex.users.map(u=>({name:u.name,email:u.email,until:u.createdAt?this.fmtT(Date.parse(u.createdAt)):'—',status:u.isAdmin?'Administrateur':u.approvalStatus==='pending'?'En attente':u.approvalStatus==='rejected'?'Refusé':u.bannedUntil&&Date.parse(u.bannedUntil)>Date.now()?'Suspendu':'Actif',stColor:u.approvalStatus==='pending'?'#f0b45b':u.approvalStatus==='rejected'||u.bannedUntil&&Date.parse(u.bannedUntil)>Date.now()?'#f2707a':'#3fd2a4',action:u.approvalStatus==='rejected'?'Accepter':u.bannedUntil&&Date.parse(u.bannedUntil)>Date.now()?'Réactiver':'Suspendre',protected:u.isAdmin||u.approvalStatus==='pending'||!!this.adminBusy,toggle:()=>this.adminAction(u,u.approvalStatus==='rejected'?'approve':u.bannedUntil&&Date.parse(u.bannedUntil)>Date.now()?'unban':'ban'),recover:()=>this.adminAction(u,'recovery'),remove:()=>this.adminAction(u,'delete')})),
       refreshAdmin:()=>this.loadAdmin(),
       adminSupport:()=>{this.sup.admin=true;this.sup.cur=null;this.sup.tickets=[];this.navigate('support');this.loadTickets();},
       faq:[{q:'Le bot passe-t-il des ordres ?',a:'Le site affiche des signaux et des plans. Aucun ordre n’est exécuté chez votre courtier.'},{q:'Comment sont calculés les résultats ?',a:'Les indicateurs utilisent les bougies clôturées. Les résultats du journal proviennent uniquement des trades enregistrés sur votre compte.'},{q:'Pourquoi un marché peut-il être indisponible ?',a:'Un problème de flux reste indiqué. Aucune donnée simulée ne remplace automatiquement le flux réel.'}]

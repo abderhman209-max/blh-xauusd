@@ -10,7 +10,7 @@ process.env.SUPABASE_PUBLISHABLE_KEY = 'fixture-public-key';
 process.env.SUPABASE_SECRET_KEY = 'fixture-secret';
 const owner = '11111111-1111-4111-8111-111111111111';
 const stranger = '22222222-2222-4222-8222-222222222222';
-const user = { id: owner, user_metadata: { role: 'super_admin', full_name: '<img onerror=alert(1)>' }, app_metadata: {} };
+const user = { created_at: "2026-09-01T00:00:00Z", id: owner, user_metadata: { role: 'super_admin', full_name: '<img onerror=alert(1)>' }, app_metadata: {} };
 const access = fixtureToken(owner);
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status });
 const headers = { origin: 'https://site.invalid', 'content-type': 'application/json' };

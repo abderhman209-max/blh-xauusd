@@ -3,7 +3,7 @@ import {fixtureToken,fixtureSessionId,sessionRpc} from './auth-fixture.mjs';
 const originalFetch=globalThis.fetch;after(()=>{globalThis.fetch=originalFetch});
 process.env.SUPABASE_URL='https://fixture.invalid';process.env.SUPABASE_PUBLISHABLE_KEY='fixture-public';process.env.SUPABASE_SECRET_KEY='fixture-secret';
 const owner='11111111-1111-4111-8111-111111111111',tid='22222222-2222-4222-8222-222222222222',mid='33333333-3333-4333-8333-333333333333';
-const user={id:owner,user_metadata:{full_name:'Member'},app_metadata:{}};
+const user={created_at:"2026-09-01T00:00:00Z",id:owner,user_metadata:{full_name:'Member'},app_metadata:{}};
 const row={id:tid,number:7,user_id:owner,user_name:'Member',subject:'Question',status:'open',created_at:'2026-10-07T12:00:00Z',updated_at:'2026-10-07T12:00:00.000123Z',last_message_at:'2026-10-07T12:00:00Z',last_sender_role:'customer',last_message_preview:'Hello'};
 const message={id:mid,seq:1,sender_role:'customer',body:'Hello',created_at:'2026-10-07T12:00:00Z',sender_id:owner};
 const reply=(v,status=200)=>new Response(JSON.stringify(v),{status});

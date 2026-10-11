@@ -24,6 +24,27 @@ test('successful logout returns to landing; unconfirmed logout keeps the auth re
   const app=terminalApp();app.session={signOut:async()=>{}};await app.logout();assert.equal(app.state.screen,'landing');
   app.session={signOut:async()=>{throw Error('offline');}};await app.logout();assert.equal(app.state.screen,'auth');assert.match(app.state.authError,/Réessayez/);
 });
+test('registration queues the request without accepting a user or retaining a password',async()=>{
+ const app=terminalApp();app.state.authMode='signup';app.state.authBusy=false;app.state.email='member@example.invalid';app.state.name='Member';app.state.password='Strong-Test12!';
+ app.session={request:async()=>({approvalRequired:true,confirmationRequired:true}),accept:()=>assert.fail('Pending request must not unlock the site')};
+ await app.submitAuth();assert.equal(app.state.approvalStatus,'pending');assert.equal(app.state.approvalEmailConfirmation,true);assert.equal(app.state.password,'');assert.equal(app.state.screen,'auth');
+ app.openAuth('login');assert.equal(app.state.approvalStatus,'');assert.equal(app.state.authMode,'login');
+});
+test('approval errors render the blocked status instead of opening the terminal',async()=>{
+ const app=terminalApp();app.state.authBusy=false;app.state.email='member@example.invalid';app.state.password='Existing-Test12!';app.session={request:async()=>{throw Error('account_pending');}};
+ await app.submitAuth();assert.equal(app.state.approvalStatus,'pending');assert.equal(app.state.password,'');assert.equal(app.state.screen,'auth');
+ assert.equal(app.showApprovalError(Error('account_rejected')),true);assert.equal(app.state.approvalStatus,'rejected');assert.equal(app.state.screen,'auth');
+});
+test('an invalidated admin list cannot cross accounts and a failed decision remains retryable',async()=>{
+ const app=terminalApp();let finish;app.session={epoch:1,user:{isAdmin:true},request:()=>new Promise(r=>finish=r)};
+ const loading=app.loadAdmin();app.session.epoch++;app.session.user=null;finish({users:[{email:'private@example.invalid'}]});await loading;assert.equal(app.ex.users.length,0);
+ app.session={epoch:3,user:{isAdmin:true},request:async()=>{throw Error('offline');}};app.adminLoading=true;
+ await app.adminAction({id:'pending',updatedAt:'2026-10-12T00:00:00Z'},'approve');assert.equal(app.adminBusy,null);assert.equal(app.adminLoading,false);assert.match(app.state.notice,/Réessayez/);
+});
+test('refusal requires a second inline confirmation before calling the admin API',async()=>{
+ const app=terminalApp(),actions=[];app.adminAction=async(user,action)=>actions.push({id:user.id,action});const member={id:'pending'};
+ app.confirmRejection(member);assert.equal(app.adminRejectId,'pending');assert.equal(actions.length,0);await app.confirmRejection(member);assert.equal(actions.length,1);assert.equal(actions[0].action,'reject');
+});
 test('a first finger tap places a drawing without prior hover; a cancelled scroll never draws',()=>{
   const app=terminalApp(),handlers={},drawings=[];let captured=null;
   app.draw=()=>{};app.pW=400;app.inv={price:y=>4300-y,time:x=>x};app.addLine=line=>drawings.push(line);app.state.tool='hline';

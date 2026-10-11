@@ -359,6 +359,13 @@ select option{background:#11151f;color:#e9ebf2}
     <div style="width:12px;height:12px;background:#9d8cff;transform:rotate(45deg);border-radius:2px"></div>
     <div style="font-weight:700;font-size:19px">Pipvoria</div>
   </button>
+  <sc-if value="{{ waitingApproval }}"><div class="terminal-card terminal-approval-status" role="status" style="width:100%;max-width:420px">
+    <span class="terminal-mini">Demande d’inscription</span><h1 style="margin:0;font-size:25px;line-height:1.2">{{ approvalTitle }}</h1>
+    <p style="margin:0;color:#a3a9bd;line-height:1.6">{{ approvalMessage }}</p>
+    <sc-if value="{{ approvalEmailConfirmation }}"><p class="terminal-notice">Confirmez aussi votre adresse e-mail avec le lien reçu.</p></sc-if>
+    <button class="terminal-button" sc-camel-on-click="{{ backToLogin }}">Retour à la connexion</button>
+  </div></sc-if>
+  <sc-if value="{{ authFormVisible }}">
   <div style="width:100%;max-width:420px;background:#11151f;border:1px solid #1f2536;border-radius:20px;padding:30px;display:flex;flex-direction:column;gap:20px">
     <div style="display:grid;grid-template-columns:1fr 1fr;background:#0a0d16;border-radius:12px;padding:4px;gap:4px">
       <button sc-camel-on-click="{{ goLogin }}" style="border:0;border-radius:9px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;background:{{ loginTabBg }};color:{{ loginTabColor }}">Connexion</button>
@@ -388,6 +395,7 @@ select option{background:#11151f;color:#e9ebf2}
     <button sc-camel-on-click="{{ submitAuth }}" disabled="{{ authBusy }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:12px;padding:14px;font-weight:600;font-size:15px;cursor:pointer">{{ authCta }}</button><button class="terminal-quiet" sc-camel-on-click="{{ forgotPassword }}">Mot de passe oublié ?</button><sc-if value="{{ logoutPending }}"><button class="terminal-button" sc-camel-on-click="{{ retryLogout }}">Réessayer la déconnexion</button></sc-if>
     <div style="font-size:12px;color:#6b7186;line-height:1.5;text-align:center">Un seul appareil connecté à la fois. Session sécurisée.</div>
   </div>
+  </sc-if>
 </div>
 </sc-if>
 
@@ -789,7 +797,7 @@ select option{background:#11151f;color:#e9ebf2}
           <div style="width:40px;height:22px;border-radius:99px;padding:3px;display:flex;background:{{ p.track }};justify-content:{{ p.justify }}"><div style="width:16px;height:16px;border-radius:50%;background:#e9ebf2"></div></div>
         </button>
       </sc-for>
-      <sc-if value="{{ isAdminUser }}"><button sc-camel-on-click="{{ goAdmin }}" style="background:none;border:1px solid #2a3145;color:#e9ebf2;border-radius:12px;padding:12px;font-size:14px;cursor:pointer">Panneau admin</button></sc-if>
+      <sc-if value="{{ isAdminUser }}"><button sc-camel-on-click="{{ goAdmin }}" style="background:none;border:1px solid #2a3145;color:#e9ebf2;border-radius:12px;padding:12px;font-size:14px;cursor:pointer">{{ adminMenuLabel }}</button></sc-if>
       <button sc-camel-on-click="{{ logout }}" style="margin-top:auto;background:none;border:1px solid #3a2530;color:#f2707a;border-radius:12px;padding:12px;font-size:14px;cursor:pointer">Se déconnecter</button>
     </div>
     <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px">
@@ -952,13 +960,26 @@ select option{background:#11151f;color:#e9ebf2}
 
   <!-- ADMIN -->
   <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
-  <div data-screen-label="Admin" style="flex:1;padding:24px;display:flex;flex-direction:column;gap:18px;max-width:1100px;width:100%;margin:0 auto"><div class="terminal-actions"><button class="terminal-quiet" sc-camel-on-click="{{ refreshAdmin }}">Actualiser</button><button class="terminal-button" sc-camel-on-click="{{ adminSupport }}">Tickets des clients</button></div>
+  <div data-screen-label="Admin" style="flex:1;padding:24px;display:flex;flex-direction:column;gap:18px;max-width:1100px;width:100%;margin:0 auto"><div class="terminal-actions"><button class="terminal-quiet" disabled="{{ adminActionsDisabled }}" sc-camel-on-click="{{ refreshAdmin }}">Actualiser</button><button class="terminal-button" sc-camel-on-click="{{ adminSupport }}">Tickets des clients</button></div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div style="font-size:26px;font-weight:600;letter-spacing:-0.02em">Administration</div><button sc-camel-on-click="{{ backProfile }}" style="background:none;border:1px solid #2a3145;color:#e9ebf2;border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer">Retour</button></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:#1a2030;border:1px solid #1a2030;border-radius:14px;overflow:hidden">
       <sc-for list="{{ adminKpis }}" as="k" hint-placeholder-count="4">
         <div style="background:#11151f;padding:16px;display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;color:#8d93a8">{{ k.label }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:22px">{{ k.value }}</div></div>
       </sc-for>
     </div>
+    <section class="terminal-card terminal-approval-requests" aria-label="Demandes d’inscription">
+      <div class="terminal-approval-heading"><h2 style="margin:0;font-size:18px">Demandes d’inscription</h2><span class="terminal-approval-count">{{ adminPendingCount }} en attente</span></div>
+      <p class="terminal-mini" style="margin:0">Un nouveau compte reste bloqué jusqu’à votre acceptation. La confirmation de l’e-mail reste nécessaire.</p>
+      <sc-if value="{{ adminLoading }}"><p class="terminal-mini" role="status">Actualisation des demandes…</p></sc-if>
+      <sc-if value="{{ adminError }}"><p class="terminal-notice" role="alert">{{ adminError }}</p></sc-if>
+      <sc-if value="{{ noAdminRequests }}"><p class="terminal-mini">Aucune demande en attente.</p></sc-if>
+      <sc-for list="{{ adminRequests }}" as="r">
+        <article class="terminal-approval-request">
+          <div><div style="font-weight:600">{{ r.name }}</div><div class="terminal-mini">{{ r.email }}</div><div class="terminal-mini">{{ r.created }} · {{ r.emailStatus }}</div></div>
+          <div class="terminal-actions"><button class="terminal-button" disabled="{{ r.busy }}" sc-camel-on-click="{{ r.approve }}">Accepter</button><button class="terminal-quiet" disabled="{{ r.busy }}" sc-camel-on-click="{{ r.reject }}">{{ r.rejectLabel }}</button><sc-if value="{{ r.confirmReject }}"><button class="terminal-quiet" sc-camel-on-click="{{ r.cancelReject }}">Annuler</button></sc-if></div>
+        </article>
+      </sc-for>
+    </section>
     <p class="terminal-mini">Paiements : prestataire à connecter.</p>
     <div style="font-size:16px;font-weight:600">Utilisateurs</div>
     <div style="background:#11151f;border:1px solid #1a2030;border-radius:14px;overflow:auto">

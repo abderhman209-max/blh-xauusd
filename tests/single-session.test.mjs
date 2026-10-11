@@ -22,7 +22,7 @@ function provider() {
   const state = {nextLogin:null,guardOffline:false,logoutOffline:false,confirmation:false};
   function issue(id=owner) {
     const sessionId = sid(++next), token = fixtureToken(id,sessionId);
-    const session = {user:{id,email:`fixture-${id}@example.invalid`},access_token:token,refresh_token:`fixture-refresh-${next}`,expires_in:3600};
+    const session = {user:{id,created_at:'2026-09-01T00:00:00Z',email:`fixture-${id}@example.invalid`},access_token:token,refresh_token:`fixture-refresh-${next}`,expires_in:3600};
     records.set(sessionId,{id,sessionId,sequence:next,session});
     return session;
   }
@@ -149,12 +149,13 @@ test('missing session claim or mismatched subject fails closed after token verif
     globalThis.fetch=previous;
   }
 });
-test('account creation claims issued sessions but leaves email confirmation unchanged',async()=>{
+test('account creation always awaits approval and never claims or returns a session',async()=>{
   const p=provider(),data={name:'Fixture',email:'test@example.invalid',password:'Strong-Fixture12!'};
   p.state.confirmation=true;
   assert.equal((await handler(request('auth/sign-up',{data}))).status,202);
   assert.equal(p.calls.filter(c=>c.url.includes('/rpc/')).length,0);
   p.state.confirmation=false;
-  assert.equal((await handler(request('auth/sign-up',{data}))).status,201);
-  assert.equal(p.accepted.size,1);
+  const response=await handler(request('auth/sign-up',{data}));
+  assert.equal(response.status,202);assert.equal((await response.json()).approvalRequired,true);
+  assert.equal(response.headers.getSetCookie().length,0);assert.equal(p.accepted.size,0);
 });

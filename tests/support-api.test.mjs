@@ -10,7 +10,7 @@ process.env.SUPABASE_SECRET_KEY = 'fixture-secret';
 const userId = '11111111-1111-4111-8111-111111111111';
 const otherId = '22222222-2222-4222-8222-222222222222';
 const messageId = '33333333-3333-4333-8333-333333333333';
-const user = { id: userId, user_metadata: { full_name: 'Test member' }, app_metadata: {} };
+const user = { created_at:"2026-09-01T00:00:00Z", id: userId, user_metadata: { full_name: 'Test member' }, app_metadata: {} };
 const admin = { ...user, app_metadata: { role: 'super_admin' } };
 const reply = (data, status = 200) => new Response(JSON.stringify(data), { status });
 const request = (route, data, options = {}) => new Request('https://site.invalid/api?route=' + route, {

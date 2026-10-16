@@ -13,6 +13,10 @@ if(url.pathname==='/api'){const route=url.searchParams.get('route');let data={};
  if(ticketFixture(route,data,url,json,isAdmin))return;
  if(route==='admin/users')return json({users:[],total:0,audit:[]});
  if(route==='settings'){if(req.method==='POST'){if(data.baseRevision!==settingsRevision)return json({error:'settings_conflict',settings,revision:settingsRevision,configured:true},409);settings=data.settings;settingsRevision=new Date(++revision).toISOString()}return json({settings,revision:settingsRevision,configured:!!settingsRevision})}
+ if(route==='billing/config')return json({configured:process.argv.includes('--billing-preview'),plan:{id:'monthly',name:'Pipvoria — 30 jours',amountMinor:4900,currency:'USD',days:30},methods:[{id:'payerurl',name:'PayerURL',description:'USDT · BEP20 / TRC20 / ERC20, BTC, ETH, USDC',available:process.argv.includes('--billing-preview')},{id:'nowpayments',name:'NOWPayments',description:'BTC, ETH, USDT et autres cryptos',available:false},{id:'binance',name:'Binance Pay',description:'Paiement via l’application Binance',available:false}]});
+ if(route==='billing/summary')return json({orders:[],paidUntil:null});
+ if(route==='billing/checkout')return json({error:'payment_provider_unavailable'},502);
+ if(route==='billing/status')return json({order:{id:url.searchParams.get('id'),status:'pending',amount_minor:4900,currency:'USD'}});
  if(route==='terminal/capabilities')return json({billingConfigured:false,calendar:[{at:'2026-10-14T12:30:00Z',name:'Inflation CPI',url:'https://www.bls.gov/schedule/2026/10_sched_list.htm',source:'BLS'}]});
  if(route==='market')return json({bars:makeBars(url.searchParams.get('interval')),source:'Test fixture (synthetic)',fetchedAt:Date.now()});
  if(route==='profile/avatar'){res.writeHead(404);return res.end()}

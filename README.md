@@ -2,7 +2,7 @@
 
 Plateforme Pipvoria avec le design original fourni dans « Site trading en JavaScript.zip ». Interface intégrée directement, sans iframe, avec les API Supabase existantes.
 
-La page publique reprend la landing page du design fourni. Les boutons ouvrent `#login` et `#signup` ; les liens directs vers le terminal restent protégés. Le tarif de 49 USDT est celui prévu dans le design, avec paiement explicitement indisponible tant que le prestataire n’est pas connecté.
+La page publique reprend la landing page du design fourni. Les boutons ouvrent `#login` et `#signup` ; les liens directs vers le terminal restent protégés. Le tarif est de 49 USD pour 30 jours, réglable en crypto après conversion par PayerURL. Profil → **Renouveler en crypto** ouvre le nouveau checkout ; l’encaissement reste désactivé tant que le compte marchand, les secrets serveur et la migration ne sont pas configurés. Voir [PAYMENTS.md](PAYMENTS.md).
 
 ## Fonctionnalités actuelles
 

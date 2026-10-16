@@ -1,0 +1,51 @@
+import {test,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {createHmac} from 'node:crypto';
+import handler from '../api/index.js';
+import {signedQuery,checkoutUrl} from '../lib/crypto-billing.js';
+import {fixtureToken,sessionRpc} from './auth-fixture.mjs';
+const original=fetch;after(()=>globalThis.fetch=original);
+Object.assign(process.env,{SUPABASE_URL:'https://fixture.invalid',SUPABASE_PUBLISHABLE_KEY:'fixture-public',SUPABASE_SECRET_KEY:'fixture-service',PAYERURL_ENABLED:'true',PAYERURL_PUBLIC_KEY:'fixture-payer',PAYERURL_SECRET_KEY:'fixture-secret',PIPVORIA_PUBLIC_URL:'https://site.invalid'});
+const owner='11111111-1111-4111-8111-111111111111',id='22222222-2222-4222-8222-222222222222';
+const json=(v,s=200)=>new Response(JSON.stringify(v),{status:s});
+const req=(route,data,extra={})=>new Request('https://site.invalid/api?route='+route,{method:data?'POST':'GET',headers:{cookie:'blh_access='+fixtureToken(owner),origin:'https://site.invalid','content-type':'application/json',...extra},body:data?JSON.stringify(data):undefined});
+function mock(run){globalThis.fetch=async(url,init={})=>String(url).endsWith('/auth/v1/user')?json({id:owner,email:'customer@example.invalid',created_at:'2026-09-01T00:00:00Z'}):sessionRpc(url)?json(true):run(String(url),init);}
+function auth(data){return 'Bearer '+Buffer.from('fixture-payer:'+createHmac('sha256','fixture-secret').update(signedQuery(data)).digest('hex')).toString('base64');}
+const notification=()=>({order_id:id,ext_transaction_id:'chain-ref',transaction_id:'provider-ref',status_code:200,note:'Completed',confirm_rcv_amnt:'49.00',confirm_rcv_amnt_curr:'USD',coin_rcv_amnt:'48.99',coin_rcv_amnt_curr:'USDT',txn_time:'1792170000'});
+
+test('checkout binds owner and price to the server, signs official form format, and rejects arbitrary redirects',async()=>{
+ let called=0;
+ mock((url,init)=>{if(url.startsWith('https://api-v2.payerurl.com')){called++;const form=Object.fromEntries(new URLSearchParams(init.body));assert.equal(form.amount,'4900');assert.equal(form.currency,'usd');assert.equal(form.billing_email,'customer@example.invalid');assert.equal(form.notify_url,'https://site.invalid/api?route=billing/notify');assert.equal(init.headers.authorization,auth(form));return json({redirectTO:'https://dash.payerurl.com/checkout/fixture'});}
+ if(init.method==='POST'){const row=JSON.parse(init.body);assert.equal(row.user_id,owner);assert.equal(row.amount_minor,4900);assert.equal(row.duration_days,30);return json([row]);}
+ if(init.method==='PATCH')return new Response(null,{status:204});return json([]);});
+ const result=await handler(req('billing/checkout',{method:'payerurl',plan:'monthly',accepted:true,orderId:id,amount:1,user_id:'attacker',redirect:'https://evil.invalid'}));
+ assert.equal(result.status,201);assert.equal((await result.json()).redirectUrl,'https://dash.payerurl.com/checkout/fixture');assert.equal(called,1);
+ for(const url of ['http://dash.payerurl.com/a','https://dash.payerurl.com.evil.invalid/a','https://evil.invalid','https://user@dash.payerurl.com/a'])assert.equal(checkoutUrl(url),null);
+});
+test('config stays unavailable without keys or the payment migration',async()=>{
+ mock(()=>json({error:'missing table'},404));const config=await(await handler(req('billing/config'))).json();assert.equal(config.configured,false);assert.equal(config.methods[0].available,false);assert.ok(!JSON.stringify(config).includes('fixture-secret'));
+ process.env.PAYERURL_ENABLED='false';mock(()=>assert.fail('disabled checkout must not call upstream'));assert.equal((await handler(req('billing/checkout',{method:'payerurl'}))).status,503);process.env.PAYERURL_ENABLED='true';
+});
+test('checkout requires session, same origin and explicit consent',async()=>{
+ globalThis.fetch=()=>assert.fail('no upstream before rejecting');
+ assert.equal((await handler(req('billing/checkout',{},{cookie:''}))).status,401);
+ assert.equal((await handler(req('billing/checkout',{},{origin:'https://evil.invalid'}))).status,404);
+ mock(()=>assert.fail('invalid checkout must not write'));
+ for(const value of [{method:'binance',accepted:true},{method:'payerurl',accepted:false},{method:'payerurl',accepted:true,plan:'free'}])assert.equal((await handler(req('billing/checkout',{plan:'monthly',orderId:id,...value}))).status,400);
+});
+test('pending checkout is reused; another user cannot read or reuse it',async()=>{
+ mock(()=>json([{id,user_id:owner,status:'pending',checkout_url:'https://dash.payerurl.com/checkout/one'}]));
+ assert.equal((await handler(req('billing/checkout',{method:'payerurl',plan:'monthly',accepted:true,orderId:id}))).status,200);
+ mock(()=>json([{id,user_id:'another-user',status:'pending',checkout_url:'https://dash.payerurl.com/checkout/one'}]));
+ assert.equal((await handler(req('billing/checkout',{method:'payerurl',plan:'monthly',accepted:true,orderId:id}))).status,404);
+ mock(url=>{assert.ok(url.includes('user_id=eq.'+owner));return json([]);});assert.equal((await handler(req('billing/status&id='+id))).status,404);
+});
+test('signed JSON and form notifications work without browser sessions; spoofed, partial or tampered payments never grant time',async()=>{
+ let grants=0;globalThis.fetch=async(url,init)=>{assert.ok(String(url).endsWith('/rpc/pipvoria_confirm_payment'));const data=JSON.parse(init.body);assert.equal(data.p_amount_minor,4900);grants++;return json({confirmed:true});};
+ const good=notification();let result=await handler(req('billing/notify',good,{cookie:'',authorization:auth(good)}));assert.equal(result.status,200);assert.equal((await result.json()).status,2040);
+ const form=new Request('https://site.invalid/api?route=billing/notify',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',authorization:auth(good)},body:signedQuery(good)});assert.equal((await handler(form)).status,200);
+ const tampered={...good,confirm_rcv_amnt:'4900'};assert.equal((await handler(req('billing/notify',tampered,{authorization:auth(good)}))).status,401);
+ assert.equal((await handler(req('billing/notify',good))).status,401);
+ for(const patch of [{confirm_rcv_amnt_curr:'EUR'},{confirm_rcv_amnt:'4.9e1'},{status_code:20000},{status_code:100}]){const data={...good,...patch};await handler(req('billing/notify',data,{authorization:auth(data)}));}assert.equal(grants,2);
+ globalThis.fetch=async()=>json({confirmed:false});assert.equal((await handler(req('billing/notify',{...good,confirm_rcv_amnt:'48.00'},{authorization:auth({...good,confirm_rcv_amnt:'48.00'})}))).status,409);
+});

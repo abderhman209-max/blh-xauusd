@@ -2,6 +2,7 @@ import "../public/core.js";
 import { ticketApi } from '../lib/support-tickets.js';
 import { additionalMarket } from '../lib/terminal-market.js';
 import { accountApproval, requireAccountApproval } from '../lib/account-approval.js';
+import { billingApi } from '../lib/crypto-billing.js';
 export const config = { runtime: "edge" };
 
 const ACCESS_COOKIE = "blh_access";
@@ -886,10 +887,15 @@ async function profileAvatar(request) {
 }
 
 const handleTickets = ticketApi({currentSession,requireSuperAdmin,supabaseData,supabaseAdminData,sessionJson,json,body,uuid,publicUser,validatedSessionId});
+const handleBilling = billingApi({currentSession,supabaseAdminData,sessionJson,json,body,requestBytes,uuid});
 export default async function handler(request) {
   const url = new URL(request.url);
   const route = url.searchParams.get("route") || "";
   try {
+    const billingRoute=/^billing\/(config|checkout|status|summary|notify)$/.exec(route);
+    if(billingRoute){const action=billingRoute[1],method=['checkout','notify'].includes(action)?'POST':'GET';
+      if(request.method!==method||(action!=='notify'&&!sameOrigin(request)))return json({error:'not_found'},404);
+      return await handleBilling(request,url,action);}
     if (route === "settings" && (request.method === "GET" || request.method === "POST" && sameOrigin(request))) return await accountSettings(request);
     if (route === "profile/avatar") return await profileAvatar(request);
     if (route === "gold" && request.method === "GET") return await marketData(request, url);

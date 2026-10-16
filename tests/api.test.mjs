@@ -1,11 +1,11 @@
 import {test,after} from 'node:test';import assert from 'node:assert/strict';import handler from '../api/index.js';
-import {fixtureToken,sessionRpc} from './auth-fixture.mjs';
+import {fixtureToken,sessionRpc,subscriptionQuery,paidFixture} from './auth-fixture.mjs';
 const originalFetch=globalThis.fetch;after(()=>{globalThis.fetch=originalFetch});process.env.SUPABASE_URL='https://fixture.invalid';process.env.SUPABASE_PUBLISHABLE_KEY='test-public-key';
 const user={created_at:'2026-09-01T00:00:00Z',id:'11111111-1111-4111-8111-111111111111',user_metadata:{pipvoria_settings:{timezone:'Europe/Paris',confirmedOnly:true}}};const id='22222222-2222-4222-8222-222222222222';const payload={symbol:'XAU/USD',interval:'5min',status:'win',closedAt:Date.now(),resultR:2,clientUpdatedAt:Date.now()};
 const response=(v,status=200)=>new Response(JSON.stringify(v),{status});
 process.env.SUPABASE_SECRET_KEY='fixture-secret';
 const request=(route,data,method=data?'POST':'GET')=>new Request('https://site.invalid/api?route='+route,{method,headers:{cookie:'blh_access='+fixtureToken(user.id),origin:'https://site.invalid','content-type':'application/json'},body:data?JSON.stringify(data):undefined});
-function mock(run){globalThis.fetch=async(url,init={})=>String(url).endsWith('/auth/v1/user')&&(!init.method||init.method==='GET')?response(user):sessionRpc(url)?response(true):run(String(url),init)}
+function mock(run){globalThis.fetch=async(url,init={})=>String(url).endsWith('/auth/v1/user')&&(!init.method||init.method==='GET')?response(user):sessionRpc(url)?response(true):subscriptionQuery(url)?response(paidFixture()):run(String(url),init)}
 test('settings migrate legacy metadata to an owner-scoped CAS document',async()=>{
  let row=null;
  mock((url,init)=>{assert.ok(url.includes('/rest/v1/analysis_snapshots'));if(!init.method){assert.ok(url.includes('id=eq.'+user.id)&&url.includes('user_id=eq.'+user.id)&&url.includes('kind=eq.settings'));return response(row?[row]:[])}
@@ -68,3 +68,4 @@ test('gold failure distinguishes a missing provider connection without leaking c
 });
 test('invalid dates, results and risk are rejected rather than silently discarded',async()=>{mock(()=>assert.fail('must not write'));for(const bad of [{closedAt:Date.now()+86400000},{riskPercent:200},{resultR:1001}])assert.equal((await handler(request('journal/create',{id,payload:{...payload,...bad}}))).status,400)});
 test('unavailable provider yields structured response, not an unhandled rejection',async()=>{globalThis.fetch=async()=>{throw Error('offline')};const r=await handler(request('settings'));assert.equal(r.status,500);assert.equal((await r.json()).error,'server_error')});
+

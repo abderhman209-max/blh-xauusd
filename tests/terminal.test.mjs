@@ -8,9 +8,9 @@ const C=globalThis.PIPVORIA_CORE;
 function session(fetcher){const ctx={URLSearchParams,globalThis:null};ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('public/terminal-api.js','utf8'),ctx);return new ctx.TerminalSession({fetcher});}
 const response=(body,status=200)=>({ok:status<400,status,json:async()=>body});
 function terminalApp(){
-  const ctx={Date,Intl,URLSearchParams,structuredClone,console,location:{pathname:'/',hash:'',search:''},history:{replaceState(_a,_b,url){ctx.location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},scrollTo(){},ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;vm.createContext(ctx);
+  const ctx={Date,Intl,URLSearchParams,structuredClone,console,clearInterval(){},clearTimeout(){},setInterval(){return 1;},location:{pathname:'/',hash:'',search:''},history:{replaceState(_a,_b,url){ctx.location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},scrollTo(){},ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;vm.createContext(ctx);
   for(const name of ['core','structure','smart','blh-clean','pa-liquidity','heatmap','indicator-performance','terminal-original','terminal'])vm.runInContext(fs.readFileSync('public/'+name+'.js','utf8'),ctx);
-  return vm.runInContext('new Terminal()',ctx);
+  const app=vm.runInContext('new Terminal()',ctx);app.session={epoch:1,user:{id:'paid-fixture'}};app.access={active:true,deadline:Date.now()+3600000};return app;
 }
 test('public landing survives a missing session, while login/signup and protected links open auth',async()=>{
   const app=terminalApp();app.session={restore:async()=>{const error=Error('authentication_required');error.status=401;throw error;}};
@@ -108,7 +108,7 @@ test('additional market quotes are allowlisted, labelled and never filled with s
 test('the new terminal uses the existing engines on closed bars and does not invent BLH signals on other markets',()=>{
   const ctx={Date,Intl,URLSearchParams,structuredClone,console,document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;vm.createContext(ctx);
   for(const name of ['core','structure','smart','blh-clean','pa-liquidity','heatmap','indicator-performance','terminal-original','terminal'])vm.runInContext(fs.readFileSync('public/'+name+'.js','utf8'),ctx);
-  const app=vm.runInContext('new Terminal()',ctx);app.state.lastFetch=Date.now();
+  const app=vm.runInContext('new Terminal()',ctx);app.session={user:{id:'paid-fixture'}};app.access={active:true,deadline:Date.now()+3600000};app.state.lastFetch=Date.now();
   let seed=7,p=4300;const now=Math.floor(Date.now()/300000)*300000;
   const bars=Array.from({length:300},(_,i)=>{seed=(seed*16807)%2147483647;const open=p;p+=(seed/2147483647-.5)*10;return{time:now-(299-i)*300000,open,high:Math.max(open,p)+2,low:Math.min(open,p)-2,close:p,closed:i<299};});
   app.setBars(bars,'Fixture');assert.equal(app.state.bars.length,300);assert.equal(app.plannerM.fast.length,299);
@@ -116,3 +116,26 @@ test('the new terminal uses the existing engines on closed bars and does not inv
   app.state.tf='15m';app.setBars(bars,'Fixture');assert.equal(app.model.signals.length,0);assert.equal(app.perf,null);
   app.state.symbol='BTC';app.state.tf='5m';app.setBars(bars,'Fixture');assert.equal(app.model.plans.length,0);
 });
+
+test('unpaid deep links and data loaders stay blocked while profile, support and owner administration remain accessible',async()=>{
+ const app=terminalApp();app.state.screen='app';app.session={epoch:1,user:{id:'unpaid',isAdmin:true},request:()=>assert.fail('An unpaid loader must not fetch')};app.access={active:false,status:'inactive'};
+ for(const route of ['signals','positions','journal','history','calendar']){app.route(route);assert.equal(app.state.appTab,'access');assert.equal(app.renderVals().isTrader,false);}
+ await app.load();await app.loadWatch();await app.loadWorkspace();await assert.rejects(app.marketBars('BTC','5m'),/subscription_required/);
+ app.route('profile');assert.equal(app.state.appTab,'profile');app.route('support');assert.equal(app.state.appTab,'support');app.loadAdmin=()=>{};app.route('admin');assert.equal(app.state.appTab,'admin');
+});
+test('expiry clears previously loaded premium data and an unpaid API response preserves the authenticated account',async()=>{
+ const app=terminalApp();app.state.screen='app';app.state.appTab='trader';app.state.bars=[{close:100}];app.journal=[{id:'private'}];app.notifications=[{title:'Signal'}];app.blockPaidAccess('subscription_required');
+ assert.equal(app.state.appTab,'access');assert.equal(app.state.bars.length,0);assert.equal(app.journal.length,0);assert.equal(app.notifications.length,0);
+ const s=session(async()=>response({error:'subscription_required'},402));let blocked=0;s.onPaymentRequired=()=>blocked++;s.accept({id:'owner'});
+ await assert.rejects(s.request('gold'),/subscription_required/);assert.equal(blocked,1);assert.equal(s.user.id,'owner');assert.equal(s.locked,false);
+});
+test('only a fresh server subscription response reopens the terminal and stale checks cannot unlock another account',async()=>{
+ const app=terminalApp();app.state.appTab='access';app.access=null;let starts=0;app.startPaidWorkspace=async()=>starts++;
+ app.session.request=async()=>({active:true,paidUntil:new Date(Date.now()+3600000).toISOString(),checkedAt:new Date().toISOString()});
+ assert.equal(await app.refreshAccess(),true);assert.equal(app.state.appTab,'trader');assert.equal(starts,1);
+ app.session.request=async()=>{throw Error('offline');};assert.equal(await app.refreshAccess(),false);assert.equal(app.access.status,'error');assert.equal(app.state.appTab,'access');
+ let finish;app.session.request=()=>new Promise(r=>finish=r);const pending=app.refreshAccess();app.session.epoch++;app.session.user={id:'another'};finish({active:true,paidUntil:'2099-01-01T00:00:00Z',checkedAt:new Date().toISOString()});
+ assert.equal(await pending,false);assert.equal(app.hasPaidAccess(),false);
+ const denied=app.refreshAccess();app.blockPaidAccess('subscription_required');finish({active:true,paidUntil:'2099-01-01T00:00:00Z',checkedAt:new Date().toISOString()});assert.equal(await denied,false);assert.equal(app.hasPaidAccess(),false);
+});
+

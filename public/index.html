@@ -341,7 +341,7 @@ select option{background:#11151f;color:#e9ebf2}
         <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>Positions, historique et calendrier économique</div>
         <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>Alertes de signal et calculateur de risque</div>
       </div>
-      <button sc-camel-on-click="{{ goSignup }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:12px;padding:15px;font-weight:600;font-size:15px;cursor:pointer">Créer un compte</button><p style="margin:0;color:#a3a9bd;font-size:13px;line-height:1.5">Renouvelez votre abonnement depuis votre profil avec PayerURL. Aucun paiement n’est demandé à l’inscription.</p>
+      <button sc-camel-on-click="{{ goSignup }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:12px;padding:15px;font-weight:600;font-size:15px;cursor:pointer">Créer un compte</button><p style="margin:0;color:#a3a9bd;font-size:13px;line-height:1.5">Un compte accepté et un abonnement payé actif sont requis pour accéder au terminal. Paiement en crypto avec PayerURL depuis votre espace personnel.</p>
     </div>
   </section>
 
@@ -429,6 +429,17 @@ select option{background:#11151f;color:#e9ebf2}
       </sc-if>
     </div>
   </header>
+  <sc-if value="{{ isPaywall }}" hint-placeholder-val="{{ false }}">
+    <section class="terminal-card pv-access-card" data-screen-label="Abonnement" aria-labelledby="pv-access-title">
+      <span class="pv-access-eyebrow">PIPVORIA PRO</span>
+      <h1 id="pv-access-title">{{ paywallTitle }}</h1>
+      <p role="status">{{ paywallMessage }}</p>
+      <div class="pv-access-price"><strong>49 USD</strong><span>pour 30 jours d’accès</span></div>
+      <sc-if value="{{ paywallCanPay }}"><button class="terminal-button" sc-camel-on-click="{{ goPayment }}">Activer mon abonnement</button></sc-if>
+      <button class="terminal-quiet" sc-camel-on-click="{{ verifyAccess }}">Vérifier mon accès</button>
+      <p class="terminal-mini">Vous pouvez consulter votre profil et contacter le support pendant la vérification du paiement.</p>
+    </section>
+  </sc-if>
   <sc-if value="{{ showExpiry }}" hint-placeholder-val="{{ false }}">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 24px 0;padding:12px 16px;border-radius:12px;background:#2b2414;border:1px solid #5a4520;font-size:14px;color:#f5d9a8">
     <span>{{ expiryText }}</span>

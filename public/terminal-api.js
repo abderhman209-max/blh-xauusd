@@ -3,8 +3,8 @@
   'use strict';
   class TerminalSession {
     user=null; epoch=0; locked=true; pendingLogout=false;
-    constructor({fetcher=(...args)=>fetch(...args),storage=root.localStorage,onLock=()=>{}}={}) {
-      this.fetcher=fetcher;this.storage=storage;this.onLock=onLock;
+    constructor({fetcher=(...args)=>fetch(...args),storage=root.localStorage,onLock=()=>{},onPaymentRequired=()=>{}}={}) {
+      this.fetcher=fetcher;this.storage=storage;this.onLock=onLock;this.onPaymentRequired=onPaymentRequired;
       try{this.pendingLogout=storage?.getItem('pipvoria-logout-pending')==='1';}catch{}
     }
     lock(reason='authentication_required') {this.epoch++;this.user=null;this.locked=true;this.onLock(reason);}
@@ -17,7 +17,7 @@
         headers:{'content-type':'application/json',...options.headers},...(body!==undefined?{method:'POST',body:JSON.stringify(body)}:{})});
       const result=await response.json().catch(()=>({error:'server_error'}));
       if(!publicRequest&&epoch!==this.epoch)throw Error('session_changed');
-      if(!response.ok){if(response.status===401&&!publicRequest)this.lock(result.error);const error=Error(result.error||'request_failed');error.result=result;error.status=response.status;throw error;}
+      if(!response.ok){if(response.status===401&&!publicRequest)this.lock(result.error);if(!publicRequest&&(response.status===402||result.error==='subscription_access_unavailable'))this.onPaymentRequired(result.error,result.access);const error=Error(result.error||'request_failed');error.result=result;error.status=response.status;throw error;}
       return result;
     }
     async restore(){if(this.pendingLogout){this.lock('logout_pending');return null;}const epoch=this.epoch,data=await this.request('auth/session',{publicRequest:true});if(epoch!==this.epoch||this.pendingLogout)return null;return this.accept(data.user)?data.user:null;}
@@ -27,3 +27,4 @@
   }
   root.TerminalSession=TerminalSession;
 })(typeof window==='undefined'?globalThis:window);
+

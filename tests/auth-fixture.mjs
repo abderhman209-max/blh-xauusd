@@ -6,3 +6,6 @@ export function fixtureToken(userId, sessionId = fixtureSessionId) {
 export function sessionRpc(url) {
   return /\/rest\/v1\/rpc\/pipvoria_(session_active|claim_session|release_session)$/.test(String(url));
 }
+export function subscriptionQuery(url){return String(url).includes('/rest/v1/payment_subscriptions?');}
+export function paidFixture(){return [{paid_until:new Date(Date.now()+3600000).toISOString()}];}
+

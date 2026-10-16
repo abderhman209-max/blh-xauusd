@@ -3,6 +3,7 @@ import { ticketApi } from '../lib/support-tickets.js';
 import { additionalMarket } from '../lib/terminal-market.js';
 import { accountApproval, requireAccountApproval } from '../lib/account-approval.js';
 import { billingApi } from '../lib/crypto-billing.js';
+import { PAID_ROUTES, paidAccess } from '../lib/paid-access.js';
 export const config = { runtime: "edge" };
 
 const ACCESS_COOKIE = "blh_access";
@@ -184,7 +185,12 @@ async function enforceSession(action, token, user) {
   if (!await sessionControl(action, token, user)) throw new Error('session_replaced');
 }
 
-async function currentSession(request) {
+const requestSessions=new WeakMap();
+function currentSession(request) {
+  if(!requestSessions.has(request))requestSessions.set(request,resolveSession(request));
+  return requestSessions.get(request);
+}
+async function resolveSession(request) {
   const values = cookies(request);
   const accessToken = cookieToken(values, ACCESS_COOKIE);
   const refreshToken = cookieToken(values, REFRESH_COOKIE);
@@ -892,10 +898,20 @@ export default async function handler(request) {
   const url = new URL(request.url);
   const route = url.searchParams.get("route") || "";
   try {
+    if(route==='billing/access'&&request.method==='GET'&&sameOrigin(request)) {
+      const session=await currentSession(request);if(!session)return json({error:'authentication_required'},401);
+      return sessionJson(await paidAccess(session.user,supabaseAdminData),200,session);
+    }
     const billingRoute=/^billing\/(config|checkout|status|summary|notify)$/.exec(route);
     if(billingRoute){const action=billingRoute[1],method=['checkout','notify'].includes(action)?'POST':'GET';
       if(request.method!==method||(action!=='notify'&&!sameOrigin(request)))return json({error:'not_found'},404);
       return await handleBilling(request,url,action);}
+    if(PAID_ROUTES.has(route)) {
+      if(!['GET','POST'].includes(request.method)||request.method==='POST'&&!sameOrigin(request))return json({error:'not_found'},404);
+      const session=await currentSession(request);if(!session)return json({error:'authentication_required'},401);
+      const access=await paidAccess(session.user,supabaseAdminData);
+      if(!access.active)return sessionJson({error:'subscription_required',access},402,session);
+    }
     if (route === "settings" && (request.method === "GET" || request.method === "POST" && sameOrigin(request))) return await accountSettings(request);
     if (route === "profile/avatar") return await profileAvatar(request);
     if (route === "gold" && request.method === "GET") return await marketData(request, url);
@@ -951,6 +967,7 @@ export default async function handler(request) {
     if (route === 'admin/support/send') return await sendSupportMessage(request, true);
     return json({ error: "not_found" }, 404);
   } catch (error) {
+    if(error?.message==='subscription_access_unavailable')return json({error:'subscription_access_unavailable'},503);
     if (['account_pending','account_rejected'].includes(error?.message)) return new Response(JSON.stringify({error:error.message}),{status:401,headers:clearSessionHeaders()});
     if (error?.message === 'session_replaced') return new Response(JSON.stringify({ error: 'session_replaced' }), { status: 401, headers: clearSessionHeaders() });
     if (error?.message === 'session_control_unavailable') return json({ error: 'session_control_unavailable' }, 503);
@@ -961,3 +978,4 @@ export default async function handler(request) {
     return json({ error: "server_error" }, 500);
   }
 }
+

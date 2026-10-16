@@ -1,7 +1,7 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../api/index.js';
-import {fixtureToken,sessionRpc} from './auth-fixture.mjs';
+import {fixtureToken,sessionRpc,subscriptionQuery,paidFixture} from './auth-fixture.mjs';
 
 const originalFetch = globalThis.fetch;
 after(() => { globalThis.fetch = originalFetch; });
@@ -21,7 +21,7 @@ const makeRequest = (route, data, extra = {}) => new Request('https://site.inval
 });
 function authenticated(run) {
   globalThis.fetch = async (url, init = {}) => String(url).endsWith('/auth/v1/user')
-    ? json(user) : sessionRpc(url) ? json(true) : run(String(url), init);
+    ? json(user) : sessionRpc(url) ? json(true) : subscriptionQuery(url)?json(paidFixture()):run(String(url), init);
 }
 function noFetch() { globalThis.fetch = async () => assert.fail('Rejected input must not reach an upstream service'); }
 
@@ -131,3 +131,4 @@ test('oversized streaming avatars are cancelled without reaching storage', async
   assert.equal((await result.json()).error, 'avatar_too_large');
   assert.equal(cancelled, true);
 });
+

@@ -8,7 +8,9 @@ Le tarif du dépôt est repris : **49 USD pour 30 jours**. La page publique est 
 
 Le retour au site affiche une vérification en attente. Seule une notification serveur signée, avec statut final `200`, montant reçu suffisant en USD et commande connue, inscrit le paiement et prolonge la date d’échéance. Un paiement partiel n’active pas l’abonnement, même si le prestataire applique une tolérance. Une notification répétée n’ajoute pas de jours. Un même identifiant de transaction ne peut pas régler plusieurs commandes.
 
-Ces enregistrements apparaissent dans le profil ; les règles existantes d’acceptation des comptes par le super admin sont conservées. Cette intégration ne transforme pas l’ensemble des accès existants en paywall et n’active pas de prélèvements récurrents automatiques.
+Ces enregistrements apparaissent dans le profil ; les règles existantes d’acceptation des comptes par le super admin sont conservées. Un compte accepté ne suffit pas : un abonnement payé non expiré est obligatoire pour le terminal, les graphiques, les signaux et le journal, y compris pour les comptes existants et administrateurs. Le profil, le paiement, les préférences personnelles, le support et la gestion des clients par le super admin restent accessibles sans abonnement. Aucun prélèvement récurrent automatique n’est activé.
+
+`billing/access` vérifie `payment_subscriptions.paid_until` via la clé serveur. Chaque route de données payante refait ce contrôle, même avec une session valide, et renvoie HTTP 402 si l’abonnement est absent ou expiré. Une panne de vérification ferme l’accès avec HTTP 503 ; elle ne constitue jamais un accès gratuit. Les métadonnées modifiables par le client, une création de commande et un retour de checkout ne donnent aucun droit. L’interface démarre sans charger les données payantes, vérifie l’accès toutes les 15 secondes et efface les données du terminal à expiration.
 
 ## Activation par le propriétaire
 
@@ -34,4 +36,5 @@ Compatibilité vérifiée avec l’API réelle : `amount` est exprimé dans l’
 Limites de la validation : le compte marchand, les secrets de production et les adresses Binance USDT sont configurés. Les tests automatiques et l’ouverture du checkout ne remplacent pas un essai de paiement réel exécuté par le propriétaire, avec vérification de la notification et de l’échéance.
 
 Références : <https://payerurl.com/payerurl-api-integration-using-nodejs/>, protocole de signature <https://github.com/muhitmonsur/crypto-payment-gateway-binance-api>.
+
 

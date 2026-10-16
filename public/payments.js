@@ -30,7 +30,7 @@ window.PipvoriaPayments=(()=>{
       if(!valid()||!id)return;
       refresh.disabled=true;
       try {const result=await session.request('billing/status',{query:{id}});if(!valid())return;
-        if(result.order.status==='paid'){status.textContent='Paiement confirmé. Votre abonnement est activé pour 30 jours supplémentaires.';status.dataset.success='true';refresh.hidden=true;await app.loadBilling();return;}
+        if(result.order.status==='paid'){status.textContent='Paiement confirmé. Votre abonnement est activé pour 30 jours supplémentaires.';status.dataset.success='true';refresh.hidden=true;await app.loadBilling();if(await app.refreshAccess())app.navigate('trader');return;}
         status.textContent=cancelled?'Vous avez quitté le paiement. Aucun règlement confirmé pour cette commande.':'Paiement en attente de confirmation. Votre accès sera mis à jour après vérification.';
         if(++checks<60)timer=setTimeout(check,5000);
       }catch(error){if(valid())status.textContent=messages[error.message]||'Vérification indisponible. Vous pouvez réessayer ; aucun paiement n’est considéré comme confirmé.';}
@@ -60,4 +60,5 @@ window.PipvoriaPayments=(()=>{
   }
   return {open,close};
 })();
+
 

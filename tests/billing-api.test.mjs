@@ -15,7 +15,7 @@ const notification=()=>({order_id:id,ext_transaction_id:'chain-ref',transaction_
 
 test('checkout binds owner and price to the server, signs official form format, and rejects arbitrary redirects',async()=>{
  let called=0;
- mock((url,init)=>{if(url.startsWith('https://api-v2.payerurl.com')){called++;const form=Object.fromEntries(new URLSearchParams(init.body));assert.equal(form.amount,'4900');assert.equal(form.currency,'usd');assert.equal(form.billing_email,'customer@example.invalid');assert.equal(form.notify_url,'https://site.invalid/api?route=billing/notify');assert.equal(init.headers.authorization,auth(form));return json({redirectTO:'https://api-v2.payerurl.com/checkout/fixture'});}
+ mock((url,init)=>{if(url.startsWith('https://api-v2.payerurl.com')){called++;const form=Object.fromEntries(new URLSearchParams(init.body));assert.equal(form.amount,'49');assert.equal(form.currency,'usd');assert.equal(form.billing_email,'customer@example.invalid');assert.equal(form.notify_url,'https://site.invalid/api?route=billing/notify');assert.equal(init.headers.authorization,auth(form));return json({redirectTO:'https://api-v2.payerurl.com/checkout/fixture'});}
  if(init.method==='POST'){const row=JSON.parse(init.body);assert.equal(row.user_id,owner);assert.equal(row.amount_minor,4900);assert.equal(row.duration_days,30);return json([row]);}
  if(init.method==='PATCH')return new Response(null,{status:204});return json([]);});
  const result=await handler(req('billing/checkout',{method:'payerurl',plan:'monthly',accepted:true,orderId:id,amount:1,user_id:'attacker',redirect:'https://evil.invalid'}));

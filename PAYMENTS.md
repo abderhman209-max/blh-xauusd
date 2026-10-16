@@ -29,6 +29,9 @@ Un échec de création peut laisser une commande `creating` : ne pas la renvoyer
 - `node tests/browser-fixture.mjs public --billing-preview` : serveur local sur `http://127.0.0.1:4173`, compte et données synthétiques uniquement. Profil → Renouveler en crypto. La création est volontairement rejetée par la fixture ; aucun appel réel à PayerURL, aucune adresse de réception et aucun mouvement de fonds.
 - Sans `--billing-preview`, les moyens de paiement sont indisponibles dans la fixture.
 
-Limites de la validation : les tests ne remplacent pas l’essai marchand avec de vrais identifiants. Le compte PayerURL n’était pas encore créé au moment de cette modification ; aucun secret, migration ou paiement de production n’a été configuré.
+Compatibilité vérifiée avec l’API réelle : `amount` est exprimé dans l’unité majeure de la devise (`49` pour 49 USD), tandis que la base conserve des centimes (`4900`). Le lien retourné peut utiliser `api-v2.payerurl.com` avant de rediriger vers `dash.payerurl.com` ; seuls ces deux hôtes HTTPS, sans identifiants ni port non standard, sont acceptés.
+
+Limites de la validation : le compte marchand, les secrets de production et les adresses Binance USDT sont configurés. Les tests automatiques et l’ouverture du checkout ne remplacent pas un essai de paiement réel exécuté par le propriétaire, avec vérification de la notification et de l’échéance.
 
 Références : <https://payerurl.com/payerurl-api-integration-using-nodejs/>, protocole de signature <https://github.com/muhitmonsur/crypto-payment-gateway-binance-api>.
+

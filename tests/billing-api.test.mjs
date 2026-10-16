@@ -35,6 +35,16 @@ test('checkout works in runtimes without AbortSignal.timeout',async()=>{
   const result=await handler(req('billing/checkout',{method:'payerurl',plan:'monthly',accepted:true,orderId:id}));assert.equal(result.status,201);
  }finally{AbortSignal.timeout=timeout;}
 });
+
+test('provider failures never store unsafe redirects and diagnostics redact credentials and customer email',async()=>{
+ const originalError=console.error,logs=[];console.error=(...args)=>logs.push(args);
+ try {
+  mock((url,init)=>{if(url.startsWith('https://api-v2.payerurl.com')){assert.equal(init.redirect,'manual');return json({customCode:2030,message:'fixture-secret fixture-payer customer@example.invalid',redirectTO:'https://evil.invalid/token'});}
+   assert.notEqual(init.method,'PATCH');if(init.method==='POST')return json([JSON.parse(init.body)]);return json([]);});
+  const result=await handler(req('billing/checkout',{method:'payerurl',plan:'monthly',accepted:true,orderId:id}));assert.equal(result.status,502);
+  const output=JSON.stringify(logs);for(const secret of ['fixture-secret','fixture-payer','customer@example.invalid'])assert.ok(!output.includes(secret));assert.equal(logs[0][1].providerCode,2030);assert.equal(logs[0][1].redirectHost,'evil.invalid');
+ }finally{console.error=originalError;}
+});
 test('checkout requires session, same origin and explicit consent',async()=>{
  globalThis.fetch=()=>assert.fail('no upstream before rejecting');
  assert.equal((await handler(req('billing/checkout',{},{cookie:''}))).status,401);

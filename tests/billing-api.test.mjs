@@ -26,6 +26,15 @@ test('config stays unavailable without keys or the payment migration',async()=>{
  mock(()=>json({error:'missing table'},404));const config=await(await handler(req('billing/config'))).json();assert.equal(config.configured,false);assert.equal(config.methods[0].available,false);assert.ok(!JSON.stringify(config).includes('fixture-secret'));
  process.env.PAYERURL_ENABLED='false';mock(()=>assert.fail('disabled checkout must not call upstream'));assert.equal((await handler(req('billing/checkout',{method:'payerurl'}))).status,503);process.env.PAYERURL_ENABLED='true';
 });
+
+test('checkout works in runtimes without AbortSignal.timeout',async()=>{
+ const timeout=AbortSignal.timeout;AbortSignal.timeout=undefined;
+ try {
+  mock((url,init)=>{if(url.startsWith('https://api-v2.payerurl.com')){assert.ok(init.signal instanceof AbortSignal);return json({redirectTO:'https://dash.payerurl.com/checkout/edge'});}
+   if(init.method==='POST')return json([JSON.parse(init.body)]);if(init.method==='PATCH')return new Response(null,{status:204});return json([]);});
+  const result=await handler(req('billing/checkout',{method:'payerurl',plan:'monthly',accepted:true,orderId:id}));assert.equal(result.status,201);
+ }finally{AbortSignal.timeout=timeout;}
+});
 test('checkout requires session, same origin and explicit consent',async()=>{
  globalThis.fetch=()=>assert.fail('no upstream before rejecting');
  assert.equal((await handler(req('billing/checkout',{},{cookie:''}))).status,401);
@@ -49,3 +58,4 @@ test('signed JSON and form notifications work without browser sessions; spoofed,
  for(const patch of [{confirm_rcv_amnt_curr:'EUR'},{confirm_rcv_amnt:'4.9e1'},{status_code:20000},{status_code:100}]){const data={...good,...patch};await handler(req('billing/notify',data,{authorization:auth(data)}));}assert.equal(grants,2);
  globalThis.fetch=async()=>json({confirmed:false});assert.equal((await handler(req('billing/notify',{...good,confirm_rcv_amnt:'48.00'},{authorization:auth({...good,confirm_rcv_amnt:'48.00'})}))).status,409);
 });
+

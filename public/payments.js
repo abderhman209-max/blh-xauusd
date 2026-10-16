@@ -41,7 +41,7 @@ window.PipvoriaPayments=(()=>{
       if(!valid()||next.disabled)return;busy=true;update();next.textContent='Ouverture du paiement…';status.textContent='Création de votre commande…';
       id=crypto.randomUUID();
       try {const result=await session.request('billing/checkout',{body:{method:selected,plan:'monthly',accepted:true,orderId:id}});if(!valid())return;
-        const target=new URL(result.redirectUrl);if(target.protocol!=='https:'||target.hostname!=='dash.payerurl.com'||target.username||target.password)throw Error('invalid_checkout');
+        const target=new URL(result.redirectUrl);if(target.protocol!=='https:'||!['dash.payerurl.com','api-v2.payerurl.com'].includes(target.hostname)||target.port||target.username||target.password)throw Error('invalid_checkout');
         location.assign(target.href);
       }catch(error){if(valid()){status.textContent=messages[error.message]||'Impossible d’ouvrir le paiement. Aucun règlement n’a été confirmé.';next.textContent='Réessayer';busy=false;update();}}
     };
@@ -60,3 +60,4 @@ window.PipvoriaPayments=(()=>{
   }
   return {open,close};
 })();
+

@@ -15,12 +15,14 @@ const notification=()=>({order_id:id,ext_transaction_id:'chain-ref',transaction_
 
 test('checkout binds owner and price to the server, signs official form format, and rejects arbitrary redirects',async()=>{
  let called=0;
- mock((url,init)=>{if(url.startsWith('https://api-v2.payerurl.com')){called++;const form=Object.fromEntries(new URLSearchParams(init.body));assert.equal(form.amount,'4900');assert.equal(form.currency,'usd');assert.equal(form.billing_email,'customer@example.invalid');assert.equal(form.notify_url,'https://site.invalid/api?route=billing/notify');assert.equal(init.headers.authorization,auth(form));return json({redirectTO:'https://dash.payerurl.com/checkout/fixture'});}
+ mock((url,init)=>{if(url.startsWith('https://api-v2.payerurl.com')){called++;const form=Object.fromEntries(new URLSearchParams(init.body));assert.equal(form.amount,'4900');assert.equal(form.currency,'usd');assert.equal(form.billing_email,'customer@example.invalid');assert.equal(form.notify_url,'https://site.invalid/api?route=billing/notify');assert.equal(init.headers.authorization,auth(form));return json({redirectTO:'https://api-v2.payerurl.com/checkout/fixture'});}
  if(init.method==='POST'){const row=JSON.parse(init.body);assert.equal(row.user_id,owner);assert.equal(row.amount_minor,4900);assert.equal(row.duration_days,30);return json([row]);}
  if(init.method==='PATCH')return new Response(null,{status:204});return json([]);});
  const result=await handler(req('billing/checkout',{method:'payerurl',plan:'monthly',accepted:true,orderId:id,amount:1,user_id:'attacker',redirect:'https://evil.invalid'}));
- assert.equal(result.status,201);assert.equal((await result.json()).redirectUrl,'https://dash.payerurl.com/checkout/fixture');assert.equal(called,1);
- for(const url of ['http://dash.payerurl.com/a','https://dash.payerurl.com.evil.invalid/a','https://evil.invalid','https://user@dash.payerurl.com/a'])assert.equal(checkoutUrl(url),null);
+ assert.equal(result.status,201);assert.equal((await result.json()).redirectUrl,'https://api-v2.payerurl.com/checkout/fixture');assert.equal(called,1);
+ assert.equal(checkoutUrl('https://dash.payerurl.com/checkout/fixture'),'https://dash.payerurl.com/checkout/fixture');
+ for(const host of ['dash.payerurl.com','api-v2.payerurl.com'])for(const url of ['http://'+host+'/a','https://'+host+'.evil.invalid/a','https://user@'+host+'/a','https://'+host+':444/a'])assert.equal(checkoutUrl(url),null);
+ assert.equal(checkoutUrl('https://evil.invalid'),null);
 });
 test('config stays unavailable without keys or the payment migration',async()=>{
  mock(()=>json({error:'missing table'},404));const config=await(await handler(req('billing/config'))).json();assert.equal(config.configured,false);assert.equal(config.methods[0].available,false);assert.ok(!JSON.stringify(config).includes('fixture-secret'));

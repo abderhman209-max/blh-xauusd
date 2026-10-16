@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
+<link rel="stylesheet" href="/payments.css">
 </head>
 <body>
 <x-dc>
@@ -332,7 +333,7 @@ select option{background:#11151f;color:#e9ebf2}
     <div style="background:#11151f;border:1px solid #2a2f4a;border-radius:20px;padding:34px;display:flex;flex-direction:column;gap:22px">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
         <div style="font-size:18px;font-weight:600">Pipvoria Pro</div>
-        <div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:500">49</span><span style="color:#8d93a8">USDT / mois · tarif prévu</span></div>
+        <div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:500">49</span><span style="color:#8d93a8">USD / 30 jours · règlement en crypto</span></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;font-size:15px;color:#c4c8d6">
         <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>Bot BLH XAUUSD M5 CLEAN en direct</div>
@@ -785,7 +786,7 @@ select option{background:#11151f;color:#e9ebf2}
         <div style="display:flex;justify-content:space-between;padding:13px 14px;background:#0d111b"><span style="color:#8d93a8">Échéance</span><span>{{ renewDate }}</span></div>
         <div style="display:flex;justify-content:space-between;padding:13px 14px;background:#0d111b"><span style="color:#8d93a8">Payé avec</span><span>{{ paidWith }}</span></div>
       </div>
-      <button sc-camel-on-click="{{ goPayment }}" disabled="{{ financeUnavailable }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:12px;padding:13px;font-weight:600;font-size:14px;cursor:pointer">Renouveler en crypto</button>
+      <button sc-camel-on-click="{{ goPayment }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:12px;padding:13px;font-weight:600;font-size:14px;cursor:pointer">Renouveler en crypto</button>
     </div>
     <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:18px">
       <div style="font-size:16px;font-weight:600">Préférences</div>
@@ -813,7 +814,7 @@ select option{background:#11151f;color:#e9ebf2}
       <sc-if value="{{ refMsg }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;color:{{ refMsgColor }}">{{ refMsg }}</div></sc-if>
     </div>
     <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:16px">
-      <div style="font-size:16px;font-weight:600">Factures</div><p class="terminal-mini">Aucune facture disponible. Paiements non activés.</p>
+      <div style="font-size:16px;font-weight:600">Reçus de paiement</div><sc-if value="{{ noPaymentReceipts }}" hint-placeholder-val="{{ false }}"><p class="terminal-mini">Aucun paiement confirmé pour le moment.</p></sc-if>
       <div style="display:flex;flex-direction:column;gap:1px;background:#1a2030;border-radius:12px;overflow:hidden">
         <sc-for list="{{ invoices }}" as="f" hint-placeholder-count="3">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;background:#0d111b;font-size:13px">
@@ -1095,5 +1096,6 @@ select option{background:#11151f;color:#e9ebf2}
 <script src="/indicator-performance.js"></script>
 <script src="/terminal-original.js"></script>
 <script src="/terminal-api.js"></script>
+<script src="/payments.js"></script>
 <script src="/terminal.js"></script>
 </body></html>

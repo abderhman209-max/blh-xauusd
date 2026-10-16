@@ -30,10 +30,11 @@ class Terminal extends OriginalTerminal {
     this.publicRoute();this.restore();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   }
-  componentWillUnmount(){for(const t of [this.ageT,this.poll,this.sessionT,this.priceT,this.supportT,this.adminT,this.wlT,this.rpT,this.settingsT])clearInterval(t);
+  componentWillUnmount(){window.PipvoriaPayments?.close();for(const t of [this.ageT,this.poll,this.sessionT,this.priceT,this.supportT,this.adminT,this.wlT,this.rpT,this.settingsT])clearInterval(t);
     window.removeEventListener('keydown',this.onKey);window.removeEventListener('hashchange',this.onHash);window.removeEventListener('pointerup',this.onUp);
     document.removeEventListener('fullscreenchange',this.onFs);document.removeEventListener('visibilitychange',this.onVisible);this.ro?.disconnect();this.marketAbort?.abort();}
   lock(reason){
+    window.PipvoriaPayments?.close();this.billing=null;
     window.BLH_AUTH={authenticated:false,user:null};this.ex.users=[];this.adminAudit=[];this.capabilities={};
     this.marketSerial++;this.marketAbort?.abort();clearTimeout(this.settingsT);this.endReplay(true);
     this.journal=[];this.notifications=[];this.preferences={};this.lines={};this.settingsReady=false;this.journalDrafts.clear();this.pendingMessages.clear();
@@ -57,8 +58,10 @@ class Terminal extends OriginalTerminal {
     this.setState({screen:'app',name:user.name||'',email:user.email||'',password:'',authBusy:false,authError:''});
     this.route(location.hash.slice(1)||new URLSearchParams(location.search).get('view'));
     const epoch=this.session.epoch;
-    await Promise.allSettled([this.loadSettings(),this.loadWorkspace(),this.loadTickets(),this.loadCapabilities(),...(user.isAdmin?[this.loadAdmin()]:[])]);
+    await Promise.allSettled([this.loadSettings(),this.loadWorkspace(),this.loadTickets(),this.loadCapabilities(),this.loadBilling(),...(user.isAdmin?[this.loadAdmin()]:[])]);
     if(epoch!==this.session.epoch||!this.session.user)return;
+    const paymentParams=new URLSearchParams(location.search),paymentId=paymentParams.get('payment');
+    if(paymentId&&/^[a-f0-9-]{36}$/i.test(paymentId)){window.PipvoriaPayments?.open(this,{orderId:paymentId,cancelled:paymentParams.get('cancelled')==='1'});history.replaceState(null,'',location.pathname+'#profile');}
     this.monthlyReminder();await this.load();this.loadWatch();
     this.wlT=setInterval(()=>{if(this.session.user&&!document.hidden)this.loadWatch();},60000);
   }
@@ -139,6 +142,7 @@ class Terminal extends OriginalTerminal {
     }catch{if(epoch===this.session.epoch)this.wl[symbol]={source:'Flux indisponible'};}}));if(epoch===this.session.epoch)this.forceUpdate();}
   loadPrices(){} // No client-side payment conversion or mock payment confirmation.
   async loadCapabilities(){try{this.capabilities=await this.session.request('terminal/capabilities');this.forceUpdate();}catch{this.capabilities={};}}
+  async loadBilling(){const epoch=this.session.epoch;try{const config=await this.session.request('billing/config');if(epoch!==this.session.epoch)return;this.billing={config};if(config.configured){const summary=await this.session.request('billing/summary');if(epoch!==this.session.epoch)return;this.billing={config,...summary};}this.forceUpdate();}catch{if(epoch===this.session.epoch)this.billing=null;}}
   async loadSettings(){try{const data=await this.session.request('settings');this.settings=PIPVORIA_CORE.settings(data.settings);this.settingsRevision=data.revision;this.settingsReady=true;this.applySettings();}catch{this.ex.setMsg='Réglages indisponibles. Réessayez avant de modifier.';}}
   applySettings(){const v=this.settings,t=v.terminal;this.lines=t.drawings||{};
     Object.assign(this.ex.set,{tz:v.timezone,contract:String(v.contract),lotStep:String(v.lotStep),risk:String(v.risk.percent),confirmed:v.confirmedOnly,sessions:t.sessions,sessionFilter:t.sessionFilter,avoid:t.avoid,maxLossDay:t.maxLossDay??'',maxTradesDay:t.maxTradesDay??'',goalR:t.goalR??'',monthlyMail:t.monthlyReminder});
@@ -267,7 +271,7 @@ class Terminal extends OriginalTerminal {
       positionsF:positions.map(r=>{const price=r.symbol===this.SYM[s.symbol].label?this.state.bars.at(-1)?.close:null,live=['active','planned'].includes(r.status),risk=Math.abs(r.entry-r.stopLoss),result=live&&Number.isFinite(price)&&risk>0?(r.direction==='buy'?1:-1)*(price-r.entry)/risk:r.resultR;return{dir:r.direction.toUpperCase(),color:col(r),symbol:r.symbol,time:this.fmtT(r.createdAt),entry:f(r.entry),price:live?f(price):stateName[r.status],stop:f(r.stopLoss),tps:(r.takeProfits||[]).map(f).join(' · '),r:result==null?'—':Number(result).toFixed(2)+' R',rColor:result>=0?'#3fd2a4':'#f2707a',rLabel:live?'P&L indicatif':'Résultat'};}),noPositionsF:positions.length===0,
       historyClosed:rows.filter(r=>closed.includes(r.status)).length,historyNetR:(PIPVORIA_CORE.summary(rows,{timezone:tz}).netR??'—')+' R',history:rows.filter(r=>closed.includes(r.status)).map(r=>({time:this.fmtT(r.createdAt),closed:this.fmtT(r.closedAt||r.updatedAt),dir:r.direction.toUpperCase(),color:col(r),entry:f(r.entry),exit:f(r.exitPrice),r:r.resultR===null?'—':r.resultR+' R',rColor:r.resultR>=0?'#3fd2a4':'#f2707a'})),noHistory:!rows.some(r=>closed.includes(r.status)),
       calendarLabel:'Horaires dans '+tz+' · calendrier vérifié le 2 octobre 2026',calendar:(this.capabilities?.calendar||[]).filter(e=>Date.parse(e.at)>=Date.now()-86400000).map(e=>({day:new Date(e.at).toLocaleDateString('fr-FR',{timeZone:tz,dateStyle:'full'}),events:[{time:new Date(e.at).toLocaleTimeString('fr-FR',{timeZone:tz,hour:'2-digit',minute:'2-digit'}),ccy:'USD',name:e.name,fc:'—',prev:'—',impact:'#f0b45b',url:e.url,source:e.source}]})),
-      showExpiry:false,renewDate:'Non configurée',paidWith:'Aucun paiement enregistré',goPayment:pending('Paiement crypto'),planPrice:'—',promoOn:false,promoMsg:'Paiements non configurés.',promo:'',onPromo:()=>{},applyPromo:pending('Codes promotionnels'),startTrial:pending('Abonnement'),
+      showExpiry:false,renewDate:this.billing?.paidUntil?this.fmtT(Date.parse(this.billing.paidUntil)):'Aucun abonnement payé',paidWith:this.billing?.orders?.some(o=>o.status==='paid')?'PayerURL':'Aucun paiement enregistré',goPayment:()=>window.PipvoriaPayments?.open(this),planPrice:'49 USD',promoOn:false,promoMsg:'Codes promotionnels indisponibles.',promo:'',onPromo:()=>{},applyPromo:pending('Codes promotionnels'),startTrial:()=>window.PipvoriaPayments?.open(this),
       refLink:'Parrainage non activé',refCopyLabel:'Indisponible',copyRef:pending('Parrainage'),refWallet:'',onRefWallet:()=>{},withdrawRef:pending('Retraits'),refStats:[{label:'Filleuls',value:'—',color:'#8d93a8'},{label:'Commission',value:'—',color:'#8d93a8'},{label:'Retiré',value:'—',color:'#8d93a8'}],invoices:[],
       securityInfo:'Session sécurisée sur le serveur. Une seule connexion active par compte. La 2FA nécessite l’activation du service dédié.',tfaBadge:'Session sécurisée',tfaBadgeBg:'#0f2620',tfaBadgeColor:'#3fd2a4',tfaSetup:false,tfaBackupShow:false,tfaMsg:'',tfaBtn:'Demander l’activation de la 2FA',toggleTfa:()=>this.navigate('support'),
       undoSettings:()=>{const old=this.ex.undo.pop();if(old){this.ex.set=old;this.queueSettings();this.setBars(this.state.bars);}},
@@ -280,6 +284,7 @@ class Terminal extends OriginalTerminal {
       adminSupport:()=>{this.sup.admin=true;this.sup.cur=null;this.sup.tickets=[];this.navigate('support');this.loadTickets();},
       faq:[{q:'Le bot passe-t-il des ordres ?',a:'Le site affiche des signaux et des plans. Aucun ordre n’est exécuté chez votre courtier.'},{q:'Comment sont calculés les résultats ?',a:'Les indicateurs utilisent les bougies clôturées. Les résultats du journal proviennent uniquement des trades enregistrés sur votre compte.'},{q:'Pourquoi un marché peut-il être indisponible ?',a:'Un problème de flux reste indiqué. Aucune donnée simulée ne remplace automatiquement le flux réel.'}]
     });
+    v.invoices=(this.billing?.orders||[]).filter(o=>o.status==='paid').map(o=>({id:'PV-'+o.id.slice(0,8).toUpperCase(),date:this.fmtT(Date.parse(o.paid_at)),method:'PayerURL',amount:(o.amount_minor/100).toFixed(2)+' '+o.currency,download:()=>this.download('pipvoria-recu-'+o.id+'.json',JSON.stringify({type:'payment_receipt',orderId:o.id,paidAt:o.paid_at,amountMinor:o.amount_minor,currency:o.currency,provider:'PayerURL'},null,2),'application/json')}));v.noPaymentReceipts=v.invoices.length===0;
     const risk=PIPVORIA_CORE.risk({balance:this.ex.calc.capital,riskPercent:this.ex.calc.risk,entry:this.ex.calc.entry,stop:this.ex.calc.stop,contract:s.symbol==='XAU'?this.ex.set.contract:this.settings.btcContract,lotStep:s.symbol==='XAU'?this.ex.set.lotStep:this.settings.btcLotStep});
     v.calcOut=[{label:'Montant risqué',value:risk.valid?risk.riskAmount.toFixed(2)+' $':'—',color:'#f2707a'},{label:'Distance SL',value:risk.valid?f(risk.distance):'—',color:'#e9ebf2'},{label:'Taille (lots)',value:risk.valid?String(risk.positionSize):'—',color:'#c9bfff'},{label:'Risque effectif',value:risk.valid?risk.actualRisk.toFixed(2)+' $':'Valeurs à vérifier',color:'#3fd2a4'}];
     const today=PIPVORIA_CORE.summary(rows,{period:'today',timezone:tz}),week=PIPVORIA_CORE.summary(rows,{period:'week',timezone:tz});v.periodWins=[{label:'Aujourd’hui',wins:today.wins,losses:today.losses,tp:today.targets.join(' / ')},{label:'7 derniers jours',wins:week.wins,losses:week.losses,tp:week.targets.join(' / ')}];

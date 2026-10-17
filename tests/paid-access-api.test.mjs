@@ -18,8 +18,8 @@ function fixture({until=null,admin=false,offline=false}={}){
   state.upstream.push(url);if(url.includes('/admin/users?'))return json({users:[]});return json([]);
  };return state;
 }
-test('every terminal endpoint rejects unpaid and expired approved accounts, including administrators and forged metadata',async()=>{
- for(const options of [{},{until:'2000-01-01T00:00:00Z'},{until:'invalid'},{admin:true}]){
+test('every terminal endpoint rejects unpaid and expired approved accounts, including forged administrator metadata',async()=>{
+ for(const options of [{},{until:'2000-01-01T00:00:00Z'},{until:'invalid'}]){
   const state=fixture(options);
   for(const route of PAID_ROUTES){const data=['journal/create','journal/update','preferences','notifications/create','notifications/read'].includes(route)?{}:undefined;
    const response=await handler(request(route,data));assert.equal(response.status,402,route);assert.equal((await response.json()).error,'subscription_required');}
@@ -45,3 +45,15 @@ test('a signed confirmed payment grants access; a checkout return or unsigned no
  state.until=new Date(Date.now()-1).toISOString();assert.equal((await handler(request('workspace'))).status,402);
 });
 
+
+ test('verified super administrators need no payment lookup, while a revoked role closes access immediately',async()=>{
+  const state=fixture({admin:true,offline:true});
+  const access=await(await handler(request('billing/access'))).json();
+  assert.equal(access.active,true);assert.equal(access.exempt,true);assert.equal(access.paidUntil,null);
+  assert.equal((await handler(request('workspace'))).status,200);
+  assert.equal((await handler(request('terminal/capabilities'))).status,200);
+  assert.equal(state.lookups.length,0);
+  state.user.app_metadata={};
+  assert.equal((await handler(request('workspace'))).status,503);
+  fixture();assert.equal((await handler(request('workspace'))).status,402);
+ });

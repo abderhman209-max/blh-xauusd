@@ -11,8 +11,9 @@ if(url.pathname==='/api'){const route=url.searchParams.get('route');let data={};
  if(route==='auth/recover')return json({sent:true});
  if(!signedIn&&!route.startsWith('auth/'))return json({error:'authentication_required'},401);
  requests.push(route);
+ if(route==='billing/access'&&isAdmin)return json({active:true,exempt:true,paidUntil:null,checkedAt:new Date().toISOString()});
  if(route==='billing/access')return accessOffline?json({error:'subscription_access_unavailable'},503):json({active:paid,paidUntil:paid?new Date(Date.now()+3600000).toISOString():null,checkedAt:new Date().toISOString()});
- if(PAID_ROUTES.has(route)&&(!paid||accessOffline))return json({error:accessOffline?'subscription_access_unavailable':'subscription_required'},accessOffline?503:402);
+ if(PAID_ROUTES.has(route)&&!isAdmin&&(!paid||accessOffline))return json({error:accessOffline?'subscription_access_unavailable':'subscription_required'},accessOffline?503:402);
  if(route==='auth/session')return json(signedIn?{user:{id:'11111111-1111-4111-8111-111111111111',name:'Vérification',email:'fixture@example.invalid',role:isAdmin?'super_admin':'user',isAdmin}}:{},signedIn?200:401);
  if(route==='auth/sign-out'){if(failLogout)return json({error:'fixture_offline'},503);signedIn=false;return json({signedOut:true})}
  if(ticketFixture(route,data,url,json,isAdmin))return;

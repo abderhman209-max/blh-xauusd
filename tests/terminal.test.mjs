@@ -139,3 +139,13 @@ test('only a fresh server subscription response reopens the terminal and stale c
  const denied=app.refreshAccess();app.blockPaidAccess('subscription_required');finish({active:true,paidUntil:'2099-01-01T00:00:00Z',checkedAt:new Date().toISOString()});assert.equal(await denied,false);assert.equal(app.hasPaidAccess(),false);
 });
 
+
+test('only a fresh server exemption opens an unpaid super admin terminal without renewal prompts',async()=>{
+ const app=terminalApp();app.state.screen='app';app.state.appTab='access';app.access=null;app.session.user.isAdmin=true;
+ let starts=0;app.startPaidWorkspace=async()=>starts++;
+ app.session.request=async()=>({active:true,exempt:true,paidUntil:null,checkedAt:new Date().toISOString()});
+ assert.equal(app.hasPaidAccess(),false);assert.equal(await app.refreshAccess(),true);assert.equal(starts,1);
+ const v=app.renderVals();assert.equal(v.isTrader,true);assert.equal(v.accountBadge,'SUPER ADMIN');assert.equal(v.showRenewal,false);assert.equal(v.paidWith,'Accès gratuit');
+ app.access.deadline=Date.now()-1;assert.equal(app.hasPaidAccess(),false);
+ app.session.user.isAdmin=false;assert.equal(await app.refreshAccess(),false);assert.equal(app.renderVals().showRenewal,true);
+});

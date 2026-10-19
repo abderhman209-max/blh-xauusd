@@ -1,0 +1,27 @@
+# Pipvoria market analysis
+
+The terminal can request a real OpenAI Responses analysis for XAU/USD or EUR/USD. A single `gpt-6-luna` call compares the selected interval with 15-minute and hourly candles. The structure, liquidity, context and invalidation sections are interpretations from that call, not separate agents or an internal chain of thought. Streamed stages describe actual server operations.
+
+The server sends at most 100 closed OHLC candles per interval, their source, timestamps and calculated EMA/ATR context. It sends no customer identity, email, account balance or position history. XAU uses the existing Twelve Data feed with the existing Yahoo fallback; EUR uses the existing market provider. These feeds can be delayed. News and order-book feeds are not connected. The model does not learn continuously or execute broker orders.
+
+## Access and consumption
+
+Account approval and a valid subscription are checked on the server before every generation. The verified super-admin subscription exemption still applies. The API key remains server-side in the Production Secret `OPENAI_API_KEY`; the dedicated key permits Responses access only. Preview deployments require their own explicit configuration.
+
+Apply `supabase/migrations/20261019210000_pipvoria_ai_analysis.sql` to the same database used by the production application before deploying. Its cache and reservation RPC are available only to `service_role`. RLS and explicit grants deny direct browser access. A transaction advisory lock prevents parallel instances from overshooting the generation limits.
+
+Limits are 20 generated analyses per account and 100 globally per UTC day, including failed attempts. A completed result for identical market data can be shared without another model call. A failed reservation is not automatically retried for the same packet. One request allows at most 2,500 output tokens, times out after 45 seconds and has no provider retry. These controls limit usage; they are not a dollar-denominated billing cap. Monitor billing in the OpenAI project.
+
+Following new candles is opt-in and runs only while the trader view is visible. Changing market, interval, login or entitlement cancels the displayed request. Closing the page cancels its stream. The server may already have incurred usage before cancellation.
+
+## Output checks
+
+Insufficient, malformed, interrupted recent or stale market data prevents a model call. Older session gaps are disclosed in the market packet. A plan expires at the next primary candle close, including when that close happens during inference. Expired levels are hidden in the terminal.
+
+Structured output must reference supplied candle timestamps. Buy/sell levels must be positive, on the correct sides, within two ATR of the latest close, with a stop distance of 0.3–5 ATR and a theoretical reward/risk of 1.5–5. Invalid, incomplete or refused model output fails closed. These checks validate consistency, not predictive accuracy or profitability. Spread, fees and slippage are not included. The model can return `wait` without levels.
+
+## Verification
+
+`npm run build` checks syntax/assets and runs the full suite. Tests cover closed-candle packets, stale data, references and numeric bounds, the Responses request and refusal paths, streamed results, cache reuse, persistent quotas, database permissions, approval/subscription checks and account changes during streaming.
+
+`node tests/browser-fixture.mjs public --ai-preview --billing-preview` serves an explicitly synthetic UI fixture. Its simulated response verifies rendering only; a production analysis is needed to verify the real provider connection.

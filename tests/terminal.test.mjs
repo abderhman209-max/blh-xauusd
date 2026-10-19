@@ -5,10 +5,10 @@ import vm from 'node:vm';
 import '../public/core.js';
 import {additionalMarket} from '../lib/terminal-market.js';
 const C=globalThis.PIPVORIA_CORE;
-function session(fetcher){const ctx={URLSearchParams,globalThis:null};ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('public/terminal-api.js','utf8'),ctx);return new ctx.TerminalSession({fetcher});}
+function session(fetcher){const ctx={URLSearchParams,TextDecoder,Uint8Array,globalThis:null};ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('public/terminal-api.js','utf8'),ctx);return new ctx.TerminalSession({fetcher});}
 const response=(body,status=200)=>({ok:status<400,status,json:async()=>body});
 function terminalApp(){
-  const ctx={Date,Intl,URLSearchParams,structuredClone,console,clearInterval(){},clearTimeout(){},setInterval(){return 1;},location:{pathname:'/',hash:'',search:''},history:{replaceState(_a,_b,url){ctx.location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},scrollTo(){},ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;vm.createContext(ctx);
+  const ctx={Date,Intl,URLSearchParams,structuredClone,console,AbortController,clearInterval(){},clearTimeout(){},setInterval(){return 1;},location:{pathname:'/',hash:'',search:''},history:{replaceState(_a,_b,url){ctx.location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},scrollTo(){},ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;vm.createContext(ctx);
   for(const name of ['core','structure','smart','blh-clean','pa-liquidity','heatmap','indicator-performance','terminal-original','terminal'])vm.runInContext(fs.readFileSync('public/'+name+'.js','utf8'),ctx);
   const app=vm.runInContext('new Terminal()',ctx);app.session={epoch:1,user:{id:'paid-fixture'}};app.access={active:true,deadline:Date.now()+3600000};return app;
 }
@@ -148,4 +148,19 @@ test('only a fresh server exemption opens an unpaid super admin terminal without
  const v=app.renderVals();assert.equal(v.isTrader,true);assert.equal(v.accountBadge,'SUPER ADMIN');assert.equal(v.showRenewal,false);assert.equal(v.paidWith,'Accès gratuit');
  app.access.deadline=Date.now()-1;assert.equal(app.hasPaidAccess(),false);
  app.session.user.isAdmin=false;assert.equal(await app.refreshAccess(),false);assert.equal(app.renderVals().showRenewal,true);
+});
+
+test('AI stream handles split UTF-8 chunks and preserves the subscription and account boundaries',async()=>{
+ const encoder=new TextEncoder(),bytes=encoder.encode(JSON.stringify({type:'stage',label:'Lecture des périodes'})+'\n'+JSON.stringify({type:'result',result:{status:'wait'}})+'\n');
+ const s=session(async()=>new Response(new ReadableStream({start(c){c.enqueue(bytes.slice(0,20));c.enqueue(bytes.slice(20));c.close();}}),{headers:{'content-type':'application/x-ndjson'}}));s.accept({id:'owner'});
+ const stages=[];assert.equal((await s.stream('analysis/run',{body:{},onEvent:e=>stages.push(e.label)})).status,'wait');assert.equal(stages[0],'Lecture des périodes');
+ s.fetcher=async()=>response({error:'subscription_required'},402);await assert.rejects(()=>s.stream('analysis/run',{body:{}}),/subscription_required/);assert.equal(s.user.id,'owner');
+ let next;s.fetcher=async()=>new Response(new ReadableStream({start(c){next=c;}}),{headers:{'content-type':'application/x-ndjson'}});const pending=s.stream('analysis/run',{body:{}});await new Promise(r=>setImmediate(r));s.lock();next.enqueue(bytes);await assert.rejects(()=>pending,/session_changed/);
+ s.accept({id:'owner'});let finishError;s.fetcher=async()=>({ok:false,status:401,json:()=>new Promise(r=>finishError=r)});const oldError=s.stream('analysis/run',{body:{}});await new Promise(r=>setImmediate(r));s.lock();s.accept({id:'new-owner'});finishError({error:'expired'});await assert.rejects(()=>oldError,/session_changed/);assert.equal(s.user.id,'new-owner');assert.equal(s.locked,false);
+});
+test('the AI bot cannot start unpaid, and a market switch discards an older model answer',async()=>{
+ const app=terminalApp();app.state.screen='app';app.access=null;app.session.stream=()=>assert.fail('Unpaid AI request');await app.runAutomaticAnalysis();
+ app.access={active:true,deadline:Date.now()+3600000};let finish;app.session.stream=()=>new Promise(r=>finish=r);const pending=app.runAutomaticAnalysis();
+ app.cancelAutomaticAnalysis();app.state.symbol='EUR';finish({status:'ready',symbol:'XAU'});await pending;assert.equal(app.automatic,null);assert.equal(app.automaticBusy,false);
+ app.state.symbol='XAU';app.automatic={symbol:'XAU',tf:'5m',status:'ready',validUntil:Date.now()-1,plan:{direction:'buy',entry:4200,stop:4190,target:4220,rewardRisk:2}};assert.equal(app.renderVals().analysisReady,false);
 });

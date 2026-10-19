@@ -21,7 +21,7 @@ function fixture({until=null,admin=false,offline=false}={}){
 test('every terminal endpoint rejects unpaid and expired approved accounts, including forged administrator metadata',async()=>{
  for(const options of [{},{until:'2000-01-01T00:00:00Z'},{until:'invalid'}]){
   const state=fixture(options);
-  for(const route of PAID_ROUTES){const data=['journal/create','journal/update','preferences','notifications/create','notifications/read'].includes(route)?{}:undefined;
+  for(const route of PAID_ROUTES){const data=['analysis/run','journal/create','journal/update','preferences','notifications/create','notifications/read'].includes(route)?{}:undefined;
    const response=await handler(request(route,data));assert.equal(response.status,402,route);assert.equal((await response.json()).error,'subscription_required');}
   assert.equal(state.upstream.length,0);
  }

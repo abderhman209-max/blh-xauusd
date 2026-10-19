@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
 <link rel="stylesheet" href="/payments.css">
+<link rel="stylesheet" href="/automatic-analysis.css">
 </head>
 <body>
 <x-dc>
@@ -460,6 +461,18 @@ select option{background:#11151f;color:#e9ebf2}
   <!-- TRADER -->
   <sc-if value="{{ isTrader }}" hint-placeholder-val="{{ true }}">
   <div data-screen-label="Trader" class="terminal-trader" style="flex:1;display:flex;flex-direction:column;gap:16px;padding:18px 24px">
+    <section class="pv-analysis" aria-labelledby="pv-analysis-title">
+      <div class="pv-analysis-head"><div><span class="terminal-mini">PIPVORIA · BOT IA</span><h2 id="pv-analysis-title">Le marché change. Le bot analyse.</h2><p>Choisissez l’or ou EUR/USD. Le bot confronte les périodes et explique sa décision.</p></div>
+        <div class="pv-analysis-controls"><sc-raw-select aria-label="Marché à analyser" value="{{ symbol }}" sc-camel-on-change="{{ onAnalysisSymbol }}"><option value="XAU">Or · XAU/USD</option><option value="EUR">EUR/USD</option><sc-if value="{{ analysisUnsupported }}"><option value="{{ symbol }}">{{ analysisMarketName }}</option></sc-if></sc-raw-select>
+          <sc-raw-select aria-label="Période à analyser" value="{{ tf }}" sc-camel-on-change="{{ onTf }}"><option value="1m">1 min</option><option value="5m">5 min</option><option value="15m">15 min</option><option value="30m">30 min</option><option value="1h">1 heure</option></sc-raw-select>
+          <button sc-camel-on-click="{{ runAutomaticAnalysis }}" disabled="{{ analysisDisabled }}">{{ analysisButton }}</button></div>
+      </div>
+      <label class="pv-analysis-follow"><input type="checkbox" checked="{{ automaticFollow }}" sc-camel-on-change="{{ onAutomaticFollow }}"> Suivre les nouvelles bougies <span>20 nouvelles analyses par jour et par compte · résultats récents partagés</span></label>
+      <div role="status" aria-live="polite"><div class="pv-analysis-state"><strong>{{ analysisTitle }}</strong><span class="terminal-mini">{{ analysisMarketName }} · {{ tf }}</span></div><p>{{ analysisMessage }}</p></div>
+      <sc-if value="{{ analysisReady }}"><div class="pv-analysis-levels"><div><span>Entrée de référence</span><b>{{ analysisEntry }}</b></div><div><span>Stop loss</span><b>{{ analysisStop }}</b></div><div><span>Take profit</span><b>{{ analysisTarget }}</b></div><div><span>Gain / risque théorique</span><b>{{ analysisRr }}</b></div></div></sc-if>
+      <div class="pv-analysis-checks"><sc-for list="{{ analysisChecks }}" as="c" hint-placeholder-count="0"><div><strong>{{ c.label }}</strong><p>{{ c.detail }}</p></div></sc-for></div>
+      <p class="pv-analysis-meta">{{ analysisMeta }}</p>
+    </section>
     <div class="terminal-watchlist" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px">
       <sc-for list="{{ watch }}" as="w" hint-placeholder-count="6">
         <button sc-camel-on-click="{{ w.select }}" style="flex:none;display:flex;flex-direction:column;gap:3px;text-align:left;padding:10px 14px;border-radius:12px;cursor:pointer;color:#e9ebf2;min-width:136px;background:{{ w.bg }};border:1px solid {{ w.border }}">
@@ -1102,6 +1115,7 @@ select option{background:#11151f;color:#e9ebf2}
 <script src="/structure.js"></script>
 <script src="/smart.js"></script>
 <script src="/blh-clean.js"></script>
+
 <script src="/pa-liquidity.js"></script>
 <script src="/heatmap.js"></script>
 <script src="/indicator-performance.js"></script>

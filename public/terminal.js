@@ -1,7 +1,7 @@
 /* Supplied interface, connected to the existing Pipvoria account and engines. */
 class Terminal extends OriginalTerminal {
   state={screen:'landing',authMode:'login',name:'',email:'',password:'',authError:'',authBusy:true,approvalStatus:'',approvalEmailConfirmation:false,
-    crypto:'none',payStep:-1,payLeft:0,copied:false,prices:{},appTab:'trader',tab:'chart',symbol:'XAU',tf:'5m',demo:false,
+    automaticFollow:false,crypto:'none',payStep:-1,payLeft:0,copied:false,prices:{},appTab:'trader',tab:'chart',symbol:'XAU',tf:'5m',demo:false,
     ind:{ema:true,zone:true,plan:true,structure:true,pa:false,planner:false,heat:false,heatProfile:true},indOpen:false,notifOpen:false,detailsOpen:false,
     bars:[],loading:false,source:'',hover:null,lang:'Français',prefSignals:true,prefSound:false,paidWith:'Non configuré',tool:'cursor',trendPending:false,fs:false,
     resultsOf:'blh',mobileResultsOpen:false,ms:{on:true,fib:true,term:'Mid',rr:2},lastFetch:null,feedErr:false,now:Date.now(),notice:''};
@@ -12,6 +12,7 @@ class Terminal extends OriginalTerminal {
   sup={tickets:[],cur:null,composing:false,draft:{cat:'Bot / signaux',subject:'',body:''},reply:'',typing:false,configured:null,busy:false,error:'',hasMore:false,older:false};
   lines={}; journal=[]; notifications=[]; preferences={}; settings=PIPVORIA_CORE.settings({timezone:'Europe/Paris'}); settingsRevision=null; settingsReady=false; settingsDirty=false;
   marketSerial=0; settingsSerial=0; journalDrafts=new Map(); pendingMessages=new Map();
+  automatic=null;automaticBusy=false;automaticSerial=0;automaticAbort=null;automaticStage="";automaticNextAt=0;
   access=null;accessGeneration=0;accessSerial=0;paidStarted=null;
   signalTracker=PIPVORIA_CORE.tracker();
   SYM={XAU:{label:'XAU/USD',name:'Or / Dollar américain',base:4300,dp:2},BTC:{label:'BTC/USD',name:'Bitcoin / Dollar',base:98000,dp:2},ETH:{label:'ETH/USD',name:'Ethereum / Dollar',base:3500,dp:2},SOL:{label:'SOL/USD',name:'Solana / Dollar',base:180,dp:3},EUR:{label:'EUR/USD',name:'Euro / Dollar',base:1.08,dp:5},NAS:{label:'NAS100',name:'Nasdaq 100',base:21000,dp:1}};
@@ -25,16 +26,17 @@ class Terminal extends OriginalTerminal {
     this.ageT=setInterval(()=>{if(this.access?.active&&!this.hasPaidAccess())this.blockPaidAccess('subscription_required');this.setState({now:Date.now()});},1000);
     this.poll=setInterval(()=>{if(this.session.user&&!document.hidden&&!this.rp&&!this.state.demo)this.load(true);},15000);
     this.sessionT=setInterval(()=>this.checkSession(),15000);
+    this.automaticT=setInterval(()=>{if(this.state.automaticFollow&&this.state.appTab==='trader'&&!document.hidden&&Date.now()>=this.automaticNextAt&&(!this.automatic?.validUntil||this.automatic.validUntil<=Date.now()))this.runAutomaticAnalysis();},30000);
     this.priceT=setInterval(()=>this.tickPrice(),5000);
     this.supportT=setInterval(()=>{if(this.session.user&&this.state.appTab==='support'&&!document.hidden)this.loadTickets(true);},15000);
     this.adminT=setInterval(()=>{if(this.session.user?.isAdmin&&this.state.appTab==='admin'&&!document.hidden&&!this.adminBusy)this.loadAdmin();},15000);
     this.publicRoute();this.restore();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   }
-  componentWillUnmount(){window.PipvoriaPayments?.close();for(const t of [this.ageT,this.poll,this.sessionT,this.priceT,this.supportT,this.adminT,this.wlT,this.rpT,this.settingsT])clearInterval(t);
+  componentWillUnmount(){clearInterval(this.automaticT);this.cancelAutomaticAnalysis();window.PipvoriaPayments?.close();for(const t of [this.ageT,this.poll,this.sessionT,this.priceT,this.supportT,this.adminT,this.wlT,this.rpT,this.settingsT])clearInterval(t);
     window.removeEventListener('keydown',this.onKey);window.removeEventListener('hashchange',this.onHash);window.removeEventListener('pointerup',this.onUp);
     document.removeEventListener('fullscreenchange',this.onFs);document.removeEventListener('visibilitychange',this.onVisible);this.ro?.disconnect();this.marketAbort?.abort();}
-  lock(reason){
+  lock(reason){this.cancelAutomaticAnalysis();
     window.PipvoriaPayments?.close();this.billing=null;this.access=null;this.accessSerial++;this.accessGeneration++;this.paidStarted=null;clearInterval(this.wlT);
     window.BLH_AUTH={authenticated:false,user:null};this.ex.users=[];this.adminAudit=[];this.capabilities={};
     this.marketSerial++;this.marketAbort?.abort();clearTimeout(this.settingsT);this.endReplay(true);
@@ -43,7 +45,7 @@ class Terminal extends OriginalTerminal {
     this.biz.toasts=[];this.biz.sigSeen={};this.signalTracker.reset();this.model=null;this.perf=null;this.struct=null;this.paM=null;this.plannerM=null;this.wl={};
     this.settings=PIPVORIA_CORE.settings({timezone:'Europe/Paris'});this.settingsRevision=null;this.settingsDirty=false;this.lastSignal=null;this.applySettings();
     this.adminSerial=(this.adminSerial||0)+1;this.adminBusy=null;this.adminLoading=false;this.adminError='';this.adminRejectId=null;
-    this.setState({screen:'auth',authMode:'login',name:'',email:'',password:'',bars:[],source:'',notice:'',authBusy:false,approvalStatus:reason==='account_pending'?'pending':reason==='account_rejected'?'rejected':'',approvalEmailConfirmation:false,authError:reason==='logout_pending'?'Déconnexion en cours…':reason==='session_replaced'?'Votre session a été remplacée par une autre connexion.':''});
+    this.setState({automaticFollow:false,screen:'auth',authMode:'login',name:'',email:'',password:'',bars:[],source:'',notice:'',authBusy:false,approvalStatus:reason==='account_pending'?'pending':reason==='account_rejected'?'rejected':'',approvalEmailConfirmation:false,authError:reason==='logout_pending'?'Déconnexion en cours…':reason==='session_replaced'?'Votre session a été remplacée par une autre connexion.':''});
   }
   async restore(){try{
     const hash=new URLSearchParams(location.hash.slice(1));
@@ -55,12 +57,12 @@ class Terminal extends OriginalTerminal {
   showApprovalError(error){if(!['account_pending','account_rejected'].includes(error?.message))return false;this.setState({screen:'auth',authBusy:false,password:'',authError:'',approvalStatus:error.message==='account_pending'?'pending':'rejected',approvalEmailConfirmation:false});return true;}
   async checkSession(){if(!this.session.user||document.hidden||this.checking)return;this.checking=true;try{await this.session.request('auth/session');if(this.session.user)await this.refreshAccess();}catch{}finally{this.checking=false;}}
   hasPaidAccess(){return !!this.session?.user&&this.access?.active===true&&this.access.deadline>Date.now();}
-  blockPaidAccess(reason='subscription_required',data){
+  blockPaidAccess(reason='subscription_required',data){this.cancelAutomaticAnalysis();
     this.accessSerial++;this.accessGeneration++;this.paidStarted=null;this.access={...data,active:false,status:reason==='subscription_access_unavailable'?'error':'inactive'};
     this.marketSerial++;this.marketAbort?.abort();clearInterval(this.wlT);this.endReplay(true);
     this.model=null;this.perf=null;this.struct=null;this.paM=null;this.plannerM=null;this.wl={};this.journal=[];this.notifications=[];this.biz.toasts=[];this.signalTracker.reset();
     const tab=['profile','support','admin'].includes(this.state.appTab)?this.state.appTab:'access';
-    this.setState({appTab:tab,bars:[],loading:false,source:'',lastFetch:null,notifOpen:false,indOpen:false});
+    this.setState({automaticFollow:false,appTab:tab,bars:[],loading:false,source:'',lastFetch:null,notifOpen:false,indOpen:false});
   }
   async refreshAccess(){
     if(!this.session?.user)return false;const epoch=this.session.epoch,serial=++this.accessSerial,started=Date.now();
@@ -111,6 +113,18 @@ class Terminal extends OriginalTerminal {
     if(screen==='landing'||screen==='auth')history.replaceState(null,'',location.pathname+(screen==='auth'?'#'+(this.state.authMode==='signup'?'signup':'login'):''));
     this.setState({screen,authError:'',notifOpen:false});window.scrollTo(0,0);}
   fmtT(t){return t?new Date(t).toLocaleString('fr-FR',{timeZone:this.ex.set.tz,day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';}
+  cancelAutomaticAnalysis(){this.automaticSerial++;this.automaticAbort?.abort();this.automaticAbort=null;this.automaticBusy=false;this.automatic=null;this.automaticStage="";this.automaticNextAt=0;}
+  startReplay(){this.cancelAutomaticAnalysis();return super.startReplay();}
+  async runAutomaticAnalysis(){
+    if(this.automaticBusy||!this.hasPaidAccess()||!['XAU','EUR'].includes(this.state.symbol)||this.state.demo||this.rp)return;
+    const {symbol,tf}=this.state,epoch=this.session.epoch,generation=this.accessGeneration,serial=++this.automaticSerial;
+    this.automaticAbort?.abort();this.automaticAbort=new AbortController();this.automaticBusy=true;this.automatic=null;this.automaticStage='Connexion au moteur IA…';this.automaticNextAt=Date.now()+60000;this.forceUpdate();
+    const current=()=>serial===this.automaticSerial&&epoch===this.session.epoch&&generation===this.accessGeneration&&this.hasPaidAccess()&&symbol===this.state.symbol&&tf===this.state.tf&&!this.state.demo&&!this.rp;
+    try{const result=await this.session.stream('analysis/run',{body:{symbol,interval:this.interval(tf)},signal:this.automaticAbort.signal,onEvent:event=>{if(current()){this.automaticStage=event.label;this.forceUpdate();}}});if(!current())return;
+      this.automatic={...result,tf};this.automaticNextAt=result.validUntil||Date.now()+60000;
+    }catch(error){if(current()&&error.name!=='AbortError'){const messages={analysis_data_stale:'Le marché peut être fermé ou le flux retardé : les dernières bougies sont trop anciennes.',analysis_history_insufficient:'L’historique récent est insuffisant ou interrompu. Aucun plan généré.',analysis_daily_limit:'La limite quotidienne de nouvelles analyses est atteinte. Réessayez demain.',analysis_in_progress:'Une analyse de cette bougie est déjà en cours. Réessayez dans quelques instants.',ai_not_configured:'Le moteur IA est en cours de configuration.'};this.automatic={status:'error',symbol,tf,message:messages[error.message]||'Analyse IA indisponible. Aucun plan n’a été généré. Réessayez plus tard.',checks:[]};this.automaticNextAt=Date.now()+300000;if(error.message==='analysis_daily_limit')this.setState({automaticFollow:false});}}
+    finally{if(serial===this.automaticSerial){this.automaticBusy=false;this.forceUpdate();}}
+  }
   async marketBars(symbol,tf,signal){
     if(!this.hasPaidAccess())throw Error('subscription_required');
     if(symbol==='XAU'){const data=await this.session.request('gold',{query:{interval:this.interval(tf)},signal});return data;}
@@ -187,7 +201,7 @@ class Terminal extends OriginalTerminal {
   setSet(p,msg){if(!this.settingsReady)return;this.ex.undo.push(structuredClone(this.ex.set));Object.assign(this.ex.set,p);this.ex.setMsg=msg||'';this.queueSettings();if(this.state.bars.length)this.setBars(this.state.bars);this.forceUpdate();}
   saveLines(){this.queueSettings();this.draw();}
   setMs(p){this.setState(s=>({ms:{...s.ms,...p}}),()=>{this.computeStruct();this.queueSettings();});}
-  setSymbol(symbol){if(!this.SYM[symbol]||symbol===this.state.symbol)return;this.endReplay(true);this.marketSerial++;this.model=null;this.perf=null;this.biz.sigSeen={};this.view=this.initialView();this.setState({symbol,bars:[],source:'',lastFetch:null,notice:''},()=>{this.applySettings();this.load();});}
+  setSymbol(symbol){if(!this.SYM[symbol]||symbol===this.state.symbol)return;this.cancelAutomaticAnalysis();this.endReplay(true);this.marketSerial++;this.model=null;this.perf=null;this.biz.sigSeen={};this.view=this.initialView();this.setState({symbol,bars:[],source:'',lastFetch:null,notice:''},()=>{this.applySettings();this.load();});}
   async loadWorkspace(){if(!this.hasPaidAccess())return;const epoch=this.session.epoch,generation=this.accessGeneration;try{const data=await this.session.request('workspace');if(epoch!==this.session.epoch||generation!==this.accessGeneration||!this.hasPaidAccess())return;this.journal=data.journal||[];this.notifications=data.notifications||[];this.preferences=data.preferences||{};this.setState({prefSignals:this.preferences.new_signal!==false});}catch{if(this.hasPaidAccess())this.setState({notice:'Votre journal est temporairement indisponible. Réessayez.'});}}
   async registerPlan(){const p=this.model?.plan;if(!p||this.state.demo||this.rp)return;const id=crypto.randomUUID(),now=Date.now();const risk=PIPVORIA_CORE.risk({balance:this.ex.calc.capital,riskPercent:this.ex.set.risk,entry:p.entry,stop:p.stop,contract:this.ex.set.contract,lotStep:this.ex.set.lotStep});
     const payload={symbol:this.SYM[this.state.symbol].label,interval:this.interval(),strategy:'blh',status:'planned',direction:p.direction===1?'buy':'sell',entry:p.entry,stopLoss:p.stop,takeProfits:p.tps,targetHits:[false,false,false],createdAt:now,clientUpdatedAt:now,riskPercent:Number(this.ex.set.risk),positionSize:risk.valid?risk.positionSize:null,source:this.state.source,notes:''};
@@ -275,7 +289,7 @@ class Terminal extends OriginalTerminal {
       watch:v.watch.map((w,i)=>({...w,src:this.wl[Object.keys(this.SYM)[i]]?.source||'Flux non reçu'})),
       stateLabel:s.loading?'Calcul…':s.resultsOf==='blh'&&(s.symbol!=='XAU'||s.tf!=='5m')?'XAU/USD · 5 min uniquement':s.feedErr?'Flux indisponible':chosen?'Calculé':'Indisponible',
       goalLabel:goal?'+'+goal+' R':'À définir',progressLabel:goal&&chosen?v.netR+' / +'+goal+' R':'Objectif à définir',progressPct:goal&&chosen?Math.max(0,Math.min(100,chosen.netR/goal*100))+'%':'0%',
-      onTf:e=>{this.endReplay(true);this.view=this.initialView();this.setState({tf:e.target.value,bars:[],source:'',lastFetch:null,notice:''},()=>{this.applySettings();this.load();});},
+      onTf:e=>{this.cancelAutomaticAnalysis();this.endReplay(true);this.view=this.initialView();this.setState({tf:e.target.value,bars:[],source:'',lastFetch:null,notice:''},()=>{this.applySettings();this.load();});},
       onLang:e=>this.setState({lang:e.target.value},()=>this.queueSettings()),
       onResultsOf:e=>this.setState({resultsOf:e.target.value}),
       indList:v.indList.map((item,i)=>({...item,toggle:()=>this.setState({ind:{...s.ind,[['ema','zone','plan','structure'][i]]:!s.ind[['ema','zone','plan','structure'][i]]}},()=>this.queueSettings())})),
@@ -307,6 +321,16 @@ class Terminal extends OriginalTerminal {
       adminSupport:()=>{this.sup.admin=true;this.sup.cur=null;this.sup.tickets=[];this.navigate('support');this.loadTickets();},
       faq:[{q:'Le bot passe-t-il des ordres ?',a:'Le site affiche des signaux et des plans. Aucun ordre n’est exécuté chez votre courtier.'},{q:'Comment sont calculés les résultats ?',a:'Les indicateurs utilisent les bougies clôturées. Les résultats du journal proviennent uniquement des trades enregistrés sur votre compte.'},{q:'Pourquoi un marché peut-il être indisponible ?',a:'Un problème de flux reste indiqué. Aucune donnée simulée ne remplace automatiquement le flux réel.'}]
     });
+    const analysis=this.automatic&&this.automatic.symbol===s.symbol&&this.automatic.tf===s.tf?this.automatic:null;
+    const expired=analysis?.validUntil<=Date.now(),disabledMode=s.demo||!!this.rp,unsupported=!['XAU','EUR'].includes(s.symbol);
+    const ready=analysis?.status==='ready'&&!expired&&!disabledMode&&this.hasPaidAccess();
+    Object.assign(v,{onAnalysisSymbol:e=>this.setSymbol(e.target.value),runAutomaticAnalysis:()=>this.runAutomaticAnalysis(),analysisUnsupported:unsupported,analysisMarketName:this.SYM[s.symbol].label,
+      toggleDemo:()=>{this.cancelAutomaticAnalysis();this.setState({demo:!s.demo,bars:[]},()=>this.load());},
+      analysisDisabled:this.automaticBusy||disabledMode||unsupported||!this.hasPaidAccess(),analysisButton:this.automaticBusy?'Analyse en cours…':'Analyser',analysisReady:ready,automaticFollow:s.automaticFollow,onAutomaticFollow:e=>this.setState({automaticFollow:e.target.checked},()=>{if(e.target.checked)this.runAutomaticAnalysis();}),
+      analysisTitle:this.automaticBusy?'Le bot analyse…':disabledMode?'Mode réel requis':unsupported?'Choisissez l’or ou EUR/USD':expired?'Analyse à actualiser':ready?(analysis.plan.direction==='buy'?'ACHAT':'VENTE'):analysis?.status==='wait'?'ATTENDRE':analysis?.status==='error'?'Flux indisponible':analysis?.status==='stale'?'Données trop anciennes':analysis?.status==='insufficient'?'Historique insuffisant':'Prêt à analyser',
+      analysisMessage:this.automaticBusy?this.automaticStage:disabledMode?'Quittez la démonstration ou le replay pour analyser les dernières données disponibles.':unsupported?'Cette analyse est disponible pour XAU/USD et EUR/USD.':expired?'Une nouvelle bougie doit être analysée. Relancez le calcul avant d’utiliser un plan.':analysis?.message||'Une IA interprète les bougies et recoupe les périodes. Elle peut conclure qu’aucun trade n’est justifié.',
+      analysisEntry:ready?f(analysis.plan.entry):'—',analysisStop:ready?f(analysis.plan.stop):'—',analysisTarget:ready?f(analysis.plan.target):'—',analysisRr:ready?String(analysis.plan.rewardRisk)+' R':'—',analysisChecks:!disabledMode&&!expired?analysis?.checks||[]:[],
+      analysisMeta:analysis?.asOf?analysis.source+' · Dernière clôture : '+this.fmtT(analysis.asOf)+' · Calcul : '+this.fmtT(analysis.generatedAt)+' · Niveaux théoriques, sans spread ni frais. Actualités non connectées · Aucun ordre exécuté.':'Interprétation IA des cours fournis · Actualités non connectées · Aucun ordre exécuté. Les cotations peuvent être différées.'});
     const paid=this.hasPaidAccess();for(const [flag,tab] of Object.entries({isTrader:'trader',isPositions:'positions',isJournal:'journal',isCalendar:'calendar',isHistory:'history'}))v[flag]=paid&&s.appTab===tab;
     Object.assign(v,{isPaywall:s.screen==='app'&&!paid&&!['profile','support','admin'].includes(s.appTab),paywallCanPay:user?.isAdmin!==true&&this.access?.status==='inactive',paywallTitle:this.access?.status==='error'?'Vérification de l’abonnement indisponible':this.access?'Abonnement requis':'Vérification de votre abonnement…',paywallMessage:this.access?.status==='error'?'Impossible de vérifier votre accès pour le moment. Réessayez ; ne payez pas une seconde fois si vous avez déjà réglé.':this.access?'Un abonnement payé et non expiré est obligatoire pour ouvrir le terminal, les graphiques et les signaux. Votre accès s’active après confirmation du paiement.':'Votre accès est vérifié sur le serveur avant de charger le terminal.',verifyAccess:()=>this.refreshAccess()});
     v.invoices=(this.billing?.orders||[]).filter(o=>o.status==='paid').map(o=>({id:'PV-'+o.id.slice(0,8).toUpperCase(),date:this.fmtT(Date.parse(o.paid_at)),method:'PayerURL',amount:(o.amount_minor/100).toFixed(2)+' '+o.currency,download:()=>this.download('pipvoria-recu-'+o.id+'.json',JSON.stringify({type:'payment_receipt',orderId:o.id,paidAt:o.paid_at,amountMinor:o.amount_minor,currency:o.currency,provider:'PayerURL'},null,2),'application/json')}));v.noPaymentReceipts=v.invoices.length===0;

@@ -24,7 +24,7 @@ test('signup queues a request even with issued tokens, and email confirmation ne
 test('pending/rejected identities cannot sign in, import, refresh or use private endpoints',async()=>{
  const p=provider();for(const status of ['pending','rejected']){
   p.users.get(memberId).app_metadata.pipvoria_approval={status};
-  const cases=[['auth/sign-in',{email:'member@example.invalid',password:'Existing-Test12!'}],['auth/import-session',{accessToken:fixtureToken(memberId),refreshToken:'refresh-'+memberId}],['auth/session',undefined],['workspace',undefined],['settings',undefined],['gold',undefined],['profile/avatar',undefined],['admin/users',undefined],['support/tickets',undefined],['journal/create',{}]];
+  const cases=[['auth/sign-in',{email:'member@example.invalid',password:'Existing-Test12!'}],['auth/import-session',{accessToken:fixtureToken(memberId),refreshToken:'refresh-'+memberId}],['auth/session',undefined],['workspace',undefined],['settings',undefined],['gold',undefined],['profile/avatar',undefined],['admin/users',undefined],['support/tickets',undefined],['journal/create',{}],['analysis/run',{symbol:'XAU',interval:'5min'}],['analysis/config',undefined]];
   for(const [route,data]of cases){const r=await handler(req(route,memberId,data));assert.equal(r.status,401,route);assert.equal((await r.json()).error,'account_'+status);assert.ok(r.headers.getSetCookie().every(c=>c.includes('Max-Age=0')));}
   const r=await handler(req('auth/session',memberId,undefined,{cookie:'blh_refresh=refresh-'+memberId}));assert.equal(r.status,401);assert.equal((await r.json()).error,'account_'+status);
  }

@@ -461,20 +461,6 @@ select option{background:#11151f;color:#e9ebf2}
   <!-- TRADER -->
   <sc-if value="{{ isTrader }}" hint-placeholder-val="{{ true }}">
   <div data-screen-label="Trader" class="terminal-trader" style="flex:1;display:flex;flex-direction:column;gap:16px;padding:18px 24px">
-    <section class="pv-analysis" aria-labelledby="pv-analysis-title">
-      <div class="pv-analysis-head"><h2 id="pv-analysis-title">Résultats IA</h2>
-        <div class="pv-analysis-controls"><sc-raw-select aria-label="Marché à analyser" value="{{ symbol }}" sc-camel-on-change="{{ onAnalysisSymbol }}"><option value="XAU">Or · XAU/USD</option><option value="EUR">EUR/USD</option><sc-if value="{{ analysisUnsupported }}"><option value="{{ symbol }}">{{ analysisMarketName }}</option></sc-if></sc-raw-select>
-          <sc-raw-select aria-label="Période à analyser" value="{{ tf }}" sc-camel-on-change="{{ onTf }}"><option value="1m">1 min</option><option value="5m">5 min</option><option value="15m">15 min</option><option value="30m">30 min</option><option value="1h">1 heure</option></sc-raw-select>
-          <button sc-camel-on-click="{{ runAutomaticAnalysis }}" disabled="{{ analysisDisabled }}">{{ analysisButton }}</button></div>
-      </div>
-      <label class="pv-analysis-follow"><input type="checkbox" checked="{{ automaticFollow }}" sc-camel-on-change="{{ onAutomaticFollow }}"> Auto <span>20 nouvelles analyses/jour</span></label>
-      <div role="status" aria-live="polite" class="pv-analysis-state"><strong>{{ analysisTitle }}</strong><span class="terminal-mini">{{ analysisMarketName }} · {{ tf }}</span></div>
-      <sc-if value="{{ analysisShowLevels }}">
-        <div class="pv-analysis-levels"><div><span>Entrée</span><b>{{ analysisEntry }}</b></div><div><span>Stop loss</span><b>{{ analysisStop }}</b></div><div><span>R/R · TP2</span><b>{{ analysisRr }}</b></div><div><span>TP1</span><b>{{ analysisTp1 }}</b></div><div><span>TP2</span><b>{{ analysisTp2 }}</b></div><div><span>TP3 · sortie</span><b>{{ analysisTp3 }}</b></div></div>
-        <sc-if value="{{ analysisHasPlan }}"><details class="pv-analysis-condition"><summary>Condition d’entrée</summary><p>{{ analysisTrigger }}</p></details></sc-if>
-        <p class="pv-analysis-meta">Clôture {{ analysisAsOf }} · Valide jusqu’au {{ analysisUntil }}</p>
-      </sc-if>
-    </section>
     <div class="terminal-watchlist" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px">
       <sc-for list="{{ watch }}" as="w" hint-placeholder-count="6">
         <button sc-camel-on-click="{{ w.select }}" style="flex:none;display:flex;flex-direction:column;gap:3px;text-align:left;padding:10px 14px;border-radius:12px;cursor:pointer;color:#e9ebf2;min-width:136px;background:{{ w.bg }};border:1px solid {{ w.border }}">
@@ -491,49 +477,10 @@ select option{background:#11151f;color:#e9ebf2}
     </div>
 
     <sc-if value="{{ isChartTab }}" hint-placeholder-val="{{ true }}">
-    <div class="terminal-chart-layout" style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;flex-direction:{{ layoutDir }}">
-
-      <!-- Results panel -->
-      <div id="terminal-results-body" class="terminal-results-card" data-mobile-expanded="{{ mobileResultsOpen }}" style="flex:1 1 260px;max-width:{{ panelMax }};background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:20px;display:flex;flex-direction:{{ panelDir }};flex-wrap:wrap;gap:16px">
-        <div style="display:flex;flex-direction:column;gap:10px;flex:{{ fb220 }}">
-          <div class="terminal-results-heading" style="font-size:16px;font-weight:600"><span>Résultats de l'indicateur</span><button class="terminal-mobile-only terminal-quiet" aria-expanded="{{ mobileResultsOpen }}" aria-controls="terminal-results-body" sc-camel-on-click="{{ toggleMobileResults }}">{{ mobileResultsLabel }}</button></div>
-          <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Résultats de
-            <sc-raw-select value="{{ resultsOf }}" sc-camel-on-change="{{ onResultsOf }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:9px 10px;color:#e9ebf2;font-size:13px;font-weight:600"><option value="blh">BLH XAUUSD M5 CLEAN</option><option value="ms">Market Structure &amp; Fibonacci + RR</option><option value="planner">Signal Trade Planner</option><option value="pa">Price Action &amp; Liquidity Map</option></sc-raw-select>
-          </label>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#f0b45b">Test historique · simulation</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:4px;flex:{{ fb120 }}">
-          <div style="font-size:12px;color:#8d93a8">État</div>
-          <div style="font-size:22px;font-weight:600;color:{{ stateColor }}">{{ stateLabel }}</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px;flex:{{ fb160 }}">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:#8d93a8"><span>Progression</span><span style="font-family:'JetBrains Mono',monospace;color:#c4c8d6">{{ progressLabel }}</span></div>
-          <div style="height:6px;background:#0a0d16;border-radius:99px;overflow:hidden"><div style="height:100%;background:#9d8cff;border-radius:99px;width:{{ progressPct }}"></div></div>
-          <div style="font-size:11px;color:#6b7186">Objectif : {{ goalLabel }}</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:10px;flex:{{ fb180 }}">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:12px;color:#8d93a8">Objectif</div><div style="font-size:14px">À définir</div></div><div style="width:9px;height:9px;border:1px solid #6b7186;transform:rotate(45deg)"></div></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:12px;color:#8d93a8">Règles</div><div style="font-size:14px">Risque réel non évalué</div></div><div style="width:9px;height:9px;border:1px solid #6b7186;transform:rotate(45deg)"></div></div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 10px;flex:{{ fb240 }};background:#0d111b;border-radius:12px;padding:14px">
-          <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:11px;color:#8d93a8">Trades clôturés</div><div style="font-family:'JetBrains Mono',monospace;font-size:17px">{{ stats.closed }}</div></div>
-          <div style="display:flex;flex-direction:column;gap:3px;grid-column:span 2"><div style="font-size:11px;color:#8d93a8">Résultat net</div><div style="font-family:'JetBrains Mono',monospace;font-size:17px;color:{{ netColor }}">{{ netR }}</div></div>
-          <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:11px;color:#8d93a8">Signaux</div><div style="font-family:'JetBrains Mono',monospace;font-size:15px">{{ stats.signals }}</div></div>
-          <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:11px;color:#8d93a8">Non clôturés</div><div style="font-family:'JetBrains Mono',monospace;font-size:15px">{{ stats.active }}</div></div>
-          <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:11px;color:#8d93a8">Réussite</div><div style="font-family:'JetBrains Mono',monospace;font-size:15px">{{ winRate }}</div></div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;flex:{{ fb220 }};font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7186;line-height:1.5">
-          <div>{{ calcInfo }}</div>
-          <div>{{ calcRange }}</div>
-          <button sc-camel-on-click="{{ toggleDetails }}" style="align-self:flex-start;background:none;border:0;color:#b9adff;font-family:inherit;font-size:11px;padding:0;cursor:pointer">{{ detailsLabel }}</button>
-          <sc-if value="{{ detailsOpen }}" hint-placeholder-val="{{ false }}">
-            <div style="color:#8d93a8">Entrée à la clôture de la bougie signal. Sortie : SL = −1 R, TP3 = +3 R. Bougie touchant SL et TP3 : exclue. Drawdown max : {{ drawdown }}. Gagnants {{ stats.wins }} · Perdants {{ stats.losses }}.</div>
-          </sc-if>
-        </div>
-      </div>
+    <div class="terminal-chart-layout" style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;flex-direction:column">
 
       <!-- Chart card -->
-      <div class="terminal-chart-card" ref="{{ chartBoxRef }}" style="flex:999 1 560px;min-width:0;background:#0f1320;border:1px solid #1a2030;border-radius:16px;display:flex;flex-direction:column;overflow:hidden">
+      <div class="terminal-chart-card" ref="{{ chartBoxRef }}" style="flex:none;width:100%;min-width:0;background:#0f1320;border:1px solid #1a2030;border-radius:16px;display:flex;flex-direction:column;overflow:hidden">
         <div class="terminal-chart-controls" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;flex-wrap:wrap;border-bottom:1px solid #161b28">
           <div class="terminal-symbols" style="display:flex;flex-wrap:wrap;gap:4px;background:#0a0d16;border-radius:10px;padding:3px">
             <sc-for list="{{ symbols }}" as="s" hint-placeholder-count="2">
@@ -622,6 +569,46 @@ select option{background:#11151f;color:#e9ebf2}
         </div>
         <div class="terminal-chart-help" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7186;border-top:1px solid #161b28"><span class="terminal-desktop-help">{{ toolHint }}</span><span class="terminal-mobile-only">{{ mobileToolHint }}</span><span>BLH {{ tf }} : {{ blhSignals }} signaux · Structure : {{ msSetups }} configurations</span></div>
       </div>
+
+      <!-- Results panel -->
+      <div id="terminal-results-body" class="terminal-results-card" data-mobile-expanded="{{ mobileResultsOpen }}" style="flex:none;width:100%;max-width:none;background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:20px;display:flex;flex-direction:row;flex-wrap:wrap;gap:16px">
+        <div style="display:flex;flex-direction:column;gap:10px;flex:1 1 220px">
+          <div class="terminal-results-heading" style="font-size:16px;font-weight:600"><span>Résultats de l'indicateur</span><button class="terminal-mobile-only terminal-quiet" aria-expanded="{{ mobileResultsOpen }}" aria-controls="terminal-results-body" sc-camel-on-click="{{ toggleMobileResults }}">{{ mobileResultsLabel }}</button></div>
+          <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Résultats de
+            <sc-raw-select value="{{ resultsOf }}" sc-camel-on-change="{{ onResultsOf }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:9px 10px;color:#e9ebf2;font-size:13px;font-weight:600"><option value="blh">BLH XAUUSD M5 CLEAN</option><option value="ms">Market Structure &amp; Fibonacci + RR</option><option value="planner">Signal Trade Planner</option><option value="pa">Price Action &amp; Liquidity Map</option></sc-raw-select>
+          </label>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#f0b45b">Test historique · simulation</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1 1 120px">
+          <div style="font-size:12px;color:#8d93a8">État</div>
+          <div style="font-size:22px;font-weight:600;color:{{ stateColor }}">{{ stateLabel }}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;flex:1 1 160px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#8d93a8"><span>Progression</span><span style="font-family:'JetBrains Mono',monospace;color:#c4c8d6">{{ progressLabel }}</span></div>
+          <div style="height:6px;background:#0a0d16;border-radius:99px;overflow:hidden"><div style="height:100%;background:#9d8cff;border-radius:99px;width:{{ progressPct }}"></div></div>
+          <div style="font-size:11px;color:#6b7186">Objectif : {{ goalLabel }}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;flex:1 1 180px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:12px;color:#8d93a8">Objectif</div><div style="font-size:14px">À définir</div></div><div style="width:9px;height:9px;border:1px solid #6b7186;transform:rotate(45deg)"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:12px;color:#8d93a8">Règles</div><div style="font-size:14px">Risque réel non évalué</div></div><div style="width:9px;height:9px;border:1px solid #6b7186;transform:rotate(45deg)"></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 10px;flex:2 1 240px;background:#0d111b;border-radius:12px;padding:14px">
+          <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:11px;color:#8d93a8">Trades clôturés</div><div style="font-family:'JetBrains Mono',monospace;font-size:17px">{{ stats.closed }}</div></div>
+          <div style="display:flex;flex-direction:column;gap:3px;grid-column:span 2"><div style="font-size:11px;color:#8d93a8">Résultat net</div><div style="font-family:'JetBrains Mono',monospace;font-size:17px;color:{{ netColor }}">{{ netR }}</div></div>
+          <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:11px;color:#8d93a8">Signaux</div><div style="font-family:'JetBrains Mono',monospace;font-size:15px">{{ stats.signals }}</div></div>
+          <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:11px;color:#8d93a8">Non clôturés</div><div style="font-family:'JetBrains Mono',monospace;font-size:15px">{{ stats.active }}</div></div>
+          <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:11px;color:#8d93a8">Réussite</div><div style="font-family:'JetBrains Mono',monospace;font-size:15px">{{ winRate }}</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex:1 1 220px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7186;line-height:1.5">
+          <div>{{ calcInfo }}</div>
+          <div>{{ calcRange }}</div>
+          <button sc-camel-on-click="{{ toggleDetails }}" style="align-self:flex-start;background:none;border:0;color:#b9adff;font-family:inherit;font-size:11px;padding:0;cursor:pointer">{{ detailsLabel }}</button>
+          <sc-if value="{{ detailsOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="color:#8d93a8">Entrée à la clôture de la bougie signal. Sortie : SL = −1 R, TP3 = +3 R. Bougie touchant SL et TP3 : exclue. Drawdown max : {{ drawdown }}. Gagnants {{ stats.wins }} · Perdants {{ stats.losses }}.</div>
+          </sc-if>
+        </div>
+      </div>
+
     </div>
     </sc-if>
 
@@ -717,6 +704,20 @@ select option{background:#11151f;color:#e9ebf2}
       </div>
     </div>
     </sc-if>
+    <section class="pv-analysis" aria-labelledby="pv-analysis-title">
+      <div class="pv-analysis-head"><h2 id="pv-analysis-title">Résultats IA</h2>
+        <div class="pv-analysis-controls"><sc-raw-select aria-label="Marché à analyser" value="{{ symbol }}" sc-camel-on-change="{{ onAnalysisSymbol }}"><option value="XAU">Or · XAU/USD</option><option value="EUR">EUR/USD</option><sc-if value="{{ analysisUnsupported }}"><option value="{{ symbol }}">{{ analysisMarketName }}</option></sc-if></sc-raw-select>
+          <sc-raw-select aria-label="Période à analyser" value="{{ tf }}" sc-camel-on-change="{{ onTf }}"><option value="1m">1 min</option><option value="5m">5 min</option><option value="15m">15 min</option><option value="30m">30 min</option><option value="1h">1 heure</option></sc-raw-select>
+          <button sc-camel-on-click="{{ runAutomaticAnalysis }}" disabled="{{ analysisDisabled }}">{{ analysisButton }}</button></div>
+      </div>
+      <label class="pv-analysis-follow"><input type="checkbox" checked="{{ automaticFollow }}" sc-camel-on-change="{{ onAutomaticFollow }}"> Auto <span>20 nouvelles analyses/jour</span></label>
+      <div role="status" aria-live="polite" class="pv-analysis-state"><strong>{{ analysisTitle }}</strong><span class="terminal-mini">{{ analysisMarketName }} · {{ tf }}</span></div>
+      <sc-if value="{{ analysisShowLevels }}">
+        <div class="pv-analysis-levels"><div><span>Entrée</span><b>{{ analysisEntry }}</b></div><div><span>Stop loss</span><b>{{ analysisStop }}</b></div><div><span>R/R · TP2</span><b>{{ analysisRr }}</b></div><div><span>TP1</span><b>{{ analysisTp1 }}</b></div><div><span>TP2</span><b>{{ analysisTp2 }}</b></div><div><span>TP3 · sortie</span><b>{{ analysisTp3 }}</b></div></div>
+        <sc-if value="{{ analysisHasPlan }}"><details class="pv-analysis-condition"><summary>Condition d’entrée</summary><p>{{ analysisTrigger }}</p></details></sc-if>
+        <p class="pv-analysis-meta">Clôture {{ analysisAsOf }} · Valide jusqu’au {{ analysisUntil }}</p>
+      </sc-if>
+    </section>
   </div>
   </sc-if>
 

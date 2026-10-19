@@ -4,6 +4,7 @@ import { additionalMarket } from '../lib/terminal-market.js';
 import { accountApproval, requireAccountApproval } from '../lib/account-approval.js';
 import { billingApi } from '../lib/crypto-billing.js';
 import { PAID_ROUTES, paidAccess } from '../lib/paid-access.js';
+import { analysisApi } from '../lib/ai-api.js';
 export const config = { runtime: "edge" };
 
 const ACCESS_COOKIE = "blh_access";
@@ -894,6 +895,7 @@ async function profileAvatar(request) {
 
 const handleTickets = ticketApi({currentSession,requireSuperAdmin,supabaseData,supabaseAdminData,sessionJson,json,body,uuid,publicUser,validatedSessionId});
 const handleBilling = billingApi({currentSession,supabaseAdminData,sessionJson,json,body,requestBytes,uuid});
+const handleAnalysis = analysisApi({currentSession,supabaseAdminData,sessionJson,json,body,gold,additionalMarket});
 export default async function handler(request) {
   const url = new URL(request.url);
   const route = url.searchParams.get("route") || "";
@@ -912,6 +914,8 @@ export default async function handler(request) {
       const access=await paidAccess(session.user,supabaseAdminData);
       if(!access.active)return sessionJson({error:'subscription_required',access},402,session);
     }
+    if(route==='analysis/config'&&request.method==='GET'&&sameOrigin(request))return await handleAnalysis(request,url,'config');
+    if(route==='analysis/run'&&request.method==='POST'&&sameOrigin(request))return await handleAnalysis(request,url,'run');
     if (route === "settings" && (request.method === "GET" || request.method === "POST" && sameOrigin(request))) return await accountSettings(request);
     if (route === "profile/avatar") return await profileAvatar(request);
     if (route === "gold" && request.method === "GET") return await marketData(request, url);

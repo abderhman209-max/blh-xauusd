@@ -23,6 +23,15 @@ test('market packets exclude open candles, reject stale/gapped data, and keep ca
   const gap=dataset('5min');gap.bars.splice(-2,1);assert.throws(()=>marketPacket('XAU','5min',[gap],now),/history/);
   const bad=dataset('5min');bad.bars.at(-1).close=NaN;assert.throws(()=>marketPacket('XAU','5min',[bad],now),/market_data/);
 });
+
+test('default fetch preserves its runtime receiver and credentials reject internal whitespace before transmission',async()=>{
+  const at=Date.now(),packet=marketPacket('XAU','5min',[dataset('5min',at)],at),original=globalThis.fetch;let calls=0;
+  try{
+    globalThis.fetch=async function(_url,init){assert.equal(this,globalThis);calls++;assert.equal(init.headers.authorization,'Bearer fixture-only');return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(modelValue(packet,'wait'))}]}]}));};
+    assert.equal((await inferAnalysis(packet,{key:'  fixture-only\n'})).status,'wait');
+    await assert.rejects(()=>inferAnalysis(packet,{key:'fixture\ninvalid'}),/invalid_credential/);assert.equal(calls,1);
+  }finally{globalThis.fetch=original;}
+});
 test('only referenced, bounded and correctly ordered model levels become a trade plan',()=>{
   const packet=marketPacket('XAU','5min',[dataset('5min')],now),value=modelValue(packet);
   const valid=validateModelAnalysis(value,packet,now);assert.equal(valid.status,'ready');assert.equal(valid.plan.rewardRisk,2);

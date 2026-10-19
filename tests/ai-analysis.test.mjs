@@ -46,13 +46,14 @@ test('the real model request is bounded, server authenticated and structured; re
   let requests=0;
   const fetcher=async(url,init)=>{
     requests++;assert.equal(url,'https://api.openai.com/v1/responses');
-    assert.equal(init.headers.authorization,'Bearer fixture-only');assert.equal(init.redirect,'error');
+    assert.equal(init.headers.authorization,'Bearer fixture-only');assert.equal(init.redirect,'manual');
     const body=JSON.parse(init.body);assert.equal(body.model,AI_MODEL);assert.equal(body.store,false);assert.equal(body.max_output_tokens,2500);
     assert.equal(body.text.format.strict,true);assert.equal(body.text.format.schema.additionalProperties,false);
     assert.ok(!body.input.includes('user_id'));assert.ok(!body.input.includes('fixture-only'));
     return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(modelValue(packet,'wait'))}]}]}));
   };
   assert.equal((await inferAnalysis(packet,{key:'fixture-only',fetcher})).status,'wait');assert.equal(requests,1);
+  let redirects=0;await assert.rejects(()=>inferAnalysis(packet,{key:'fixture-only',fetcher:async(_url,init)=>{redirects++;assert.equal(init.redirect,'manual');return new Response(null,{status:307,headers:{location:'https://untrusted.invalid'}});}}),/provider_unavailable/);assert.equal(redirects,1);
   for(const response of [{status:'incomplete'}, {status:'completed',output:[{type:'message',content:[{type:'refusal',refusal:'No'}]}]}]){
     await assert.rejects(()=>inferAnalysis(packet,{key:'fixture-only',fetcher:async()=>new Response(JSON.stringify(response))}),/incomplete|refused/);
   }

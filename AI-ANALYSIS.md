@@ -4,7 +4,7 @@ The terminal can request a real OpenAI Responses analysis for XAU/USD or EUR/USD
 
 The server sends at most 100 closed OHLC candles per interval, their source, timestamps and calculated EMA/ATR context. It sends no customer identity, email, account balance or position history. XAU uses the existing Twelve Data feed with the existing Yahoo fallback; EUR uses the existing market provider. These feeds can be delayed. News and order-book feeds are not connected. The model does not learn continuously or execute broker orders.
 
-Each validated scenario includes an entry, protective stop, three progressive targets, an entry trigger and exit rules. A `wait` decision can include a conditional scenario that is explicitly unconfirmed. It never becomes active merely because a live price crosses a level. If the model cannot form a coherent scenario, the terminal shows an explanation and empty level cards. TP3 is the proposed final profit-taking level, not a recorded execution or actual exit price.
+Each validated scenario includes an entry, protective stop, three progressive targets, an entry trigger and exit rules. The compact terminal panel shows the decision, numeric levels and expiry; long commentary is omitted. Entry conditions remain available in a collapsed disclosure. A `wait` decision can include a conditional scenario that is explicitly unconfirmed. It never becomes active merely because a live price crosses a level. If the model cannot form a coherent scenario, the terminal shows `ATTENDRE` and empty level cards. TP3 is the proposed final profit-taking level, not a recorded execution or actual exit price.
 
 ## Access and consumption
 

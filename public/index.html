@@ -462,19 +462,18 @@ select option{background:#11151f;color:#e9ebf2}
   <sc-if value="{{ isTrader }}" hint-placeholder-val="{{ true }}">
   <div data-screen-label="Trader" class="terminal-trader" style="flex:1;display:flex;flex-direction:column;gap:16px;padding:18px 24px">
     <section class="pv-analysis" aria-labelledby="pv-analysis-title">
-      <div class="pv-analysis-head"><div><span class="terminal-mini">PIPVORIA · BOT IA</span><h2 id="pv-analysis-title">Le marché change. Le bot analyse.</h2><p>Choisissez l’or ou EUR/USD. Le bot confronte les périodes et explique sa décision.</p></div>
+      <div class="pv-analysis-head"><h2 id="pv-analysis-title">Résultats IA</h2>
         <div class="pv-analysis-controls"><sc-raw-select aria-label="Marché à analyser" value="{{ symbol }}" sc-camel-on-change="{{ onAnalysisSymbol }}"><option value="XAU">Or · XAU/USD</option><option value="EUR">EUR/USD</option><sc-if value="{{ analysisUnsupported }}"><option value="{{ symbol }}">{{ analysisMarketName }}</option></sc-if></sc-raw-select>
           <sc-raw-select aria-label="Période à analyser" value="{{ tf }}" sc-camel-on-change="{{ onTf }}"><option value="1m">1 min</option><option value="5m">5 min</option><option value="15m">15 min</option><option value="30m">30 min</option><option value="1h">1 heure</option></sc-raw-select>
           <button sc-camel-on-click="{{ runAutomaticAnalysis }}" disabled="{{ analysisDisabled }}">{{ analysisButton }}</button></div>
       </div>
-      <label class="pv-analysis-follow"><input type="checkbox" checked="{{ automaticFollow }}" sc-camel-on-change="{{ onAutomaticFollow }}"> Suivre les nouvelles bougies <span>20 nouvelles analyses par jour et par compte · résultats récents partagés</span></label>
-      <div role="status" aria-live="polite"><div class="pv-analysis-state"><strong>{{ analysisTitle }}</strong><span class="terminal-mini">{{ analysisMarketName }} · {{ tf }}</span></div><p>{{ analysisMessage }}</p></div>
-      <sc-if value="{{ analysisShowLevels }}"><div class="pv-analysis-plan"><div><h3>{{ analysisPlanHeading }}</h3><p>{{ analysisPlanNotice }}</p></div>
-        <div class="pv-analysis-levels"><div><span>Entrée de référence</span><b>{{ analysisEntry }}</b></div><div><span>Stop loss · sortie de protection</span><b>{{ analysisStop }}</b></div><div><span>Gain / risque à TP2</span><b>{{ analysisRr }}</b></div><div><span>TP1 · premier objectif</span><b>{{ analysisTp1 }}</b></div><div><span>TP2 · deuxième objectif</span><b>{{ analysisTp2 }}</b></div><div><span>TP3 · sortie finale</span><b>{{ analysisTp3 }}</b></div></div>
-        <sc-if value="{{ analysisHasPlan }}"><div class="pv-analysis-execution"><div><strong>Déclenchement de l’entrée</strong><p>{{ analysisTrigger }}</p></div><div><strong>Gestion de la sortie</strong><p>{{ analysisExit }}</p></div></div></sc-if>
-      </div></sc-if>
-      <div class="pv-analysis-checks"><sc-for list="{{ analysisChecks }}" as="c" hint-placeholder-count="0"><div><strong>{{ c.label }}</strong><p>{{ c.detail }}</p></div></sc-for></div>
-      <p class="pv-analysis-meta">{{ analysisMeta }}</p>
+      <label class="pv-analysis-follow"><input type="checkbox" checked="{{ automaticFollow }}" sc-camel-on-change="{{ onAutomaticFollow }}"> Auto <span>20 nouvelles analyses/jour</span></label>
+      <div role="status" aria-live="polite" class="pv-analysis-state"><strong>{{ analysisTitle }}</strong><span class="terminal-mini">{{ analysisMarketName }} · {{ tf }}</span></div>
+      <sc-if value="{{ analysisShowLevels }}">
+        <div class="pv-analysis-levels"><div><span>Entrée</span><b>{{ analysisEntry }}</b></div><div><span>Stop loss</span><b>{{ analysisStop }}</b></div><div><span>R/R · TP2</span><b>{{ analysisRr }}</b></div><div><span>TP1</span><b>{{ analysisTp1 }}</b></div><div><span>TP2</span><b>{{ analysisTp2 }}</b></div><div><span>TP3 · sortie</span><b>{{ analysisTp3 }}</b></div></div>
+        <sc-if value="{{ analysisHasPlan }}"><details class="pv-analysis-condition"><summary>Condition d’entrée</summary><p>{{ analysisTrigger }}</p></details></sc-if>
+        <p class="pv-analysis-meta">Clôture {{ analysisAsOf }} · Valide jusqu’au {{ analysisUntil }}</p>
+      </sc-if>
     </section>
     <div class="terminal-watchlist" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px">
       <sc-for list="{{ watch }}" as="w" hint-placeholder-count="6">

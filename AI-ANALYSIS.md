@@ -4,6 +4,8 @@ The terminal can request a real OpenAI Responses analysis for XAU/USD or EUR/USD
 
 The server sends at most 100 closed OHLC candles per interval, their source, timestamps and calculated EMA/ATR context. It sends no customer identity, email, account balance or position history. XAU uses the existing Twelve Data feed with the existing Yahoo fallback; EUR uses the existing market provider. These feeds can be delayed. News and order-book feeds are not connected. The model does not learn continuously or execute broker orders.
 
+Each validated scenario includes an entry, protective stop, three progressive targets, an entry trigger and exit rules. A `wait` decision can include a conditional scenario that is explicitly unconfirmed. It never becomes active merely because a live price crosses a level. If the model cannot form a coherent scenario, the terminal shows an explanation and empty level cards. TP3 is the proposed final profit-taking level, not a recorded execution or actual exit price.
+
 ## Access and consumption
 
 Account approval and a valid subscription are checked on the server before every generation. The verified super-admin subscription exemption still applies. The API key remains server-side in the Production Secret `OPENAI_API_KEY`; the dedicated key permits Responses access only. Preview deployments require their own explicit configuration.
@@ -18,7 +20,7 @@ Following new candles is opt-in and runs only while the trader view is visible. 
 
 Insufficient, malformed, interrupted recent or stale market data prevents a model call. Older session gaps are disclosed in the market packet. A plan expires at the next primary candle close, including when that close happens during inference. Expired levels are hidden in the terminal.
 
-Structured output must reference supplied candle timestamps. Buy/sell levels must be positive, on the correct sides, within two ATR of the latest close, with a stop distance of 0.3–5 ATR and a theoretical reward/risk of 1.5–5. Invalid, incomplete or refused model output fails closed. These checks validate consistency, not predictive accuracy or profitability. Spread, fees and slippage are not included. The model can return `wait` without levels.
+Structured output must reference supplied candle timestamps. Scenario levels must be positive and correctly ordered, with an entry within two ATR of the latest close and a stop distance of 0.3–5 ATR. TP1 must yield at least 1R, TP2 at least 1.5R, and TP3 between 2R and 5R; each target must progress farther than the previous one after price rounding. Trigger and exit instructions must be present. The v2 cache identity excludes older single-target results. Invalid, incomplete or refused model output fails closed. These checks validate consistency, not predictive accuracy or profitability. Spread, fees and slippage are not included. The model can return `wait` without levels.
 
 ## Verification
 

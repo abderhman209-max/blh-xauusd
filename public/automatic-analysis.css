@@ -2,3 +2,4 @@
 
 .pv-analysis-follow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:#c4c8d6;font-size:13px}.pv-analysis-follow span{font-size:11px;color:#929ab2}.pv-analysis-follow input{accent-color:#9d8cff}.pv-analysis-checks{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
 @media(max-width:640px){.pv-analysis-controls select{flex:1;min-width:0}.pv-analysis-controls button{flex:1 0 100%;white-space:nowrap;min-height:44px}}
+.pv-analysis-plan{display:grid;gap:12px;border-top:1px solid #302a4b;padding-top:16px}.pv-analysis-plan h3{font-size:15px;color:#c9bfff;margin:0 0 4px}.pv-analysis-levels{grid-template-columns:repeat(3,minmax(0,1fr))}.pv-analysis-execution{display:grid;grid-template-columns:1fr 1fr;gap:16px}.pv-analysis-execution strong{display:block;font-size:13px;margin-bottom:5px}@media(max-width:640px){.pv-analysis-levels{grid-template-columns:repeat(2,minmax(0,1fr))}.pv-analysis-execution{grid-template-columns:1fr}}

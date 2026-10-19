@@ -469,7 +469,10 @@ select option{background:#11151f;color:#e9ebf2}
       </div>
       <label class="pv-analysis-follow"><input type="checkbox" checked="{{ automaticFollow }}" sc-camel-on-change="{{ onAutomaticFollow }}"> Suivre les nouvelles bougies <span>20 nouvelles analyses par jour et par compte · résultats récents partagés</span></label>
       <div role="status" aria-live="polite"><div class="pv-analysis-state"><strong>{{ analysisTitle }}</strong><span class="terminal-mini">{{ analysisMarketName }} · {{ tf }}</span></div><p>{{ analysisMessage }}</p></div>
-      <sc-if value="{{ analysisReady }}"><div class="pv-analysis-levels"><div><span>Entrée de référence</span><b>{{ analysisEntry }}</b></div><div><span>Stop loss</span><b>{{ analysisStop }}</b></div><div><span>Take profit</span><b>{{ analysisTarget }}</b></div><div><span>Gain / risque théorique</span><b>{{ analysisRr }}</b></div></div></sc-if>
+      <sc-if value="{{ analysisShowLevels }}"><div class="pv-analysis-plan"><div><h3>{{ analysisPlanHeading }}</h3><p>{{ analysisPlanNotice }}</p></div>
+        <div class="pv-analysis-levels"><div><span>Entrée de référence</span><b>{{ analysisEntry }}</b></div><div><span>Stop loss · sortie de protection</span><b>{{ analysisStop }}</b></div><div><span>Gain / risque à TP2</span><b>{{ analysisRr }}</b></div><div><span>TP1 · premier objectif</span><b>{{ analysisTp1 }}</b></div><div><span>TP2 · deuxième objectif</span><b>{{ analysisTp2 }}</b></div><div><span>TP3 · sortie finale</span><b>{{ analysisTp3 }}</b></div></div>
+        <sc-if value="{{ analysisHasPlan }}"><div class="pv-analysis-execution"><div><strong>Déclenchement de l’entrée</strong><p>{{ analysisTrigger }}</p></div><div><strong>Gestion de la sortie</strong><p>{{ analysisExit }}</p></div></div></sc-if>
+      </div></sc-if>
       <div class="pv-analysis-checks"><sc-for list="{{ analysisChecks }}" as="c" hint-placeholder-count="0"><div><strong>{{ c.label }}</strong><p>{{ c.detail }}</p></div></sc-for></div>
       <p class="pv-analysis-meta">{{ analysisMeta }}</p>
     </section>

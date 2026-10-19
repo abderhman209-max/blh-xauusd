@@ -164,3 +164,13 @@ test('the AI bot cannot start unpaid, and a market switch discards an older mode
  app.cancelAutomaticAnalysis();app.state.symbol='EUR';finish({status:'ready',symbol:'XAU'});await pending;assert.equal(app.automatic,null);assert.equal(app.automaticBusy,false);
  app.state.symbol='XAU';app.automatic={symbol:'XAU',tf:'5m',status:'ready',validUntil:Date.now()-1,plan:{direction:'buy',entry:4200,stop:4190,target:4220,rewardRisk:2}};assert.equal(app.renderVals().analysisReady,false);
 });
+
+test('conditional AI levels stay unconfirmed, include three targets and disappear on expiry or lost access',()=>{
+ const app=terminalApp();app.state.screen='app';app.state.symbol='XAU';app.state.tf='5m';app.access={active:true,deadline:Date.now()+3600000};
+ app.automatic={symbol:'XAU',tf:'5m',status:'conditional',validUntil:Date.now()+60000,message:'Attendre le retest.',plan:{direction:'sell',conditional:true,entry:4200,stop:4210,targets:[4190,4180,4170],rewardRisk:2,trigger:'Attendre une clôture sous 4200 puis son retest.',exitRule:'Objectifs 4190, 4180, 4170 ; sortie au stop 4210.'}};
+ let v=app.renderVals();assert.equal(v.analysisReady,false);assert.equal(v.analysisShowLevels,true);assert.equal(v.analysisHasPlan,true);assert.equal(v.analysisTitle,'VENTE À CONFIRMER');assert.ok(v.analysisTrigger.includes('retest'));assert.ok(v.analysisExit.includes('4210'));assert.notEqual(v.analysisTp3,'—');
+ app.automatic.status='ready';assert.equal(app.renderVals().analysisReady,true);
+ app.automatic.validUntil=Date.now()-1;v=app.renderVals();assert.equal(v.analysisShowLevels,false);assert.equal(v.analysisHasPlan,false);assert.equal(v.analysisEntry,'—');assert.equal(v.analysisTp3,'—');
+ app.automatic.validUntil=Date.now()+60000;app.access=null;assert.equal(app.renderVals().analysisHasPlan,false);
+ app.access={active:true,deadline:Date.now()+60000};app.automatic.status='wait';app.automatic.plan=null;v=app.renderVals();assert.equal(v.analysisShowLevels,true);assert.equal(v.analysisHasPlan,false);assert.equal(v.analysisTitle,'ATTENDRE');assert.equal(v.analysisTp1,'—');
+});

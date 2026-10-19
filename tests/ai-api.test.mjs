@@ -12,7 +12,7 @@ function fixture(mode='reserved'){
  const state={modelCalls:0,writes:[],markets:[],result:null};
  globalThis.fetch=async(_url,init)=>{
    state.modelCalls++;const packet=JSON.parse(JSON.parse(init.body).input);
-   const value={decision:'wait',summary:'Attendre une confirmation.',structure:'Structure mixte.',liquidity:'Pas de balayage clair.',context:'Périodes divergentes.',invalidation:'Réévaluer à la prochaine clôture.',entry:null,stop:null,target:null,evidenceTimes:[packet.frames[0].candles.at(-1)[0]]};
+   const value={decision:'wait',summary:'Attendre une confirmation.',structure:'Structure mixte.',liquidity:'Pas de balayage clair.',context:'Périodes divergentes.',invalidation:'Réévaluer à la prochaine clôture.',scenario:null,evidenceTimes:[packet.frames[0].candles.at(-1)[0]]};
    return json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}]});
  };
  const handler=analysisApi({currentSession:async()=>({user:{id:'fixture-owner'}}),json,sessionJson:json,body:r=>r.json(),

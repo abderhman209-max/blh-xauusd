@@ -10,9 +10,9 @@ export function dataset(interval,at=now){
   })};
 }
 export function modelValue(packet,decision='buy'){
-  const f=packet.frames[0],entry=f.latestClose;
+  const f={...packet.frames[0],atr:Number(packet.frames[0].atr.toFixed(2))},entry=Number(f.latestClose.toFixed(2));
   return {decision,summary:'Les périodes montrent une reprise à confirmer.',structure:'Clôtures en progression.',liquidity:'Les mèches testent les creux récents.',context:'Comparer la tendance horaire.',invalidation:'Le scénario est invalidé sous le creux.',
-    entry:decision==='wait'?null:entry,stop:decision==='wait'?null:entry-f.atr,target:decision==='wait'?null:entry+2*f.atr,evidenceTimes:[f.candles.at(-1)[0]]};
+    scenario:decision==='wait'?null:{direction:decision,entry,stop:entry+(decision==='sell'?1:-1)*f.atr,tp1:entry+(decision==='sell'?-1:1)*f.atr,tp2:entry+(decision==='sell'?-1:1)*2*f.atr,tp3:entry+(decision==='sell'?-1:1)*3*f.atr,trigger:'Attendre une clôture de confirmation au niveau d’entrée.',exitRule:'Prises de profit aux trois objectifs ; sortie au stop si invalidé.'},evidenceTimes:[f.candles.at(-1)[0]]};
 }
 test('market packets exclude open candles, reject stale/gapped data, and keep cache identities independent of request time',async()=>{
   const data=dataset('5min'),packet=marketPacket('XAU','5min',[data],now);
@@ -35,11 +35,21 @@ test('default fetch preserves its runtime receiver and credentials reject intern
 test('only referenced, bounded and correctly ordered model levels become a trade plan',()=>{
   const packet=marketPacket('XAU','5min',[dataset('5min')],now),value=modelValue(packet);
   const valid=validateModelAnalysis(value,packet,now);assert.equal(valid.status,'ready');assert.equal(valid.plan.rewardRisk,2);
-  for(const patch of [{entry:1},{stop:value.entry+2},{target:value.entry-2},{evidenceTimes:[1]},{stop:value.entry-.001},{summary:''}]){
-    assert.throws(()=>validateModelAnalysis({...value,...patch},packet,now),/invalid_output/);
+  for(const patch of [{entry:1},{stop:value.scenario.entry+2},{tp1:value.scenario.entry-2},{stop:value.scenario.entry-.001},{tp2:value.scenario.tp1},{tp3:value.scenario.entry+20*packet.frames[0].atr},{trigger:''},{exitRule:''},{direction:'sell'}]){
+    assert.throws(()=>validateModelAnalysis({...value,scenario:{...value.scenario,...patch}},packet,now),/invalid_output/);
   }
+  for(const patch of [{evidenceTimes:[1]},{summary:''},{scenario:null}])assert.throws(()=>validateModelAnalysis({...value,...patch},packet,now),/invalid_output/);
+  const sell=validateModelAnalysis(modelValue(packet,'sell'),packet,now);assert.equal(sell.status,'ready');assert.ok(sell.plan.stop>sell.plan.entry&&sell.plan.targets[0]>sell.plan.targets[1]&&sell.plan.targets[1]>sell.plan.targets[2]);
   assert.equal(validateModelAnalysis(modelValue(packet,'wait'),packet,now).plan,null);
   assert.equal(validateModelAnalysis(value,packet,packet.validUntil).plan,null);
+});
+
+test('an unconfirmed scenario has all levels and exit rules without becoming an active signal',()=>{
+  const packet=marketPacket('XAU','5min',[dataset('5min')],now),value={...modelValue(packet),decision:'wait'};
+  const result=validateModelAnalysis(value,packet,now);assert.equal(result.status,'conditional');assert.equal(result.plan.conditional,true);
+  assert.equal(result.plan.targets.length,3);assert.equal(result.plan.target,result.plan.targets[1]);assert.deepEqual(result.plan.rewardRisks,[1,2,3]);assert.ok(result.plan.trigger&&result.plan.exitRule);
+  assert.equal(validateModelAnalysis(value,packet,packet.validUntil).plan,null);
+  assert.throws(()=>validateModelAnalysis({...value,evidenceTimes:[]},packet,now),/invalid_output/);
 });
 test('the real model request is bounded, server authenticated and structured; refusals and incomplete replies never become plans',async()=>{
   const at=Date.now(),packet=marketPacket('XAU','5min',[dataset('5min',at)],at);

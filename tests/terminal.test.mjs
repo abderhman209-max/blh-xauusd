@@ -7,8 +7,8 @@ import {additionalMarket} from '../lib/terminal-market.js';
 const C=globalThis.PIPVORIA_CORE;
 function session(fetcher){const ctx={URLSearchParams,TextDecoder,Uint8Array,globalThis:null};ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('public/terminal-api.js','utf8'),ctx);return new ctx.TerminalSession({fetcher});}
 const response=(body,status=200)=>({ok:status<400,status,json:async()=>body});
-function terminalApp(){
-  const ctx={Date,Intl,URLSearchParams,structuredClone,console,AbortController,clearInterval(){},clearTimeout(){},setInterval(){return 1;},location:{pathname:'/',hash:'',search:''},history:{replaceState(_a,_b,url){ctx.location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},scrollTo(){},ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;vm.createContext(ctx);
+function terminalApp(storage){
+  const ctx={Date,Intl,URLSearchParams,structuredClone,console,AbortController,clearInterval(){},clearTimeout(){},setInterval(){return 1;},location:{pathname:'/',hash:'',search:''},history:{replaceState(_a,_b,url){ctx.location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},scrollTo(){},ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;ctx.localStorage=storage;vm.createContext(ctx);
   for(const name of ['core','structure','smart','blh-clean','pa-liquidity','heatmap','indicator-performance','terminal-original','terminal'])vm.runInContext(fs.readFileSync('public/'+name+'.js','utf8'),ctx);
   const app=vm.runInContext('new Terminal()',ctx);app.session={epoch:1,user:{id:'paid-fixture'}};app.access={active:true,deadline:Date.now()+3600000};return app;
 }
@@ -165,12 +165,52 @@ test('the AI bot cannot start unpaid, and a market switch discards an older mode
  app.state.symbol='XAU';app.automatic={symbol:'XAU',tf:'5m',status:'ready',validUntil:Date.now()-1,plan:{direction:'buy',entry:4200,stop:4190,target:4220,rewardRisk:2}};assert.equal(app.renderVals().analysisReady,false);
 });
 
-test('conditional AI levels stay unconfirmed, include three targets and disappear on expiry or lost access',()=>{
+test('conditional AI levels stay unconfirmed and expired levels remain historical until access is lost',()=>{
  const app=terminalApp();app.state.screen='app';app.state.symbol='XAU';app.state.tf='5m';app.access={active:true,deadline:Date.now()+3600000};
  app.automatic={symbol:'XAU',tf:'5m',status:'conditional',validUntil:Date.now()+60000,message:'Attendre le retest.',plan:{direction:'sell',conditional:true,entry:4200,stop:4210,targets:[4190,4180,4170],rewardRisk:2,trigger:'Attendre une clôture sous 4200 puis son retest.',exitRule:'Objectifs 4190, 4180, 4170 ; sortie au stop 4210.'}};
  let v=app.renderVals();assert.equal(v.analysisReady,false);assert.equal(v.analysisShowLevels,true);assert.equal(v.analysisHasPlan,true);assert.equal(v.analysisTitle,'VENTE À CONFIRMER');assert.ok(v.analysisTrigger.includes('retest'));assert.ok(v.analysisExit.includes('4210'));assert.notEqual(v.analysisTp3,'—');
  app.automatic.status='ready';assert.equal(app.renderVals().analysisReady,true);
- app.automatic.validUntil=Date.now()-1;v=app.renderVals();assert.equal(v.analysisShowLevels,false);assert.equal(v.analysisHasPlan,false);assert.equal(v.analysisEntry,'—');assert.equal(v.analysisTp3,'—');
+ app.automatic.validUntil=Date.now()-1;v=app.renderVals();assert.equal(v.analysisShowLevels,true);assert.equal(v.analysisHasPlan,false);assert.equal(v.analysisReady,false);assert.notEqual(v.analysisEntry,'—');assert.notEqual(v.analysisTp3,'—');assert.match(v.analysisTitle,/Ancien calcul/);assert.match(v.analysisValidity,/actualiser/);
  app.automatic.validUntil=Date.now()+60000;app.access=null;assert.equal(app.renderVals().analysisHasPlan,false);
  app.access={active:true,deadline:Date.now()+60000};app.automatic.status='wait';app.automatic.plan=null;v=app.renderVals();assert.equal(v.analysisShowLevels,true);assert.equal(v.analysisHasPlan,false);assert.equal(v.analysisTitle,'ATTENDRE');assert.equal(v.analysisTp1,'—');
+});
+
+function analysisStorage(){const rows=new Map;return{getItem:key=>rows.get(key)||null,setItem:(key,value)=>rows.set(key,value)};}
+function savedAnalysis(symbol='XAU',interval='5min'){
+ return{symbol,interval,status:'ready',asOf:Date.now()-300000,generatedAt:Date.now()-1000,validUntil:Date.now()+60000,source:'Fixture',
+ plan:{direction:'buy',entry:4200,stop:4190,targets:[4210,4220,4230],rewardRisk:2,trigger:'Clôture confirmée.',exitRule:'Sortie aux objectifs ou au stop.'}};
+}
+test('AI calculations survive a new page and logout/login without a new model call',async()=>{
+ const storage=analysisStorage(),first=terminalApp(storage);let calls=0;
+ first.state.symbol='EUR';first.state.tf='15m';first.session.stream=async()=>{calls++;return savedAnalysis('EUR','15min');};await first.runAutomaticAnalysis();assert.equal(calls,1);
+ const refreshed=terminalApp(storage);refreshed.session.stream=()=>assert.fail('Restoration must never generate an analysis');
+ refreshed.loadWorkspace=refreshed.loadCapabilities=refreshed.loadWatch=async()=>{};let loaded;
+ refreshed.load=async()=>{loaded=refreshed.state.symbol+'|'+refreshed.state.tf;};await refreshed.startPaidWorkspace();
+ assert.equal(loaded,'EUR|15m');assert.equal(refreshed.automatic.plan.entry,4200);assert.equal(refreshed.state.automaticFollow,false);
+ refreshed.lock('logout_pending');refreshed.session.user=null;refreshed.session.epoch++;assert.equal(refreshed.automatic,null);
+ refreshed.session.user={id:'paid-fixture'};refreshed.access={active:true,deadline:Date.now()+60000};await refreshed.startPaidWorkspace();assert.equal(refreshed.automatic.plan.targets[2],4230);assert.equal(calls,1);
+});
+test('saved calculations stay scoped to account, market and period and require paid access',async()=>{
+ const storage=analysisStorage(),app=terminalApp(storage);app.session.stream=async()=>savedAnalysis();await app.runAutomaticAnalysis();
+ const other=terminalApp(storage);other.session.user.id='other-owner';await other.restoreAutomaticAnalysis(true);assert.equal(other.automatic,null);
+ app.load=()=>{};app.setSymbol('EUR');assert.equal(app.automatic,null);app.setSymbol('XAU');assert.equal(app.automatic.plan.entry,4200);
+ app.renderVals().onTf({target:{value:'15m'}});assert.equal(app.automatic,null);app.renderVals().onTf({target:{value:'5m'}});assert.equal(app.automatic.plan.entry,4200);
+ app.cancelAutomaticAnalysis();app.access=null;await app.restoreAutomaticAnalysis(true);assert.equal(app.automatic,null);
+ app.access={active:true,deadline:Date.now()+60000};app.state.demo=true;await app.restoreAutomaticAnalysis(true);assert.equal(app.automatic,null);
+ app.state.demo=false;app.session.pendingLogout=true;await app.restoreAutomaticAnalysis(true);assert.equal(app.automatic,null);
+});
+test('expired saved results remain labelled historical and failed refreshes preserve the last calculation',async()=>{
+ const storage=analysisStorage(),app=terminalApp(storage);app.session.stream=async()=>savedAnalysis();await app.runAutomaticAnalysis();
+ app.automatic.validUntil=Date.now()-1;app.saveAutomaticAnalysis();const refreshed=terminalApp(storage);await refreshed.restoreAutomaticAnalysis(true);
+ let view=refreshed.renderVals();assert.equal(view.analysisReady,false);assert.equal(view.analysisHasPlan,false);assert.equal(view.analysisShowLevels,true);assert.match(view.analysisTitle,/Ancien calcul/);assert.match(view.analysisValidity,/actualiser/);assert.notEqual(view.analysisEntry,'—');
+ refreshed.session.stream=async()=>{throw Error('analysis_daily_limit');};await refreshed.runAutomaticAnalysis();assert.equal(refreshed.automatic.plan.entry,4200);assert.match(refreshed.automaticError,/limite quotidienne/);
+ const again=terminalApp(storage);await again.restoreAutomaticAnalysis(true);assert.equal(again.automatic.plan.entry,4200);assert.equal(again.automaticError,'');
+ again.access=null;view=again.renderVals();assert.equal(view.analysisShowLevels,false);assert.equal(view.analysisEntry,'—');
+});
+test('corrupt or unavailable storage cannot break login, and late AI replies cannot persist for a new account',async()=>{
+ const storage=analysisStorage(),app=terminalApp(storage),key=app.analysisMemoryKey();storage.setItem(key,'{');await app.restoreAutomaticAnalysis(true);assert.equal(app.automatic,null);
+ storage.setItem(key,JSON.stringify({version:1,owner:'someone-else',entries:{},last:'XAU|5m'}));await app.restoreAutomaticAnalysis(true);assert.equal(app.automatic,null);
+ const invalid={...savedAnalysis(),tf:'5m'};invalid.plan.targets=[1,null,3];storage.setItem(key,JSON.stringify({version:1,owner:'paid-fixture',entries:{'XAU|5m':invalid},last:'XAU|5m'}));await app.restoreAutomaticAnalysis(true);assert.equal(app.automatic,null);
+ const unavailable=terminalApp({getItem(){throw Error('denied');},setItem(){throw Error('denied');}});await unavailable.restoreAutomaticAnalysis(true);unavailable.session.stream=async()=>savedAnalysis();await unavailable.runAutomaticAnalysis();assert.equal(unavailable.automatic.plan.entry,4200);assert.match(unavailable.state.notice,/conserver/);
+ let finish;app.session.stream=()=>new Promise(r=>finish=r);const pending=app.runAutomaticAnalysis();app.cancelAutomaticAnalysis();app.session.epoch++;app.session.user={id:'new-owner'};finish(savedAnalysis());await pending;assert.equal(storage.getItem(app.analysisMemoryKey()),null);
 });

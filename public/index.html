@@ -719,8 +719,9 @@ select option{background:#11151f;color:#e9ebf2}
       <sc-if value="{{ analysisShowLevels }}">
         <div class="pv-analysis-levels"><div><span>Entrée</span><b>{{ analysisEntry }}</b></div><div><span>Stop loss</span><b>{{ analysisStop }}</b></div><div><span>R/R · TP2</span><b>{{ analysisRr }}</b></div><div><span>TP1</span><b>{{ analysisTp1 }}</b></div><div><span>TP2</span><b>{{ analysisTp2 }}</b></div><div><span>TP3 · sortie</span><b>{{ analysisTp3 }}</b></div></div>
         <sc-if value="{{ analysisHasPlan }}"><details class="pv-analysis-condition"><summary>Condition d’entrée</summary><p>{{ analysisTrigger }}</p></details></sc-if>
-        <p class="pv-analysis-meta">Clôture {{ analysisAsOf }} · Valide jusqu’au {{ analysisUntil }}</p>
+        <p class="pv-analysis-meta">Clôture {{ analysisAsOf }} · {{ analysisValidity }}</p>
       </sc-if>
+      <sc-if value="{{ analysisError }}"><p role="status">{{ analysisError }}</p></sc-if>
     </section>
   </div>
   </sc-if>

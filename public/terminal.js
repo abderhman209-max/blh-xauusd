@@ -12,7 +12,7 @@ class Terminal extends OriginalTerminal {
   sup={tickets:[],cur:null,composing:false,draft:{cat:'Bot / signaux',subject:'',body:''},reply:'',typing:false,configured:null,busy:false,error:'',hasMore:false,older:false};
   lines={}; journal=[]; notifications=[]; preferences={}; settings=PIPVORIA_CORE.settings({timezone:'Europe/Paris'}); settingsRevision=null; settingsReady=false; settingsDirty=false;
   marketSerial=0; settingsSerial=0; journalDrafts=new Map(); pendingMessages=new Map();
-  automatic=null;automaticBusy=false;automaticSerial=0;automaticAbort=null;automaticStage="";automaticNextAt=0;
+  automatic=null;automaticBusy=false;automaticSerial=0;automaticAbort=null;automaticStage="";automaticNextAt=0;automaticError='';
   access=null;accessGeneration=0;accessSerial=0;paidStarted=null;
   signalTracker=PIPVORIA_CORE.tracker();
   SYM={XAU:{label:'XAU/USD',name:'Or / Dollar américain',base:4300,dp:2},BTC:{label:'BTC/USD',name:'Bitcoin / Dollar',base:98000,dp:2},ETH:{label:'ETH/USD',name:'Ethereum / Dollar',base:3500,dp:2},SOL:{label:'SOL/USD',name:'Solana / Dollar',base:180,dp:3},EUR:{label:'EUR/USD',name:'Euro / Dollar',base:1.08,dp:5},NAS:{label:'NAS100',name:'Nasdaq 100',base:21000,dp:1}};
@@ -75,6 +75,9 @@ class Terminal extends OriginalTerminal {
   }
   async startPaidWorkspace(){
     if(!this.hasPaidAccess()||this.paidStarted===this.accessGeneration)return;this.paidStarted=this.accessGeneration;
+    const epoch=this.session.epoch,generation=this.accessGeneration;
+    await this.restoreAutomaticAnalysis(true);
+    if(epoch!==this.session.epoch||generation!==this.accessGeneration||!this.hasPaidAccess())return;
     await Promise.allSettled([this.loadWorkspace(),this.loadCapabilities(),this.load(),this.loadWatch()]);
     if(!this.hasPaidAccess())return;this.monthlyReminder();clearInterval(this.wlT);this.wlT=setInterval(()=>{if(this.hasPaidAccess()&&!document.hidden)this.loadWatch();},60000);
   }
@@ -113,16 +116,42 @@ class Terminal extends OriginalTerminal {
     if(screen==='landing'||screen==='auth')history.replaceState(null,'',location.pathname+(screen==='auth'?'#'+(this.state.authMode==='signup'?'signup':'login'):''));
     this.setState({screen,authError:'',notifOpen:false});window.scrollTo(0,0);}
   fmtT(t){return t?new Date(t).toLocaleString('fr-FR',{timeZone:this.ex.set.tz,day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';}
-  cancelAutomaticAnalysis(){this.automaticSerial++;this.automaticAbort?.abort();this.automaticAbort=null;this.automaticBusy=false;this.automatic=null;this.automaticStage="";this.automaticNextAt=0;}
+  analysisMemoryKey(){return this.session?.user?.id?'pipvoria-analysis:v1:'+this.session.user.id:null;}
+  validSavedAnalysis(value){
+    if(!value||!['XAU','EUR'].includes(value.symbol)||!['1m','5m','15m','30m','1h'].includes(value.tf)||value.interval!==this.interval(value.tf)||!['ready','conditional','wait'].includes(value.status))return false;
+    if(![value.asOf,value.generatedAt,value.validUntil].every(n=>Number.isFinite(n)&&n>0)||value.validUntil<=value.asOf||value.generatedAt>Date.now()+60000)return false;
+    const p=value.plan;if(!p)return value.status==='wait';
+    if(!['buy','sell'].includes(p.direction)||![p.entry,p.stop,p.rewardRisk].every(n=>Number.isFinite(n)&&n>0)||!Array.isArray(p.targets)||p.targets.length!==3||!p.targets.every(n=>Number.isFinite(n)&&n>0))return false;
+    const d=p.direction==='buy'?1:-1;return (p.entry-p.stop)*d>0&&p.targets.every((n,i)=>(n-(i?p.targets[i-1]:p.entry))*d>0)&&typeof p.trigger==='string'&&typeof p.exitRule==='string';
+  }
+  readAnalysisMemory(){
+    const empty={version:1,owner:this.session?.user?.id,entries:{},last:null};
+    try{const key=this.analysisMemoryKey();if(!key)return empty;const raw=window.localStorage?.getItem(key);if(!raw||raw.length>131072)return empty;
+      const saved=JSON.parse(raw);if(saved.version!==1||saved.owner!==empty.owner||!saved.entries||typeof saved.entries!=='object')return empty;
+      for(const symbol of ['XAU','EUR'])for(const tf of ['1m','5m','15m','30m','1h']){const id=symbol+'|'+tf,value=saved.entries[id];if(this.validSavedAnalysis(value)&&value.symbol===symbol&&value.tf===tf)empty.entries[id]=value;}
+      if(Object.hasOwn(empty.entries,saved.last))empty.last=saved.last;return empty;
+    }catch{return empty;}
+  }
+  saveAutomaticAnalysis(){
+    if(!this.hasPaidAccess()||!this.validSavedAnalysis(this.automatic))return;
+    try{const saved=this.readAnalysisMemory(),id=this.automatic.symbol+'|'+this.automatic.tf;saved.entries[id]=this.automatic;saved.last=id;window.localStorage.setItem(this.analysisMemoryKey(),JSON.stringify(saved));}catch{this.setState({notice:'Le navigateur ne permet pas de conserver ce calcul.'});}
+  }
+  restoreAutomaticAnalysis(selectLast=false){
+    if(!this.hasPaidAccess()||this.session.pendingLogout||this.state.demo||this.rp||this.automaticBusy)return;
+    const saved=this.readAnalysisMemory(),value=saved.entries[selectLast?saved.last:this.state.symbol+'|'+this.state.tf];if(!value)return;
+    this.automatic=value;this.automaticNextAt=value.validUntil;
+    if(selectLast)return new Promise(resolve=>this.setState({symbol:value.symbol,tf:value.tf},()=>{this.applySettings();resolve();}));else this.forceUpdate();
+  }
+  cancelAutomaticAnalysis(){this.automaticSerial++;this.automaticAbort?.abort();this.automaticAbort=null;this.automaticBusy=false;this.automatic=null;this.automaticStage="";this.automaticNextAt=0;this.automaticError='';}
   startReplay(){this.cancelAutomaticAnalysis();return super.startReplay();}
   async runAutomaticAnalysis(){
     if(this.automaticBusy||!this.hasPaidAccess()||!['XAU','EUR'].includes(this.state.symbol)||this.state.demo||this.rp)return;
     const {symbol,tf}=this.state,epoch=this.session.epoch,generation=this.accessGeneration,serial=++this.automaticSerial;
-    this.automaticAbort?.abort();this.automaticAbort=new AbortController();this.automaticBusy=true;this.automatic=null;this.automaticStage='Connexion au moteur IA…';this.automaticNextAt=Date.now()+60000;this.forceUpdate();
+    this.automaticAbort?.abort();this.automaticAbort=new AbortController();this.automaticBusy=true;this.automaticError='';this.automaticStage='Connexion au moteur IA…';this.automaticNextAt=Date.now()+60000;this.forceUpdate();
     const current=()=>serial===this.automaticSerial&&epoch===this.session.epoch&&generation===this.accessGeneration&&this.hasPaidAccess()&&symbol===this.state.symbol&&tf===this.state.tf&&!this.state.demo&&!this.rp;
     try{const result=await this.session.stream('analysis/run',{body:{symbol,interval:this.interval(tf)},signal:this.automaticAbort.signal,onEvent:event=>{if(current()){this.automaticStage=event.label;this.forceUpdate();}}});if(!current())return;
-      this.automatic={...result,tf};this.automaticNextAt=result.validUntil||Date.now()+60000;
-    }catch(error){if(current()&&error.name!=='AbortError'){const messages={analysis_data_stale:'Le marché peut être fermé ou le flux retardé : les dernières bougies sont trop anciennes.',analysis_history_insufficient:'L’historique récent est insuffisant ou interrompu. Aucun plan généré.',analysis_daily_limit:'La limite quotidienne de nouvelles analyses est atteinte. Réessayez demain.',analysis_in_progress:'Une analyse de cette bougie est déjà en cours. Réessayez dans quelques instants.',ai_not_configured:'Le moteur IA est en cours de configuration.'};this.automatic={status:'error',symbol,tf,message:messages[error.message]||'Analyse IA indisponible. Aucun plan n’a été généré. Réessayez plus tard.',checks:[]};this.automaticNextAt=Date.now()+300000;if(error.message==='analysis_daily_limit')this.setState({automaticFollow:false});}}
+      this.automatic={...result,tf};this.automaticNextAt=result.validUntil||Date.now()+60000;this.saveAutomaticAnalysis();
+    }catch(error){if(current()&&error.name!=='AbortError'){const messages={analysis_data_stale:'Le marché peut être fermé ou le flux retardé : les dernières bougies sont trop anciennes.',analysis_history_insufficient:'L’historique récent est insuffisant ou interrompu. Aucun plan généré.',analysis_daily_limit:'La limite quotidienne de nouvelles analyses est atteinte. Réessayez demain.',analysis_in_progress:'Une analyse de cette bougie est déjà en cours. Réessayez dans quelques instants.',ai_not_configured:'Le moteur IA est en cours de configuration.'};this.automaticError=messages[error.message]||'Actualisation indisponible. Réessayez plus tard.';if(!this.automatic)this.automatic={status:'error',symbol,tf,message:this.automaticError,checks:[]};this.automaticNextAt=Date.now()+300000;if(error.message==='analysis_daily_limit')this.setState({automaticFollow:false});}}
     finally{if(serial===this.automaticSerial){this.automaticBusy=false;this.forceUpdate();}}
   }
   async marketBars(symbol,tf,signal){
@@ -201,7 +230,7 @@ class Terminal extends OriginalTerminal {
   setSet(p,msg){if(!this.settingsReady)return;this.ex.undo.push(structuredClone(this.ex.set));Object.assign(this.ex.set,p);this.ex.setMsg=msg||'';this.queueSettings();if(this.state.bars.length)this.setBars(this.state.bars);this.forceUpdate();}
   saveLines(){this.queueSettings();this.draw();}
   setMs(p){this.setState(s=>({ms:{...s.ms,...p}}),()=>{this.computeStruct();this.queueSettings();});}
-  setSymbol(symbol){if(!this.SYM[symbol]||symbol===this.state.symbol)return;this.cancelAutomaticAnalysis();this.endReplay(true);this.marketSerial++;this.model=null;this.perf=null;this.biz.sigSeen={};this.view=this.initialView();this.setState({symbol,bars:[],source:'',lastFetch:null,notice:''},()=>{this.applySettings();this.load();});}
+  setSymbol(symbol){if(!this.SYM[symbol]||symbol===this.state.symbol)return;this.cancelAutomaticAnalysis();this.endReplay(true);this.marketSerial++;this.model=null;this.perf=null;this.biz.sigSeen={};this.view=this.initialView();this.setState({symbol,bars:[],source:'',lastFetch:null,notice:''},()=>{this.restoreAutomaticAnalysis();this.applySettings();this.load();});}
   async loadWorkspace(){if(!this.hasPaidAccess())return;const epoch=this.session.epoch,generation=this.accessGeneration;try{const data=await this.session.request('workspace');if(epoch!==this.session.epoch||generation!==this.accessGeneration||!this.hasPaidAccess())return;this.journal=data.journal||[];this.notifications=data.notifications||[];this.preferences=data.preferences||{};this.setState({prefSignals:this.preferences.new_signal!==false});}catch{if(this.hasPaidAccess())this.setState({notice:'Votre journal est temporairement indisponible. Réessayez.'});}}
   async registerPlan(){const p=this.model?.plan;if(!p||this.state.demo||this.rp)return;const id=crypto.randomUUID(),now=Date.now();const risk=PIPVORIA_CORE.risk({balance:this.ex.calc.capital,riskPercent:this.ex.set.risk,entry:p.entry,stop:p.stop,contract:this.ex.set.contract,lotStep:this.ex.set.lotStep});
     const payload={symbol:this.SYM[this.state.symbol].label,interval:this.interval(),strategy:'blh',status:'planned',direction:p.direction===1?'buy':'sell',entry:p.entry,stopLoss:p.stop,takeProfits:p.tps,targetHits:[false,false,false],createdAt:now,clientUpdatedAt:now,riskPercent:Number(this.ex.set.risk),positionSize:risk.valid?risk.positionSize:null,source:this.state.source,notes:''};
@@ -289,7 +318,7 @@ class Terminal extends OriginalTerminal {
       watch:v.watch.map((w,i)=>({...w,src:this.wl[Object.keys(this.SYM)[i]]?.source||'Flux non reçu'})),
       stateLabel:s.loading?'Calcul…':s.resultsOf==='blh'&&(s.symbol!=='XAU'||s.tf!=='5m')?'XAU/USD · 5 min uniquement':s.feedErr?'Flux indisponible':chosen?'Calculé':'Indisponible',
       goalLabel:goal?'+'+goal+' R':'À définir',progressLabel:goal&&chosen?v.netR+' / +'+goal+' R':'Objectif à définir',progressPct:goal&&chosen?Math.max(0,Math.min(100,chosen.netR/goal*100))+'%':'0%',
-      onTf:e=>{this.cancelAutomaticAnalysis();this.endReplay(true);this.view=this.initialView();this.setState({tf:e.target.value,bars:[],source:'',lastFetch:null,notice:''},()=>{this.applySettings();this.load();});},
+      onTf:e=>{this.cancelAutomaticAnalysis();this.endReplay(true);this.view=this.initialView();this.setState({tf:e.target.value,bars:[],source:'',lastFetch:null,notice:''},()=>{this.restoreAutomaticAnalysis();this.applySettings();this.load();});},
       onLang:e=>this.setState({lang:e.target.value},()=>this.queueSettings()),
       onResultsOf:e=>this.setState({resultsOf:e.target.value}),
       indList:v.indList.map((item,i)=>({...item,toggle:()=>this.setState({ind:{...s.ind,[['ema','zone','plan','structure'][i]]:!s.ind[['ema','zone','plan','structure'][i]]}},()=>this.queueSettings())})),
@@ -323,19 +352,19 @@ class Terminal extends OriginalTerminal {
     });
     const analysis=this.automatic&&this.automatic.symbol===s.symbol&&this.automatic.tf===s.tf?this.automatic:null;
     const expired=analysis?.validUntil<=Date.now(),disabledMode=s.demo||!!this.rp,unsupported=!['XAU','EUR'].includes(s.symbol);
-    const usable=!!analysis&&['ready','conditional','wait'].includes(analysis.status)&&!expired&&!disabledMode&&this.hasPaidAccess();
+    const displayable=!!analysis&&['ready','conditional','wait'].includes(analysis.status)&&!disabledMode&&this.hasPaidAccess(),usable=displayable&&!expired;
     const hasPlan=usable&&!!analysis.plan,ready=hasPlan&&analysis.status==='ready',conditional=hasPlan&&analysis.status==='conditional';
-    const targets=hasPlan?analysis.plan.targets||[]:[];
+    const displayPlan=displayable&&!!analysis.plan,targets=displayPlan?analysis.plan.targets||[]:[];
     Object.assign(v,{onAnalysisSymbol:e=>this.setSymbol(e.target.value),runAutomaticAnalysis:()=>this.runAutomaticAnalysis(),analysisUnsupported:unsupported,analysisMarketName:this.SYM[s.symbol].label,
-      toggleDemo:()=>{this.cancelAutomaticAnalysis();this.setState({demo:!s.demo,bars:[]},()=>this.load());},
-      analysisDisabled:this.automaticBusy||disabledMode||unsupported||!this.hasPaidAccess(),analysisButton:this.automaticBusy?'Analyse en cours…':'Analyser',analysisReady:ready,analysisShowLevels:usable,analysisHasPlan:hasPlan,automaticFollow:s.automaticFollow,onAutomaticFollow:e=>this.setState({automaticFollow:e.target.checked},()=>{if(e.target.checked)this.runAutomaticAnalysis();}),
-      analysisTitle:this.automaticBusy?'Le bot analyse…':disabledMode?'Mode réel requis':unsupported?'Choisissez l’or ou EUR/USD':expired?'Analyse à actualiser':conditional?(analysis.plan.direction==='buy'?'ACHAT À CONFIRMER':'VENTE À CONFIRMER'):ready?(analysis.plan.direction==='buy'?'ACHAT':'VENTE'):analysis?.status==='wait'?'ATTENDRE':analysis?.status==='error'?'Analyse indisponible':analysis?.status==='stale'?'Données trop anciennes':analysis?.status==='insufficient'?'Historique insuffisant':'Prêt à analyser',
+      toggleDemo:()=>{this.cancelAutomaticAnalysis();this.setState({demo:!s.demo,bars:[]},()=>{this.restoreAutomaticAnalysis();this.load();});},
+      analysisDisabled:this.automaticBusy||disabledMode||unsupported||!this.hasPaidAccess(),analysisButton:this.automaticBusy?'Analyse en cours…':'Analyser',analysisReady:ready,analysisShowLevels:displayable,analysisHasPlan:hasPlan,analysisError:this.automaticError,analysisValidity:expired?'Ancien calcul · à actualiser':'Valide jusqu’au '+this.fmtT(analysis?.validUntil),automaticFollow:s.automaticFollow,onAutomaticFollow:e=>this.setState({automaticFollow:e.target.checked},()=>{if(e.target.checked)this.runAutomaticAnalysis();}),
+      analysisTitle:this.automaticBusy?'Le bot analyse…':disabledMode?'Mode réel requis':unsupported?'Choisissez l’or ou EUR/USD':expired?'Ancien calcul · à actualiser':conditional?(analysis.plan.direction==='buy'?'ACHAT À CONFIRMER':'VENTE À CONFIRMER'):ready?(analysis.plan.direction==='buy'?'ACHAT':'VENTE'):analysis?.status==='wait'?'ATTENDRE':analysis?.status==='error'?'Analyse indisponible':analysis?.status==='stale'?'Données trop anciennes':analysis?.status==='insufficient'?'Historique insuffisant':'Prêt à analyser',
       analysisMessage:this.automaticBusy?this.automaticStage:disabledMode?'Quittez la démonstration ou le replay pour analyser les dernières données disponibles.':unsupported?'Cette analyse est disponible pour XAU/USD et EUR/USD.':expired?'Une nouvelle bougie doit être analysée. Relancez le calcul avant d’utiliser un plan.':analysis?.message||'Une IA interprète les bougies et recoupe les périodes. Elle peut conclure qu’aucun trade n’est justifié.',
       analysisPlanHeading:conditional?'Scénario conditionnel · attendre le déclencheur':ready?'Plan proposé par l’IA':'Aucun scénario chiffré validé',
       analysisPlanNotice:conditional?'L’entrée reste à confirmer. Le prix seul ne valide pas la condition décrite ci-dessous.':ready?'Niveaux calculés sur les bougies clôturées. Vérifiez les conditions d’entrée et de sortie.':'L’IA n’a pas retenu de niveaux cohérents. Une nouvelle analyse est nécessaire avant de définir un plan.',
-      analysisEntry:hasPlan?f(analysis.plan.entry):'—',analysisStop:hasPlan?f(analysis.plan.stop):'—',analysisTp1:targets[0]?f(targets[0]):'—',analysisTp2:targets[1]?f(targets[1]):'—',analysisTp3:targets[2]?f(targets[2]):'—',analysisRr:hasPlan?String(analysis.plan.rewardRisk)+' R':'—',
+      analysisEntry:displayPlan?f(analysis.plan.entry):'—',analysisStop:displayPlan?f(analysis.plan.stop):'—',analysisTp1:targets[0]?f(targets[0]):'—',analysisTp2:targets[1]?f(targets[1]):'—',analysisTp3:targets[2]?f(targets[2]):'—',analysisRr:displayPlan?String(analysis.plan.rewardRisk)+' R':'—',
       analysisTrigger:hasPlan?analysis.plan.trigger:'',analysisExit:hasPlan?analysis.plan.exitRule:'',analysisChecks:!disabledMode&&!expired?analysis?.checks||[]:[],
-      analysisAsOf:usable?this.fmtT(analysis.asOf):'—',analysisUntil:usable?this.fmtT(analysis.validUntil):'—',
+      analysisAsOf:displayable?this.fmtT(analysis.asOf):'—',analysisUntil:displayable?this.fmtT(analysis.validUntil):'—',
       analysisMeta:analysis?.asOf?analysis.source+' · Dernière clôture : '+this.fmtT(analysis.asOf)+' · Calcul : '+this.fmtT(analysis.generatedAt)+' · Niveaux théoriques, sans spread ni frais. Actualités non connectées · Aucun ordre exécuté.':'Interprétation IA des cours fournis · Actualités non connectées · Aucun ordre exécuté. Les cotations peuvent être différées.'});
     const paid=this.hasPaidAccess();for(const [flag,tab] of Object.entries({isTrader:'trader',isPositions:'positions',isJournal:'journal',isCalendar:'calendar',isHistory:'history'}))v[flag]=paid&&s.appTab===tab;
     Object.assign(v,{isPaywall:s.screen==='app'&&!paid&&!['profile','support','admin'].includes(s.appTab),paywallCanPay:user?.isAdmin!==true&&this.access?.status==='inactive',paywallTitle:this.access?.status==='error'?'Vérification de l’abonnement indisponible':this.access?'Abonnement requis':'Vérification de votre abonnement…',paywallMessage:this.access?.status==='error'?'Impossible de vérifier votre accès pour le moment. Réessayez ; ne payez pas une seconde fois si vous avez déjà réglé.':this.access?'Un abonnement payé et non expiré est obligatoire pour ouvrir le terminal, les graphiques et les signaux. Votre accès s’active après confirmation du paiement.':'Votre accès est vérifié sur le serveur avant de charger le terminal.',verifyAccess:()=>this.refreshAccess()});

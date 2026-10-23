@@ -13,6 +13,7 @@ class Terminal extends OriginalTerminal {
   lines={}; journal=[]; notifications=[]; preferences={}; settings=PIPVORIA_CORE.settings({timezone:'Europe/Paris'}); settingsRevision=null; settingsReady=false; settingsDirty=false;
   marketSerial=0; settingsSerial=0; journalDrafts=new Map(); pendingMessages=new Map();
   liveFeedGeneration=0;liveProduct=null;cryptoPaintT=null;paintLive=null;historyStartedAt=0;marketPending=false;
+  quoteCadenceMs=1000;
   automatic=null;automaticBusy=false;automaticSerial=0;automaticAbort=null;automaticStage="";automaticNextAt=0;automaticError='';
   access=null;accessGeneration=0;accessSerial=0;paidStarted=null;
   signalTracker=PIPVORIA_CORE.tracker();
@@ -28,7 +29,7 @@ class Terminal extends OriginalTerminal {
     this.poll=setInterval(()=>{if(this.session.user&&!document.hidden&&!this.rp&&!this.state.demo)this.load(true);},15000);
     this.sessionT=setInterval(()=>this.checkSession(),15000);
     this.automaticT=setInterval(()=>{if(this.state.automaticFollow&&this.state.appTab==='trader'&&!document.hidden&&Date.now()>=this.automaticNextAt&&(!this.automatic?.validUntil||this.automatic.validUntil<=Date.now()))this.runAutomaticAnalysis();},30000);
-    this.priceT=setInterval(()=>this.tickPrice(),5000);
+    this.priceT=setInterval(()=>this.tickPrice(),this.quoteCadenceMs);
     this.supportT=setInterval(()=>{if(this.session.user&&this.state.appTab==='support'&&!document.hidden)this.loadTickets(true);},15000);
     this.adminT=setInterval(()=>{if(this.session.user?.isAdmin&&this.state.appTab==='admin'&&!document.hidden&&!this.adminBusy)this.loadAdmin();},15000);
     this.publicRoute();this.restore();
@@ -186,7 +187,7 @@ class Terminal extends OriginalTerminal {
       const bars=buffer.merge(this.state.bars,this.interval(),0);
       this.wl[symbol]={...this.wl[symbol],price:tick.price,source:'Coinbase · WebSocket'};
       this.setState({lastFetch:tick.receivedAt,quoteAt:tick.time,feedErr:false});this.setBars(bars,'Coinbase · '+this.SYM[symbol].label+' · WebSocket');};
-    CoinbaseMarket.start(tick=>{if(!current()||tick.symbol!==this.SYM[symbol].label||!buffer.add(tick))return;if(!this.cryptoPaintT)this.cryptoPaintT=setTimeout(()=>this.paintLive?.(),250);},product,status=>{if(current())this.setState({feedMode:status});});
+    CoinbaseMarket.start(tick=>{if(!current()||tick.symbol!==this.SYM[symbol].label||!buffer.add(tick))return;if(!this.cryptoPaintT)this.cryptoPaintT=setTimeout(()=>this.paintLive?.(),this.quoteCadenceMs);},product,status=>{if(current()&&status!==this.state.feedMode)this.setState({feedMode:status});});
   }
   async marketBars(symbol,tf,signal){
     if(!this.hasPaidAccess())throw Error('subscription_required');

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr"><head>
-<title>Pipvoria · Bot BLH et terminal de trading</title><meta name="description" content="Découvrez Pipvoria : structure de marché, plans de trade avec entrée, stop loss et TP1 à TP3, graphiques et journal personnel."><meta name="theme-color" content="#0a0d16"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/pipvoria-icon.svg"><link rel="stylesheet" href="/terminal.css">
+<title>Pipvoria · Agent IA et terminal de trading</title><meta name="description" content="Découvrez Pipvoria : structure de marché, plans de trade avec entrée, stop loss et TP1 à TP3, graphiques et journal personnel."><meta name="theme-color" content="#0a0d16"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/pipvoria-icon.svg"><link rel="stylesheet" href="/terminal.css">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
@@ -285,7 +285,7 @@ select option{background:#11151f;color:#e9ebf2}
 
   <section class="landing-hero" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:48px;align-items:center;padding:72px 0 88px">
     <div style="display:flex;flex-direction:column;gap:26px">
-      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.12em;color:#9d8cff;text-transform:uppercase">Bot BLH · XAU/USD · 5 min</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.12em;color:#9d8cff;text-transform:uppercase">Agent IA · XAU/USD et EUR/USD</div>
       <h1 style="margin:0;font-size:clamp(40px,5.4vw,68px);line-height:1.02;letter-spacing:-0.035em;font-weight:600;text-wrap:balance">Le bot lit la structure.<br>Vous gardez la main.</h1>
       <p style="margin:0;font-size:18px;line-height:1.55;color:#a3a9bd;max-width:520px;text-wrap:pretty">Balayages de liquidité, BOS / CHoCH et plan de trade complet — entrée, stop loss, TP1 à TP3 — tracés en direct sur un graphique de marché réel.</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
@@ -338,8 +338,8 @@ select option{background:#11151f;color:#e9ebf2}
         <div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:500">49</span><span style="color:#8d93a8">USD / 30 jours · règlement en crypto</span></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;font-size:15px;color:#c4c8d6">
-        <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>Bot BLH XAUUSD M5 CLEAN en direct</div>
-        <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>BLH sur XAU/USD 5 min · autres indicateurs de 1m à 1h</div>
+        <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>Agent IA sur les dernières bougies clôturées</div>
+        <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>Entrée, stop et TP1 à TP3 · périodes de 1m à 1h</div>
         <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>Positions, historique et calendrier économique</div>
         <div style="display:flex;gap:12px;align-items:center"><div style="width:6px;height:6px;background:#9d8cff;transform:rotate(45deg)"></div>Alertes de signal et calculateur de risque</div>
       </div>
@@ -492,9 +492,9 @@ select option{background:#11151f;color:#e9ebf2}
             <sc-raw-select aria-label="Unité de temps" value="{{ tf }}" sc-camel-on-change="{{ onTf }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:7px 10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:12px">
               <option value="1m">1m</option><option value="5m">5m</option><option value="15m">15m</option><option value="30m">30m</option><option value="1h">1h</option>
             </sc-raw-select>
-            <button sc-camel-on-click="{{ toggleInd }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:7px 12px;color:#e9ebf2;font-size:12px;font-weight:600;cursor:pointer">Indicateurs</button>
+            <sc-if value="{{ canUseIndicators }}"><button sc-camel-on-click="{{ toggleInd }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:7px 12px;color:#e9ebf2;font-size:12px;font-weight:600;cursor:pointer">Indicateurs</button></sc-if>
             <button class="terminal-fullscreen" aria-label="{{ fsLabel }}" sc-camel-on-click="{{ fullscreen }}" title="Plein écran" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:7px 10px;color:#e9ebf2;font-size:12px;cursor:pointer">{{ fsLabel }}</button>
-            <button sc-camel-on-click="{{ toggleDemo }}" style="border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;background:{{ demoBg }};color:{{ demoColor }};border:1px solid {{ demoBorder }}">{{ demoLabel }}</button>
+            <sc-if value="{{ canUseIndicators }}"><button sc-camel-on-click="{{ toggleDemo }}" style="border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;background:{{ demoBg }};color:{{ demoColor }};border:1px solid {{ demoBorder }}">{{ demoLabel }}</button></sc-if>
             <sc-if value="{{ indOpen }}" hint-placeholder-val="{{ false }}">
               <div class="terminal-indicator-menu" style="position:absolute;top:40px;right:0;width:290px;max-height:70vh;overflow:auto;background:#11151f;border:1px solid #232a3b;border-radius:12px;padding:8px;z-index:10;box-shadow:0 20px 50px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:2px">
                 <div class="terminal-mobile-only terminal-menu-heading"><strong>Indicateurs</strong><button class="terminal-quiet" aria-label="Fermer les indicateurs" sc-camel-on-click="{{ toggleInd }}">Fermer</button></div>
@@ -568,14 +568,14 @@ select option{background:#11151f;color:#e9ebf2}
             </sc-if>
           </div>
         </div>
-        <div class="terminal-chart-help" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7186;border-top:1px solid #161b28"><span class="terminal-desktop-help">{{ toolHint }}</span><span class="terminal-mobile-only">{{ mobileToolHint }}</span><span>BLH {{ tf }} : {{ blhSignals }} signaux · Structure : {{ msSetups }} configurations</span></div>
+        <div class="terminal-chart-help" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7186;border-top:1px solid #161b28"><span class="terminal-desktop-help">{{ toolHint }}</span><span class="terminal-mobile-only">{{ mobileToolHint }}</span><sc-if value="{{ canUseIndicators }}"><span>BLH {{ tf }} : {{ blhSignals }} signaux · Structure : {{ msSetups }} configurations</span></sc-if></div>
       </div>
 
     </div>
     </sc-if>
 
-    <sc-if value="{{ isChartTab }}">
-      <!-- Results panel -->
+    <sc-if value="{{ showIndicatorResults }}">
+      <!-- Admin indicator results -->
       <div id="terminal-results-body" class="terminal-results-card" data-trader-block="results" data-mobile-expanded="{{ mobileResultsOpen }}" style="flex:none;width:100%;max-width:none;background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:20px;display:flex;flex-direction:row;flex-wrap:wrap;gap:16px">
         <div style="display:flex;flex-direction:column;gap:10px;flex:1 1 220px">
           <div class="terminal-results-heading" style="font-size:16px;font-weight:600"><span>Résultats de l'indicateur</span><button class="terminal-mobile-only terminal-quiet" aria-expanded="{{ mobileResultsOpen }}" aria-controls="terminal-results-body" sc-camel-on-click="{{ toggleMobileResults }}">{{ mobileResultsLabel }}</button></div>
@@ -614,6 +614,20 @@ select option{background:#11151f;color:#e9ebf2}
         </div>
       </div>
 
+    </sc-if>
+
+    <sc-if value="{{ isChartTab }}">
+    <section class="pv-ai-results" data-trader-block="results" aria-labelledby="pv-ai-results-title">
+      <div class="pv-ai-results-heading"><h2 id="pv-ai-results-title">Résultats de l’agent IA</h2><span role="status" aria-live="polite" style="color:{{ analysisTableColor }}">{{ analysisTitle }}</span></div>
+      <sc-if value="{{ analysisShowLevels }}">
+        <div class="pv-ai-results-scroll"><table class="pv-ai-results-table">
+          <caption>{{ analysisMarketName }} · {{ tf }} · {{ analysisValidity }}</caption>
+          <thead><tr><th scope="col">Calcul</th><th scope="col">Sens</th><th scope="col">Entrée</th><th scope="col">Stop loss</th><th scope="col">TP1</th><th scope="col">TP2</th><th scope="col">TP3 · sortie</th><th scope="col">R/R · TP2</th></tr></thead>
+          <tbody><tr><td data-label="Calcul">{{ analysisTime }}</td><td data-label="Sens" style="color:{{ analysisTableColor }}">{{ analysisDirection }}</td><td data-label="Entrée">{{ analysisEntry }}</td><td data-label="Stop loss">{{ analysisStop }}</td><td data-label="TP1">{{ analysisTp1 }}</td><td data-label="TP2">{{ analysisTp2 }}</td><td data-label="TP3 · sortie">{{ analysisTp3 }}</td><td data-label="R/R · TP2">{{ analysisRr }}</td></tr></tbody>
+        </table></div>
+      </sc-if>
+      <sc-if value="{{ analysisNoResult }}"><p class="terminal-mini">Lancez l’agent IA ci-dessous pour afficher ses résultats.</p></sc-if>
+    </section>
     </sc-if>
 
     <sc-if value="{{ isSummaryTab }}" hint-placeholder-val="{{ false }}">
@@ -709,7 +723,7 @@ select option{background:#11151f;color:#e9ebf2}
     </div>
     </sc-if>
     <section class="pv-analysis" data-trader-block="bot" aria-labelledby="pv-analysis-title">
-      <div class="pv-analysis-head"><h2 id="pv-analysis-title">Résultats IA</h2>
+      <div class="pv-analysis-head"><h2 id="pv-analysis-title">Agent IA</h2>
         <div class="pv-analysis-controls"><sc-raw-select aria-label="Marché à analyser" value="{{ symbol }}" sc-camel-on-change="{{ onAnalysisSymbol }}"><option value="XAU">Or · XAU/USD</option><option value="EUR">EUR/USD</option><sc-if value="{{ analysisUnsupported }}"><option value="{{ symbol }}">{{ analysisMarketName }}</option></sc-if></sc-raw-select>
           <sc-raw-select aria-label="Période à analyser" value="{{ tf }}" sc-camel-on-change="{{ onTf }}"><option value="1m">1 min</option><option value="5m">5 min</option><option value="15m">15 min</option><option value="30m">30 min</option><option value="1h">1 heure</option></sc-raw-select>
           <button sc-camel-on-click="{{ runAutomaticAnalysis }}" disabled="{{ analysisDisabled }}">{{ analysisButton }}</button></div>
@@ -717,7 +731,7 @@ select option{background:#11151f;color:#e9ebf2}
       <label class="pv-analysis-follow"><input type="checkbox" checked="{{ automaticFollow }}" sc-camel-on-change="{{ onAutomaticFollow }}"> Auto <span>20 nouvelles analyses/jour</span></label>
       <div role="status" aria-live="polite" class="pv-analysis-state"><strong>{{ analysisTitle }}</strong><span class="terminal-mini">{{ analysisMarketName }} · {{ tf }}</span></div>
       <sc-if value="{{ analysisShowLevels }}">
-        <div class="pv-analysis-levels"><div><span>Entrée</span><b>{{ analysisEntry }}</b></div><div><span>Stop loss</span><b>{{ analysisStop }}</b></div><div><span>R/R · TP2</span><b>{{ analysisRr }}</b></div><div><span>TP1</span><b>{{ analysisTp1 }}</b></div><div><span>TP2</span><b>{{ analysisTp2 }}</b></div><div><span>TP3 · sortie</span><b>{{ analysisTp3 }}</b></div></div>
+
         <sc-if value="{{ analysisHasPlan }}"><details class="pv-analysis-condition"><summary>Condition d’entrée</summary><p>{{ analysisTrigger }}</p></details></sc-if>
         <p class="pv-analysis-meta">Clôture {{ analysisAsOf }} · {{ analysisValidity }}</p>
       </sc-if>
@@ -730,7 +744,7 @@ select option{background:#11151f;color:#e9ebf2}
   <sc-if value="{{ isPositions }}" hint-placeholder-val="{{ false }}">
   <div data-screen-label="Positions" style="flex:1;padding:24px;display:flex;flex-direction:column;gap:18px;max-width:1100px;width:100%;margin:0 auto">
     <div style="background:#11151f;border:1px solid #1a2030;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div style="font-size:16px;font-weight:600">Calculateur de risque &amp; taille de position</div><button class="terminal-button" sc-camel-on-click="{{ registerPlan }}" disabled="{{ cannotRegisterPlan }}">Enregistrer le dernier plan</button><button sc-camel-on-click="{{ fillFromPlan }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:6px 12px;font-size:12px;cursor:pointer">Remplir avec le dernier plan</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div style="font-size:16px;font-weight:600">Calculateur de risque &amp; taille de position</div><sc-if value="{{ canUseIndicators }}"><button class="terminal-button" sc-camel-on-click="{{ registerPlan }}" disabled="{{ cannotRegisterPlan }}">Enregistrer le dernier plan</button><button sc-camel-on-click="{{ fillFromPlan }}" style="background:none;border:1px solid #2a3145;color:#c4c8d6;border-radius:9px;padding:6px 12px;font-size:12px;cursor:pointer">Remplir avec le dernier plan</button></sc-if></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
         <sc-for list="{{ calcFields }}" as="f" hint-placeholder-count="4">
           <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">{{ f.label }}
@@ -908,9 +922,11 @@ select option{background:#11151f;color:#e9ebf2}
             <button sc-camel-on-click="{{ c.toggle }}" style="border-radius:999px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;background:{{ c.bg }};color:{{ c.color }};border:1px solid {{ c.border }}">{{ c.label }}</button>
           </sc-for>
         </div>
+        <sc-if value="{{ canUseIndicators }}">
         <button sc-camel-on-click="{{ toggleSessionFilter }}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;background:none;border:0;color:#e9ebf2;font-size:14px;padding:0;cursor:pointer;text-align:left">Ignorer les signaux BLH hors des sessions choisies
           <div style="width:40px;height:22px;border-radius:99px;padding:3px;display:flex;background:{{ sfTrack }};justify-content:{{ sfJustify }}"><div style="width:16px;height:16px;border-radius:50%;background:#e9ebf2"></div></div>
         </button>
+        </sc-if>
         <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Heures à éviter (UTC, ex. 21-23, 12)
           <input value="{{ setAvoid }}" sc-camel-on-change="{{ onSetAvoid }}" placeholder="21-23" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-size:13px;outline:none;font-family:'JetBrains Mono',monospace">
         </label>

@@ -8,7 +8,7 @@ const C=globalThis.PIPVORIA_CORE;
 function session(fetcher){const ctx={URLSearchParams,TextDecoder,Uint8Array,globalThis:null};ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('public/terminal-api.js','utf8'),ctx);return new ctx.TerminalSession({fetcher});}
 const response=(body,status=200)=>({ok:status<400,status,json:async()=>body});
 function terminalApp(storage){
-  const ctx={Date,Intl,URLSearchParams,structuredClone,console,AbortController,clearInterval(){},clearTimeout(){},setInterval(){return 1;},location:{pathname:'/',hash:'',search:''},history:{replaceState(_a,_b,url){ctx.location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},scrollTo(){},ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;ctx.localStorage=storage;vm.createContext(ctx);
+  const ctx={Date,Intl,URLSearchParams,structuredClone,console,AbortController,clearInterval(){},clearTimeout(){},setTimeout(){return 1;},setInterval(){return 1;},location:{pathname:'/',hash:'',search:''},history:{replaceState(_a,_b,url){ctx.location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},scrollTo(){},ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;ctx.localStorage=storage;vm.createContext(ctx);
   for(const name of ['core','structure','smart','blh-clean','pa-liquidity','heatmap','indicator-performance','terminal-original','terminal'])vm.runInContext(fs.readFileSync('public/'+name+'.js','utf8'),ctx);
   const app=vm.runInContext('new Terminal()',ctx);app.session={epoch:1,user:{id:'paid-fixture'}};app.access={active:true,deadline:Date.now()+3600000};return app;
 }
@@ -108,7 +108,7 @@ test('additional market quotes are allowlisted, labelled and never filled with s
 test('the new terminal uses the existing engines on closed bars and does not invent BLH signals on other markets',()=>{
   const ctx={Date,Intl,URLSearchParams,structuredClone,console,document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;vm.createContext(ctx);
   for(const name of ['core','structure','smart','blh-clean','pa-liquidity','heatmap','indicator-performance','terminal-original','terminal'])vm.runInContext(fs.readFileSync('public/'+name+'.js','utf8'),ctx);
-  const app=vm.runInContext('new Terminal()',ctx);app.session={user:{id:'paid-fixture'}};app.access={active:true,deadline:Date.now()+3600000};app.state.lastFetch=Date.now();
+  const app=vm.runInContext('new Terminal()',ctx);app.session={user:{id:'paid-fixture',isAdmin:true}};app.access={active:true,deadline:Date.now()+3600000};app.state.lastFetch=Date.now();
   let seed=7,p=4300;const now=Math.floor(Date.now()/300000)*300000;
   const bars=Array.from({length:300},(_,i)=>{seed=(seed*16807)%2147483647;const open=p;p+=(seed/2147483647-.5)*10;return{time:now-(299-i)*300000,open,high:Math.max(open,p)+2,low:Math.min(open,p)-2,close:p,closed:i<299};});
   app.setBars(bars,'Fixture');assert.equal(app.state.bars.length,300);assert.equal(app.plannerM.fast.length,299);
@@ -213,4 +213,34 @@ test('corrupt or unavailable storage cannot break login, and late AI replies can
  const invalid={...savedAnalysis(),tf:'5m'};invalid.plan.targets=[1,null,3];storage.setItem(key,JSON.stringify({version:1,owner:'paid-fixture',entries:{'XAU|5m':invalid},last:'XAU|5m'}));await app.restoreAutomaticAnalysis(true);assert.equal(app.automatic,null);
  const unavailable=terminalApp({getItem(){throw Error('denied');},setItem(){throw Error('denied');}});await unavailable.restoreAutomaticAnalysis(true);unavailable.session.stream=async()=>savedAnalysis();await unavailable.runAutomaticAnalysis();assert.equal(unavailable.automatic.plan.entry,4200);assert.match(unavailable.state.notice,/conserver/);
  let finish;app.session.stream=()=>new Promise(r=>finish=r);const pending=app.runAutomaticAnalysis();app.cancelAutomaticAnalysis();app.session.epoch++;app.session.user={id:'new-owner'};finish(savedAnalysis());await pending;assert.equal(storage.getItem(app.analysisMemoryKey()),null);
+});
+
+test('subscribers keep market candles and AI results without running or exposing indicator tools',async()=>{
+ const app=terminalApp();app.state.screen='app';app.state.tab='summary';app.state.indOpen=true;
+ app.analyze=app.computeStruct=app.computeExtra=()=>assert.fail('A subscriber must not run an indicator engine');
+ app.session.request=()=>assert.fail('Indicator-only actions must not fetch');app.load=()=>assert.fail('Replay must not load');
+ const bars=[{time:Date.now()-600000,open:4200,high:4210,low:4190,close:4205,closed:true}];
+ app.model={plan:{entry:4200}};app.heat={old:true};app.msPerf={old:true};app.setBars(bars,'Fixture');
+ assert.equal(app.state.bars.length,1);assert.equal(app.model,null);assert.equal(app.heat,null);assert.equal(app.msPerf,null);
+ let view=app.renderVals();assert.equal(view.canUseIndicators,false);assert.equal(view.showIndicatorResults,false);assert.equal(view.isChartTab,true);assert.equal(view.isSummaryTab,false);assert.equal(view.isOpsTab,false);assert.equal(view.indOpen,false);assert.equal(view.indList.length,0);assert.equal(view.extraInd.length,0);assert.equal(view.tools.some(t=>t.key==='replay'),false);
+ view.toggleInd();view.onResultsOf({target:{value:'planner'}});assert.equal(app.state.resultsOf,'blh');await app.loadMtf();await app.registerPlan();app.startReplay();assert.equal(app.rp,null);
+ app.automatic={...savedAnalysis(),tf:'5m'};view=app.renderVals();assert.equal(view.analysisDirection,'ACHAT');assert.equal(view.analysisEntry,'4200.00');assert.equal(view.analysisTp3,'4230.00');assert.equal(view.analysisNoResult,false);
+ app.session.user.isAdmin='true';assert.equal(app.canUseIndicators(),false);app.session.user={id:'member',user_metadata:{isAdmin:true,role:'super_admin'}};assert.equal(app.canUseIndicators(),false);
+});
+test('only verified administrators retain the indicator result panels, controls and historical tabs',()=>{
+ const app=terminalApp();app.session.user.isAdmin=true;app.state.screen='app';app.state.indOpen=true;
+ let view=app.renderVals();assert.equal(view.canUseIndicators,true);assert.equal(view.showIndicatorResults,true);assert.equal(view.indOpen,true);assert.equal(view.indList.length,4);assert.equal(view.tools.some(t=>t.key==='replay'),true);
+ app.state.tab='summary';view=app.renderVals();assert.equal(view.isSummaryTab,true);app.state.tab='ops';assert.equal(app.renderVals().isOpsTab,true);
+ app.access=null;view=app.renderVals();assert.equal(view.canUseIndicators,false);assert.equal(view.showIndicatorResults,false);
+});
+test('AI chart levels and table values agree while conditional, wait, stale and access states stay distinct',()=>{
+ const app=terminalApp();app.automatic={...savedAnalysis(),tf:'5m'};
+ let levels=app.analysisChartLevels(),view=app.renderVals();assert.equal(levels.length,5);assert.equal(levels[0].price,Number(view.analysisEntry));assert.equal(levels[4].price,Number(view.analysisTp3));
+ app.automatic.status='conditional';assert.match(app.analysisChartLevels()[0].label,/CONFIRMER/);assert.equal(app.renderVals().analysisReady,false);
+ const text=[],ctx=new Proxy({measureText:value=>({width:value.length*6}),fillText:value=>text.push(value)},{get:(target,key)=>key in target?target[key]:()=>{}});
+ app.state.bars=Array.from({length:80},(_,i)=>({time:Date.now()-(80-i)*300000,open:4200,high:4208,low:4198,close:4205,closed:true}));
+ app.cv={isConnected:true,parentNode:{clientWidth:900,clientHeight:500},getContext:()=>ctx};app.draw();assert.ok(text.some(s=>s.includes('IA ACHAT À CONFIRMER')));assert.ok(text.some(s=>s.includes('IA TP3  4230.00')));assert.ok(!text.some(s=>s.includes('BOS')||s.includes('FIB 50')));
+ text.length=0;app.automatic.validUntil=Date.now()-1;app.draw();assert.equal(app.analysisChartLevels().length,0);assert.ok(!text.some(s=>s.startsWith('IA ')));assert.equal(app.renderVals().analysisEntry,'4200.00');
+ app.automatic={...savedAnalysis(),tf:'5m',status:'wait',plan:null};view=app.renderVals();assert.equal(view.analysisDirection,'ATTENDRE');assert.equal(view.analysisEntry,'—');assert.equal(app.analysisChartLevels().length,0);
+ app.automatic={...savedAnalysis(),tf:'5m'};app.state.tf='15m';assert.equal(app.analysisChartLevels().length,0);app.state.tf='5m';app.state.demo=true;assert.equal(app.analysisChartLevels().length,0);app.state.demo=false;app.access=null;assert.equal(app.analysisChartLevels().length,0);assert.equal(app.renderVals().analysisEntry,'—');
 });

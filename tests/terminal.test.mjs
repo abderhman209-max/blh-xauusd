@@ -265,3 +265,18 @@ test('a live price arriving during slow history loading survives REST reconcilia
  const late=app.load();app.lock('logout_pending');app.session.epoch++;finish(data);await late;assert.equal(app.state.bars.length,0);
  const delayed=terminalApp();delayed.state.symbol='EUR';delayed.state.source='Yahoo Finance · cotation susceptible d’être différée';delayed.state.lastFetch=Date.now();assert.match(delayed.renderVals().sourceLabel,/Données différées/);
 });
+
+test('the price table publishes the latest crypto tick at one second without recalculating AI',async()=>{
+ const sockets=[],timers=[];class Socket{constructor(){sockets.push(this);}send(){}close(){this.onclose?.();}}
+ const app=terminalApp(undefined,{WebSocket:Socket,setTimeout:(fn,ms)=>{timers.push({fn,ms});return timers.length;}});app.state.symbol='BTC';
+ app.session.request=async()=>({bars:[{time:Math.floor(Date.now()/300000)*300000,open:100000,high:100010,low:99990,close:100000,volume:1,closed:false}],fetchedAt:Date.now(),source:'Coinbase'});app.session.stream=()=>assert.fail('Price refresh must not run AI');
+ await app.load();const tick=price=>sockets[0].onmessage({data:JSON.stringify({type:'ticker',product_id:'BTC-USD',price:String(price),time:new Date().toISOString()})});
+ tick(100100);tick(100200);assert.equal(timers.length,1);assert.equal(timers[0].ms,1000);assert.equal(app.renderVals().analysisLivePrice,'100000.00');
+ timers[0].fn();assert.equal(app.renderVals().analysisLivePrice,'100200.00');tick(100300);assert.equal(timers[1].ms,1000);assert.equal(app.renderVals().analysisLivePrice,'100200.00');timers[1].fn();assert.equal(app.renderVals().analysisLivePrice,'100300.00');
+});
+test('gold quote refreshes never overlap a slow request or trigger AI calculations',async()=>{
+ const app=terminalApp();app.state.bars=[{time:Math.floor(Date.now()/300000)*300000,open:4200,high:4200,low:4200,close:4200,volume:0,closed:false}];let calls=0,finish;
+ app.session.stream=()=>assert.fail('Quote refresh must not run AI');app.session.request=async route=>{assert.equal(route,'gold/price');calls++;return new Promise(resolve=>finish=resolve);};
+ const first=app.tickPrice();await app.tickPrice();assert.equal(calls,1);finish({price:4210,receivedAt:Date.now(),source:'Twelve Data'});await first;assert.equal(app.renderVals().analysisLivePrice,'4210.00');
+ const second=app.tickPrice();assert.equal(calls,2);finish({price:4220,receivedAt:Date.now()+1000,source:'Twelve Data'});await second;assert.equal(app.renderVals().analysisLivePrice,'4220.00');assert.equal(app.automatic,null);
+});

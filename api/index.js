@@ -5,6 +5,7 @@ import { accountApproval, requireAccountApproval } from '../lib/account-approval
 import { billingApi } from '../lib/crypto-billing.js';
 import { PAID_ROUTES, paidAccess } from '../lib/paid-access.js';
 import { analysisApi } from '../lib/ai-api.js';
+import { createQuoteCache } from '../lib/quote-cache.js';
 export const config = { runtime: "edge" };
 
 const ACCESS_COOKIE = "blh_access";
@@ -679,7 +680,14 @@ async function signOut(request) {
 
 const durations = { "1min": 60000, "5min": 300000, "15min": 900000, "30min": 1800000, "1h": 3600000 };
 const marketCache = new Map();
-let goldPriceCache = null;
+const latestGoldQuote=createQuoteCache(async()=>{
+  const response=await fetch('https://api.twelvedata.com/price?symbol=XAU%2FUSD',{
+    signal:AbortSignal.timeout(8000),headers:{authorization:`apikey ${process.env.TWELVEDATA_API_KEY}`}
+  });
+  const data=await response.json(),price=Number(data.price);
+  if(!response.ok||!Number.isFinite(price)||price<=0)throw Error('price_feed_unavailable');
+  return{price,receivedAt:Date.now(),source:'Twelve Data'};
+});
 
 function activityVolume(bar, previous) {
   const range = Math.max(bar.high - bar.low, Math.abs(bar.high - (previous?.close ?? bar.open)), Math.abs(bar.low - (previous?.close ?? bar.open)), 0.001);
@@ -750,17 +758,7 @@ async function goldPrice(request) {
   if (!session) return json({ error: "authentication_required" }, 401);
   if (!process.env.TWELVEDATA_API_KEY) return json({ error: "price_feed_unavailable", reason: "provider_not_configured" }, 503);
   try {
-    if (!goldPriceCache || Date.now() - goldPriceCache.receivedAt >= 15000) {
-      const response = await fetch("https://api.twelvedata.com/price?symbol=XAU%2FUSD", {
-        signal:AbortSignal.timeout(8000),
-        headers: { authorization: `apikey ${process.env.TWELVEDATA_API_KEY}` },
-      });
-      const data = await response.json();
-      const price = Number(data.price);
-      if (!response.ok || !Number.isFinite(price) || price <= 0) throw new Error("price unavailable");
-      goldPriceCache = { price, receivedAt: Date.now(), source: "Twelve Data" };
-    }
-    return sessionJson(goldPriceCache, 200, session);
+    return sessionJson(await latestGoldQuote(), 200, session);
   } catch {
     return json({ error: "price_feed_unavailable" }, 503);
   }

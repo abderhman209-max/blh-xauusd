@@ -35,7 +35,7 @@ class OriginalTerminal extends DCLogic {
     });
     const tfs = ['1m', '5m', '15m', '30m', '1h'];
     const mtfOk = E.mtfSym === s.symbol;
-    if (!mtfOk && !E.mtfLoading && s.appTab === 'trader' && s.tab === 'summary') setTimeout(() => this.loadMtf(), 0);
+    if (this.canUseIndicators?.()===true && !mtfOk && !E.mtfLoading && s.appTab === 'trader' && s.tab === 'summary') setTimeout(() => this.loadMtf(), 0);
     const mtf = tfs.map(tf => {
       const d = mtfOk ? E.mtf[tf] : null;
       if (!d) return { tf, trend: E.mtfLoading ? '…' : '—', trendColor: '#8d93a8', struct: '—', structColor: '#8d93a8', sig: '—', sigColor: '#8d93a8', price: '—', net: '—', netColor: '#8d93a8' };
@@ -514,8 +514,10 @@ Refuser|Reject|Rechazar|رفض`;
     const x = i => (i - (end - count) + 0.5) * step;
     let lo = Infinity, hi = -Infinity;
     for (let i = start; i < Math.min(n, Math.ceil(end)); i++) { lo = Math.min(lo, bars[i].low); hi = Math.max(hi, bars[i].high); }
-    const m = this.model, ind = this.state.ind, plan = m?.plan, showPlan = ind.plan && plan && x(plan.end) >= 0 && x(plan.index) <= pW;
+    const indicatorAccess=this.canUseIndicators?.()===true;
+    const m = indicatorAccess?this.model:null, ind = this.state.ind, plan = m?.plan, showPlan = ind.plan && plan && x(plan.end) >= 0 && x(plan.index) <= pW;
     if (showPlan) [plan.stop, ...plan.tps].forEach(p => { lo = Math.min(lo, p); hi = Math.max(hi, p); });
+    for(const level of this.analysisChartLevels?.()||[]){lo=Math.min(lo,level.price);hi=Math.max(hi,level.price);}
     if (!isFinite(lo)) return;
     const pr = (hi - lo) * 0.08 || 1; lo -= pr; hi += pr;
     { const mid = (lo + hi) / 2, half = (hi - lo) / 2 * this.view.yZoom; lo = mid - half; hi = mid + half; }
@@ -547,7 +549,7 @@ Refuser|Reject|Rechazar|رفض`;
       ctx.fillStyle = col; ctx.font = '700 10px JetBrains Mono, monospace'; ctx.textAlign = 'left';
       ctx.fillText(z.direction === 1 ? 'DEMAND' : 'SUPPLY', x(z.index) + 4, z.direction === 1 ? y(z.bottom) + 12 : y(z.top) - 5);
     }
-    const st = this.struct, mso = this.state.ms;
+    const st = indicatorAccess?this.struct:null, mso = this.state.ms;
     if (mso.on && st) st.setups.filter(sx => sx.index >= start - 200).slice(-4).forEach(sx => {
       const col = sx.direction === 1 ? UP : DN;
       ctx.setLineDash([4, 3]); ctx.strokeStyle = col; ctx.beginPath(); ctx.moveTo(x(sx.broken.index), y(sx.broken.price)); ctx.lineTo(x(sx.index), y(sx.broken.price)); ctx.stroke(); ctx.setLineDash([]);
@@ -568,7 +570,7 @@ Refuser|Reject|Rechazar|رفض`;
       m.ema.forEach((v, i) => { if (i < start - 1) return; const xx = x(i); f ? ctx.moveTo(xx, y(v)) : ctx.lineTo(xx, y(v)); f = false; });
       ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 1;
     }
-    this.drawHeat(ctx, x, y, pW, step);
+    if(indicatorAccess)this.drawHeat(ctx, x, y, pW, step);
     const bw = Math.max(1, step * 0.62);
     for (let i = start; i < n; i++) {
       const b = bars[i], xx = x(i); if (xx > pW + step) break;
@@ -618,7 +620,8 @@ Refuser|Reject|Rechazar|رفض`;
     ctx.lineWidth = 1;
     if (this.pending) { ctx.fillStyle = ML; ctx.beginPath(); ctx.arc(x(tIdx(this.pending.t)), y(this.pending.p), 4, 0, Math.PI * 2); ctx.fill();
       if (this.mouse) { ctx.setLineDash([4, 3]); ctx.strokeStyle = ML; ctx.beginPath(); ctx.moveTo(x(tIdx(this.pending.t)), y(this.pending.p)); ctx.lineTo(this.mouse.x, this.mouse.y); ctx.stroke(); ctx.setLineDash([]); } }
-    this.drawExtra(ctx, x, y, pW, start, n);
+    if(indicatorAccess)this.drawExtra(ctx, x, y, pW, start, n);
+    this.drawAnalysisLevels?.(ctx,x,y,pW,start,n);
     const last = bars[n - 1], ly = y(last.close), lcol = last.close >= last.open ? UP : DN;
     ctx.setLineDash([2, 3]); ctx.strokeStyle = lcol; ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(pW, ly); ctx.stroke(); ctx.setLineDash([]);
     ctx.restore();

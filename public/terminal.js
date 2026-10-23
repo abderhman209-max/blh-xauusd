@@ -36,7 +36,7 @@ class Terminal extends OriginalTerminal {
   componentWillUnmount(){clearInterval(this.automaticT);this.cancelAutomaticAnalysis();window.PipvoriaPayments?.close();for(const t of [this.ageT,this.poll,this.sessionT,this.priceT,this.supportT,this.adminT,this.wlT,this.rpT,this.settingsT])clearInterval(t);
     window.removeEventListener('keydown',this.onKey);window.removeEventListener('hashchange',this.onHash);window.removeEventListener('pointerup',this.onUp);
     document.removeEventListener('fullscreenchange',this.onFs);document.removeEventListener('visibilitychange',this.onVisible);this.ro?.disconnect();this.marketAbort?.abort();}
-  lock(reason){this.cancelAutomaticAnalysis();
+  lock(reason){this.cancelAutomaticAnalysis();this.clearIndicatorModels();
     window.PipvoriaPayments?.close();this.billing=null;this.access=null;this.accessSerial++;this.accessGeneration++;this.paidStarted=null;clearInterval(this.wlT);
     window.BLH_AUTH={authenticated:false,user:null};this.ex.users=[];this.adminAudit=[];this.capabilities={};
     this.marketSerial++;this.marketAbort?.abort();clearTimeout(this.settingsT);this.endReplay(true);
@@ -57,7 +57,9 @@ class Terminal extends OriginalTerminal {
   showApprovalError(error){if(!['account_pending','account_rejected'].includes(error?.message))return false;this.setState({screen:'auth',authBusy:false,password:'',authError:'',approvalStatus:error.message==='account_pending'?'pending':'rejected',approvalEmailConfirmation:false});return true;}
   async checkSession(){if(!this.session.user||document.hidden||this.checking)return;this.checking=true;try{await this.session.request('auth/session');if(this.session.user)await this.refreshAccess();}catch{}finally{this.checking=false;}}
   hasPaidAccess(){return !!this.session?.user&&this.access?.active===true&&this.access.deadline>Date.now();}
-  blockPaidAccess(reason='subscription_required',data){this.cancelAutomaticAnalysis();
+  canUseIndicators(){return this.hasPaidAccess()&&this.session.user.isAdmin===true;}
+  clearIndicatorModels(){this.model=null;this.perf=null;this.struct=null;this.msPerf=null;this.plannerM=null;this.plannerPerf=null;this.paM=null;this.paPerf=null;this.heat=null;this.lastSignal=null;this.ex.mtf={};this.ex.mtfSym=null;this.ex.mtfLoading=false;this.signalTracker.reset();}
+  blockPaidAccess(reason='subscription_required',data){this.cancelAutomaticAnalysis();this.clearIndicatorModels();
     this.accessSerial++;this.accessGeneration++;this.paidStarted=null;this.access={...data,active:false,status:reason==='subscription_access_unavailable'?'error':'inactive'};
     this.marketSerial++;this.marketAbort?.abort();clearInterval(this.wlT);this.endReplay(true);
     this.model=null;this.perf=null;this.struct=null;this.paM=null;this.plannerM=null;this.wl={};this.journal=[];this.notifications=[];this.biz.toasts=[];this.signalTracker.reset();
@@ -83,7 +85,7 @@ class Terminal extends OriginalTerminal {
   }
   async unlock(user){
     if(!user?.id||this.session.pendingLogout)return;window.BLH_AUTH={authenticated:true,user,logout:()=>this.logout()};
-    this.setState({screen:'app',name:user.name||'',email:user.email||'',password:'',authBusy:false,authError:''});
+    this.setState({screen:'app',name:user.name||'',email:user.email||'',password:'',authBusy:false,authError:'',...(user.isAdmin===true?{}:{tab:'chart',demo:false,indOpen:false})});
     this.route(location.hash.slice(1)||new URLSearchParams(location.search).get('view'));
     const epoch=this.session.epoch;
     await Promise.allSettled([this.loadSettings(),this.loadTickets(),this.loadBilling(),this.refreshAccess(),...(user.isAdmin?[this.loadAdmin()]:[])]);
@@ -143,7 +145,22 @@ class Terminal extends OriginalTerminal {
     if(selectLast)return new Promise(resolve=>this.setState({symbol:value.symbol,tf:value.tf},()=>{this.applySettings();resolve();}));else this.forceUpdate();
   }
   cancelAutomaticAnalysis(){this.automaticSerial++;this.automaticAbort?.abort();this.automaticAbort=null;this.automaticBusy=false;this.automatic=null;this.automaticStage="";this.automaticNextAt=0;this.automaticError='';}
-  startReplay(){this.cancelAutomaticAnalysis();return super.startReplay();}
+  analysisChartLevels(){
+    const a=this.automatic;
+    if(!this.hasPaidAccess()||this.state.demo||this.rp||!this.validSavedAnalysis(a)||a.symbol!==this.state.symbol||a.tf!==this.state.tf||a.validUntil<=Date.now()||!['ready','conditional'].includes(a.status)||!a.plan)return [];
+    const side=a.plan.direction==='buy'?'ACHAT':'VENTE',entry='IA '+side+(a.status==='conditional'?' À CONFIRMER':' · ENTRÉE');
+    return [{price:a.plan.entry,label:entry,color:'#9d8cff'}, {price:a.plan.stop,label:'IA STOP',color:'#f2707a'},...a.plan.targets.map((price,i)=>({price,label:'IA TP'+(i+1),color:'#3fd2a4'}))];
+  }
+  drawAnalysisLevels(ctx,x,y,pW,start,n){
+    const levels=this.analysisChartLevels();if(!levels.length)return;
+    const from=Math.max(0,x(n-5));if(from>=pW)return;
+    ctx.save();ctx.font='600 10px JetBrains Mono, monospace';ctx.textAlign='left';
+    for(const level of levels){const yy=y(level.price),label=level.label+'  '+level.price.toFixed(this.dp());
+      ctx.setLineDash([6,4]);ctx.strokeStyle=level.color;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(from,yy);ctx.lineTo(pW,yy);ctx.stroke();ctx.setLineDash([]);
+      const width=ctx.measureText(label).width+12,left=Math.max(2,pW-width-4);ctx.fillStyle='#0f1320';ctx.fillRect(left,yy-9,width,18);ctx.fillStyle=level.color;ctx.fillText(label,left+6,yy+4);
+    }ctx.restore();
+  }
+  startReplay(){if(!this.canUseIndicators())return;this.cancelAutomaticAnalysis();return super.startReplay();}
   async runAutomaticAnalysis(){
     if(this.automaticBusy||!this.hasPaidAccess()||!['XAU','EUR'].includes(this.state.symbol)||this.state.demo||this.rp)return;
     const {symbol,tf}=this.state,epoch=this.session.epoch,generation=this.accessGeneration,serial=++this.automaticSerial;
@@ -179,6 +196,7 @@ class Terminal extends OriginalTerminal {
       this.setState({lastFetch:tick.receivedAt||Date.now(),feedErr:false});this.setBars(bars,tick.source||this.state.source);
     }catch{}finally{this.ticking=false;}}
   setBars(bars,source){if(!this.hasPaidAccess())return;const duration=this.TFMS[this.state.tf];const closed=bars.filter(b=>b.closed!==false&&b.time+duration<=Date.now());
+    if(!this.canUseIndicators()){this.clearIndicatorModels();this.setState({bars,loading:false,source:source??this.state.source});return;}
     this.model=this.analyze(closed);if(this.ex.set.sessionFilter){this.model.plans=this.model.plans.filter(p=>this.inSession(p.time));this.model.signals=this.model.signals.filter(p=>this.inSession(p.time));this.model.plan=this.model.plans.at(-1)||null;}
     this.perf=this.state.symbol==='XAU'&&this.state.tf==='5m'?this.perfCalc(this.model.plans,closed):null;
     this.computeStruct(closed);this.computeExtra(closed);
@@ -190,16 +208,16 @@ class Terminal extends OriginalTerminal {
     }
     this.setState({bars,loading:false,source:source??this.state.source});
   }
-  analyze(bars){const model=BlhClean.analyze(bars,this.blhOptions());if(this.state.symbol!=='XAU'||this.state.tf!=='5m')return {...model,signals:[],plans:[],plan:null,structure:null,zone:null};return model;}
+  analyze(bars){if(!this.canUseIndicators())return null;const model=BlhClean.analyze(bars,this.blhOptions());if(this.state.symbol!=='XAU'||this.state.tf!=='5m')return {...model,signals:[],plans:[],plan:null,structure:null,zone:null};return model;}
   enginePrefs(){return this.settings.marketProfiles[this.SYM[this.state.symbol].label+'|'+this.interval()]||this.settings.indicators;}
   blhOptions(){const p=this.enginePrefs(),n=(key,d)=>Number(p[key]??d);return{swing:n('blh-swing',4),atrLength:n('blh-atr',14),emaLength:n('blh-ema-length',50),sweepWindow:n('blh-sweep',5),zoneBars:n('blh-zone-bars',30),rr:[1,2,3].map((d,i)=>n('blh-rr'+(i+1),d))};}
-  analyzeStructure(bars,opts){return StructureEngine.analyze(bars,{...opts,onlyValid:this.enginePrefs().valid===true});}
-  computeStruct(bars=this.state.bars.filter(b=>b.closed!==false&&b.time+this.TFMS[this.state.tf]<=Date.now())){this.struct=this.analyzeStructure(bars,this.state.ms);this.msPerf=PIPVORIA_INDICATOR_PERFORMANCE.structureSummary(this.struct,bars);}
-  computeExtra(bars){const preferences=this.enginePrefs();this.plannerM=SmartEngine.analyze(bars,{preferences,rr:[.5,1,1.5].map((d,i)=>Number(preferences['smart-tp'+(i+1)]??d))});this.plannerPerf={...PIPVORIA_INDICATOR_PERFORMANCE.summary(this.plannerM.trades,{signals:this.plannerM.signals.length,active:this.plannerM.active?1:0}),ops:[],trades:this.plannerM.trades};
+  analyzeStructure(bars,opts){if(!this.canUseIndicators())return null;return StructureEngine.analyze(bars,{...opts,onlyValid:this.enginePrefs().valid===true});}
+  computeStruct(bars=this.state.bars.filter(b=>b.closed!==false&&b.time+this.TFMS[this.state.tf]<=Date.now())){if(!this.canUseIndicators()){this.clearIndicatorModels();return;}this.struct=this.analyzeStructure(bars,this.state.ms);this.msPerf=PIPVORIA_INDICATOR_PERFORMANCE.structureSummary(this.struct,bars);}
+  computeExtra(bars){if(!this.canUseIndicators()){this.clearIndicatorModels();return;}const preferences=this.enginePrefs();this.plannerM=SmartEngine.analyze(bars,{preferences,rr:[.5,1,1.5].map((d,i)=>Number(preferences['smart-tp'+(i+1)]??d))});this.plannerPerf={...PIPVORIA_INDICATOR_PERFORMANCE.summary(this.plannerM.trades,{signals:this.plannerM.signals.length,active:this.plannerM.active?1:0}),ops:[],trades:this.plannerM.trades};
     this.paM=PALiquidity.analyze(bars);this.paPerf=this.perfCalc(this.paM.plans.map(p=>({...p,tps:[p.target,p.target,p.target]})),bars);this.heat=HeatmapEngine.analyze(bars);}
-  async loadMtf(){if(!this.hasPaidAccess()||this.ex.mtfLoading)return;const symbol=this.state.symbol,epoch=this.session.epoch,generation=this.accessGeneration;this.setEx({mtfLoading:true});const mtf={};
+  async loadMtf(){if(!this.canUseIndicators()||this.ex.mtfLoading)return;const symbol=this.state.symbol,epoch=this.session.epoch,generation=this.accessGeneration;this.setEx({mtfLoading:true});const mtf={};
     await Promise.allSettled(['1m','5m','15m','30m','1h'].map(async tf=>{const data=await this.marketBars(symbol,tf);const bars=data.bars.filter(b=>b.closed!==false&&b.time+this.TFMS[tf]<=Date.now());const m=BlhClean.analyze(bars,this.blhOptions());if(symbol!=='XAU'||tf!=='5m'){m.signals=[];m.plans=[];}mtf[tf]={m,perf:this.perfCalc(m.plans,bars),close:bars.at(-1)?.close};}));
-    if(epoch!==this.session.epoch||generation!==this.accessGeneration||!this.hasPaidAccess())return;this.setEx({mtf,mtfSym:symbol===this.state.symbol?symbol:null,mtfLoading:false});}
+    if(epoch!==this.session.epoch||generation!==this.accessGeneration||!this.canUseIndicators())return;this.setEx({mtf,mtfSym:symbol===this.state.symbol?symbol:null,mtfLoading:false});}
   async loadWatch(){if(!this.hasPaidAccess())return;const epoch=this.session.epoch,generation=this.accessGeneration;
     await Promise.allSettled(Object.keys(this.SYM).map(async symbol=>{if(symbol===this.state.symbol&&this.state.bars.length){this.wl[symbol]={price:this.state.bars.at(-1).close,source:this.state.source};return;}
       try{let price,source;if(['BTC','ETH','SOL'].includes(symbol)){const r=await fetch('https://api.exchange.coinbase.com/products/'+this.SYM[symbol].label.replace('/','-')+'/stats');if(!r.ok)throw Error();const j=await r.json();price=+j.last;source='Coinbase · 24 h';if(epoch===this.session.epoch&&generation===this.accessGeneration&&this.hasPaidAccess())this.wl[symbol]={price,chg:100*(price/+j.open-1),source};}
@@ -229,10 +247,10 @@ class Terminal extends OriginalTerminal {
     finally{this.savingSettings=false;this.forceUpdate();if(this.settingsDirty&&this.session.user)this.settingsT=setTimeout(()=>this.saveSettings(),650);}}
   setSet(p,msg){if(!this.settingsReady)return;this.ex.undo.push(structuredClone(this.ex.set));Object.assign(this.ex.set,p);this.ex.setMsg=msg||'';this.queueSettings();if(this.state.bars.length)this.setBars(this.state.bars);this.forceUpdate();}
   saveLines(){this.queueSettings();this.draw();}
-  setMs(p){this.setState(s=>({ms:{...s.ms,...p}}),()=>{this.computeStruct();this.queueSettings();});}
+  setMs(p){if(!this.canUseIndicators())return;this.setState(s=>({ms:{...s.ms,...p}}),()=>{this.computeStruct();this.queueSettings();});}
   setSymbol(symbol){if(!this.SYM[symbol]||symbol===this.state.symbol)return;this.cancelAutomaticAnalysis();this.endReplay(true);this.marketSerial++;this.model=null;this.perf=null;this.biz.sigSeen={};this.view=this.initialView();this.setState({symbol,bars:[],source:'',lastFetch:null,notice:''},()=>{this.restoreAutomaticAnalysis();this.applySettings();this.load();});}
   async loadWorkspace(){if(!this.hasPaidAccess())return;const epoch=this.session.epoch,generation=this.accessGeneration;try{const data=await this.session.request('workspace');if(epoch!==this.session.epoch||generation!==this.accessGeneration||!this.hasPaidAccess())return;this.journal=data.journal||[];this.notifications=data.notifications||[];this.preferences=data.preferences||{};this.setState({prefSignals:this.preferences.new_signal!==false});}catch{if(this.hasPaidAccess())this.setState({notice:'Votre journal est temporairement indisponible. Réessayez.'});}}
-  async registerPlan(){const p=this.model?.plan;if(!p||this.state.demo||this.rp)return;const id=crypto.randomUUID(),now=Date.now();const risk=PIPVORIA_CORE.risk({balance:this.ex.calc.capital,riskPercent:this.ex.set.risk,entry:p.entry,stop:p.stop,contract:this.ex.set.contract,lotStep:this.ex.set.lotStep});
+  async registerPlan(){const p=this.model?.plan;if(!this.canUseIndicators()||!p||this.state.demo||this.rp)return;const id=crypto.randomUUID(),now=Date.now();const risk=PIPVORIA_CORE.risk({balance:this.ex.calc.capital,riskPercent:this.ex.set.risk,entry:p.entry,stop:p.stop,contract:this.ex.set.contract,lotStep:this.ex.set.lotStep});
     const payload={symbol:this.SYM[this.state.symbol].label,interval:this.interval(),strategy:'blh',status:'planned',direction:p.direction===1?'buy':'sell',entry:p.entry,stopLoss:p.stop,takeProfits:p.tps,targetHits:[false,false,false],createdAt:now,clientUpdatedAt:now,riskPercent:Number(this.ex.set.risk),positionSize:risk.valid?risk.positionSize:null,source:this.state.source,notes:''};
     this.journalDrafts.set(id,{payload,id,kind:'trade',create:true});await this.saveJournal(id);}
   async saveJournal(id){const draft=this.journalDrafts.get(id);if(!draft||draft.saving)return;if(draft.payload.resultR!=null&&(!Number.isFinite(Number(draft.payload.resultR))||Math.abs(Number(draft.payload.resultR))>1000)){this.setState({notice:'Indiquez un résultat numérique entre −1 000 et 1 000 R.'});return;}draft.saving=true;const epoch=this.session.epoch;
@@ -241,14 +259,14 @@ class Terminal extends OriginalTerminal {
     }catch(error){if(epoch!==this.session.epoch)return;draft.saving=false;draft.conflict=error.message==='journal_conflict';this.setState({notice:draft.conflict?'Ce trade a été modifié ailleurs. Rechargez le journal avant de réessayer.':'Enregistrement échoué. Votre brouillon est conservé ; cliquez sur Réessayer.'});}this.forceUpdate();}
   changeJournal(row,patch){const draft=this.journalDrafts.get(row.id)||{id:row.id,kind:row.kind,payload:{...row.payload},baseUpdatedAt:row.updated_at};Object.assign(draft.payload,patch,{clientUpdatedAt:Date.now()});this.journalDrafts.set(row.id,draft);this.forceUpdate();}
   async savePreferences(patch){const before={...this.preferences};Object.assign(this.preferences,patch);try{const data=await this.session.request('preferences',{body:this.preferences});this.preferences=data.preferences||this.preferences;}catch{this.preferences=before;this.setState({prefSignals:before.new_signal!==false,notice:'Préférence non enregistrée. Réessayez.'});}}
-  async storeAlert(detail){const event=detail.event,pref=event==='new'?'new_signal':event==='entry'?'entry_zone':event.startsWith('tp')?'target_hit':event==='stop'?'stop_loss':'signal_updates';
+  async storeAlert(detail){if(!this.canUseIndicators())return;const event=detail.event,pref=event==='new'?'new_signal':event==='entry'?'entry_zone':event.startsWith('tp')?'target_hit':event==='stop'?'stop_loss':'signal_updates';
     if(this.preferences[pref]===false||pref==='new_signal'&&!this.state.prefSignals||pref==='signal_updates'&&this.preferences.signal_updates!==true||this.notifications.some(n=>n.signal_key===detail.eventKey))return;
     const title=(event==='entry'?'Entrée':event==='new'?'Nouveau signal':event==='stop'?'Stop loss':event.toUpperCase())+' · '+detail.symbol;
     const body=detail.interval+' · '+detail.direction.toUpperCase()+' · ENTRY '+detail.entry+' · SL '+detail.stopLoss;
     this.pushToast({title,body,levels:'',color:event==='stop'?'#f2707a':'#9d8cff'});
     const notification={id:crypto.randomUUID(),created_at:new Date().toISOString(),title,body,signal_key:detail.eventKey,is_read:false,metadata:detail};this.notifications.unshift(notification);
     try{await this.session.request('notifications/create',{body:{id:notification.id,title,body,signalKey:detail.eventKey,metadata:detail}});}catch{notification.pending=true;}this.forceUpdate();}
-  signalToast(name,sg,plan){if(this.rp||this.state.demo||this.state.feedErr||Date.now()-this.state.lastFetch>30000||sg.time+this.TFMS[this.state.tf]<Date.now()-this.TFMS[this.state.tf])return;
+  signalToast(name,sg,plan){if(!this.canUseIndicators()||this.rp||this.state.demo||this.state.feedErr||Date.now()-this.state.lastFetch>30000||sg.time+this.TFMS[this.state.tf]<Date.now()-this.TFMS[this.state.tf])return;
     super.signalToast(name,sg,plan);const toast=this.biz.toasts[0];if(!toast)return;const key=[this.state.symbol,this.state.tf,name,sg.time,sg.direction].join('|');
     this.session.request('notifications/create',{body:{id:crypto.randomUUID(),title:toast.title,body:toast.body+' '+toast.levels,signalKey:key,metadata:{symbol:this.SYM[this.state.symbol].label,interval:this.interval(),entry:plan?.entry,stopLoss:plan?.stop,takeProfits:plan?.tps}}}).then(data=>{if(data.notification)this.notifications.unshift(data.notification);this.forceUpdate();}).catch(()=>{});}
   async loadAdmin(){if(!this.session.user?.isAdmin)return;const epoch=this.session.epoch,serial=this.adminSerial=(this.adminSerial||0)+1;this.adminLoading=true;this.forceUpdate();
@@ -301,7 +319,7 @@ class Terminal extends OriginalTerminal {
     const month=PIPVORIA_CORE.dateKey(Date.now(),this.ex.set.tz).slice(0,7),rows=this.savedRows().filter(r=>r.closedAt&&PIPVORIA_CORE.dateKey(r.closedAt,this.ex.set.tz).startsWith(month));
     const stat=PIPVORIA_CORE.summary(rows,{timezone:this.ex.set.tz});
     this.openPrint('Pipvoria · Rapport '+month,'<h1>Journal · '+esc(month)+'</h1><p>'+esc(this.session.user?.name)+' · '+esc(this.ex.set.tz)+'</p><p>Trades clôturés : '+stat.closed+' · Gagnants : '+stat.wins+' · Perdants : '+stat.losses+' · Net : '+(stat.netR??'—')+' R</p><table><tr><th>Date</th><th>Marché</th><th>Sens</th><th>R</th><th>Note</th></tr>'+rows.map(r=>'<tr><td>'+esc(this.fmtT(r.closedAt))+'</td><td>'+esc(r.symbol)+'</td><td>'+esc(r.direction)+'</td><td>'+esc(r.resultR)+'</td><td>'+esc(r.notes)+'</td></tr>').join('')+'</table><p>Journal personnel. Les résultats d’indicateurs sont des simulations distinctes.</p>');}
-  renderVals(){const v=super.renderVals(),s=this.state,user=this.session?.user,rows=this.savedRows(),tz=this.ex.set.tz;
+  renderVals(){if(!this.canUseIndicators())this.clearIndicatorModels();const v=super.renderVals(),s=this.state,user=this.session?.user,rows=this.savedRows(),tz=this.ex.set.tz;
     const period=this.ex.jRange==='day'?'today':this.ex.jRange==='7d'?'week':'all',stat=PIPVORIA_CORE.summary(rows,{period,timezone:tz});
     const f=n=>Number.isFinite(Number(n))&&n!==null&&n!==''?Number(n).toFixed(this.dp()):'—',closed=['win','loss','breakeven'],stateName={planned:'Planifié',active:'En cours',win:'Gagnant',loss:'Perdant',breakeven:'Break-even',cancelled:'Annulé',snapshot:'Observation'},col=r=>r.direction==='buy'?'#3fd2a4':'#f2707a';
     const selected=rows.filter(r=>PIPVORIA_CORE.periodContains(closed.includes(r.status)?PIPVORIA_CORE.closeTime(r):r.createdAt,period,tz));
@@ -356,7 +374,7 @@ class Terminal extends OriginalTerminal {
     const hasPlan=usable&&!!analysis.plan,ready=hasPlan&&analysis.status==='ready',conditional=hasPlan&&analysis.status==='conditional';
     const displayPlan=displayable&&!!analysis.plan,targets=displayPlan?analysis.plan.targets||[]:[];
     Object.assign(v,{onAnalysisSymbol:e=>this.setSymbol(e.target.value),runAutomaticAnalysis:()=>this.runAutomaticAnalysis(),analysisUnsupported:unsupported,analysisMarketName:this.SYM[s.symbol].label,
-      toggleDemo:()=>{this.cancelAutomaticAnalysis();this.setState({demo:!s.demo,bars:[]},()=>{this.restoreAutomaticAnalysis();this.load();});},
+      toggleDemo:()=>{if(!this.canUseIndicators())return;this.cancelAutomaticAnalysis();this.setState({demo:!s.demo,bars:[]},()=>{this.restoreAutomaticAnalysis();this.load();});},
       analysisDisabled:this.automaticBusy||disabledMode||unsupported||!this.hasPaidAccess(),analysisButton:this.automaticBusy?'Analyse en cours…':'Analyser',analysisReady:ready,analysisShowLevels:displayable,analysisHasPlan:hasPlan,analysisError:this.automaticError,analysisValidity:expired?'Ancien calcul · à actualiser':'Valide jusqu’au '+this.fmtT(analysis?.validUntil),automaticFollow:s.automaticFollow,onAutomaticFollow:e=>this.setState({automaticFollow:e.target.checked},()=>{if(e.target.checked)this.runAutomaticAnalysis();}),
       analysisTitle:this.automaticBusy?'Le bot analyse…':disabledMode?'Mode réel requis':unsupported?'Choisissez l’or ou EUR/USD':expired?'Ancien calcul · à actualiser':conditional?(analysis.plan.direction==='buy'?'ACHAT À CONFIRMER':'VENTE À CONFIRMER'):ready?(analysis.plan.direction==='buy'?'ACHAT':'VENTE'):analysis?.status==='wait'?'ATTENDRE':analysis?.status==='error'?'Analyse indisponible':analysis?.status==='stale'?'Données trop anciennes':analysis?.status==='insufficient'?'Historique insuffisant':'Prêt à analyser',
       analysisMessage:this.automaticBusy?this.automaticStage:disabledMode?'Quittez la démonstration ou le replay pour analyser les dernières données disponibles.':unsupported?'Cette analyse est disponible pour XAU/USD et EUR/USD.':expired?'Une nouvelle bougie doit être analysée. Relancez le calcul avant d’utiliser un plan.':analysis?.message||'Une IA interprète les bougies et recoupe les périodes. Elle peut conclure qu’aucun trade n’est justifié.',
@@ -366,6 +384,18 @@ class Terminal extends OriginalTerminal {
       analysisTrigger:hasPlan?analysis.plan.trigger:'',analysisExit:hasPlan?analysis.plan.exitRule:'',analysisChecks:!disabledMode&&!expired?analysis?.checks||[]:[],
       analysisAsOf:displayable?this.fmtT(analysis.asOf):'—',analysisUntil:displayable?this.fmtT(analysis.validUntil):'—',
       analysisMeta:analysis?.asOf?analysis.source+' · Dernière clôture : '+this.fmtT(analysis.asOf)+' · Calcul : '+this.fmtT(analysis.generatedAt)+' · Niveaux théoriques, sans spread ni frais. Actualités non connectées · Aucun ordre exécuté.':'Interprétation IA des cours fournis · Actualités non connectées · Aucun ordre exécuté. Les cotations peuvent être différées.'});
+    const indicators=this.canUseIndicators();
+    Object.assign(v,{canUseIndicators:indicators,showIndicatorResults:indicators&&s.tab==='chart',indOpen:indicators&&s.indOpen,
+      toggleInd:()=>{if(this.canUseIndicators())this.setState({indOpen:!s.indOpen});},
+      onResultsOf:e=>{if(this.canUseIndicators())this.setState({resultsOf:e.target.value});},
+      isChartTab:!indicators||s.tab==='chart',isSummaryTab:indicators&&s.tab==='summary',isOpsTab:indicators&&s.tab==='ops',
+      analysisDirection:displayPlan?(analysis.plan.direction==='buy'?'ACHAT':'VENTE'):analysis?.status==='wait'?'ATTENDRE':'—',
+      analysisTime:displayable?this.fmtT(analysis.generatedAt):'—',analysisNoResult:!displayable,
+      analysisTableColor:expired?'#929ab2':conditional?'#f0b45b':displayPlan?(analysis.plan.direction==='buy'?'#3fd2a4':'#f2707a'):'#c9bfff',
+      canRegisterPlan:indicators&&!!this.model?.plan&&!s.demo&&!this.rp,cannotRegisterPlan:!indicators||!this.model?.plan||s.demo||!!this.rp});
+    if(!indicators){v.tabs=[{label:'Graphique & IA',select:()=>this.setState({tab:'chart'}),line:'#9d8cff',color:'#c9bfff'}];v.indList=[];v.extraInd=[];v.msToggles=[];v.compare=[];v.ops=[];v.noOps=true;v.tools=v.tools.filter(t=>t.key!=='replay');
+      v.legend=[{label:'Lignes manuelles',color:'#f0b45b'}];}
+    if(this.analysisChartLevels().length)v.legend.push({label:conditional?'IA · scénario à confirmer':'IA · entrée, stop et TP1–TP3',color:'#c9bfff'});
     const paid=this.hasPaidAccess();for(const [flag,tab] of Object.entries({isTrader:'trader',isPositions:'positions',isJournal:'journal',isCalendar:'calendar',isHistory:'history'}))v[flag]=paid&&s.appTab===tab;
     Object.assign(v,{isPaywall:s.screen==='app'&&!paid&&!['profile','support','admin'].includes(s.appTab),paywallCanPay:user?.isAdmin!==true&&this.access?.status==='inactive',paywallTitle:this.access?.status==='error'?'Vérification de l’abonnement indisponible':this.access?'Abonnement requis':'Vérification de votre abonnement…',paywallMessage:this.access?.status==='error'?'Impossible de vérifier votre accès pour le moment. Réessayez ; ne payez pas une seconde fois si vous avez déjà réglé.':this.access?'Un abonnement payé et non expiré est obligatoire pour ouvrir le terminal, les graphiques et les signaux. Votre accès s’active après confirmation du paiement.':'Votre accès est vérifié sur le serveur avant de charger le terminal.',verifyAccess:()=>this.refreshAccess()});
     v.invoices=(this.billing?.orders||[]).filter(o=>o.status==='paid').map(o=>({id:'PV-'+o.id.slice(0,8).toUpperCase(),date:this.fmtT(Date.parse(o.paid_at)),method:'PayerURL',amount:(o.amount_minor/100).toFixed(2)+' '+o.currency,download:()=>this.download('pipvoria-recu-'+o.id+'.json',JSON.stringify({type:'payment_receipt',orderId:o.id,paidAt:o.paid_at,amountMinor:o.amount_minor,currency:o.currency,provider:'PayerURL'},null,2),'application/json')}));v.noPaymentReceipts=v.invoices.length===0;

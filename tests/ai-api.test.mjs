@@ -9,7 +9,7 @@ function bars(interval){
 }
 const req=body=>new Request('https://site.invalid/api?route=analysis/run',{method:'POST',body:JSON.stringify(body)});
 function fixture(mode='reserved'){
- const state={modelCalls:0,writes:[],markets:[],result:null};
+ const state={modelCalls:0,writes:[],markets:[],symbols:[],result:null};
  globalThis.fetch=async(_url,init)=>{
    state.modelCalls++;const packet=JSON.parse(JSON.parse(init.body).input);
    const value={decision:'wait',summary:'Attendre une confirmation.',structure:'Structure mixte.',liquidity:'Pas de balayage clair.',context:'Périodes divergentes.',invalidation:'Réévaluer à la prochaine clôture.',scenario:null,evidenceTimes:[packet.frames[0].candles.at(-1)[0]]};
@@ -17,7 +17,7 @@ function fixture(mode='reserved'){
  };
  const handler=analysisApi({currentSession:async()=>({user:{id:'fixture-owner'}}),json,sessionJson:json,body:r=>r.json(),
    gold:async frame=>{state.markets.push(frame);const data=bars(frame);if(mode==='stale')data.bars=data.bars.map(b=>({...b,time:b.time-86400000}));return data;},
-   additionalMarket:async(_symbol,frame)=>bars(frame),
+   additionalMarket:async(symbol,frame)=>{state.symbols.push(symbol);state.markets.push(frame);return bars(frame);},
    supabaseAdminData:async(path,init)=>{
     if(path.startsWith('rpc/'))return json(mode==='reserved'?{status:'reserved',claimId:'claim'}:mode==='cached'?{status:'cached',result:state.result,expiresAt:new Date(Date.now()+60000).toISOString()}:{status:mode});
     state.writes.push(JSON.parse(init.body));return json([{}]);
@@ -25,6 +25,11 @@ function fixture(mode='reserved'){
  return{state,handler};
 }
 const read=async response=>(await response.text()).trim().split('\n').map(JSON.parse);
+
+test('Bitcoin requests fetch server-owned candles for three frames and persist their model result',async()=>{
+ const f=fixture(),events=await read(await f.handler(req({symbol:'BTC',interval:'5min'}),null,'run'));
+ assert.deepEqual(f.state.markets,['5min','15min','1h']);assert.deepEqual(f.state.symbols,['BTC','BTC','BTC']);assert.equal(f.state.modelCalls,1);assert.equal(events.at(-1).result.symbol,'BTC');assert.equal(f.state.writes[0].status,'completed');
+});
 test('analysis streams actual stages, persists before returning and cached reads avoid the model',async()=>{
  const f=fixture();const events=await read(await f.handler(req({symbol:'XAU',interval:'5min'}),null,'run'));
  assert.deepEqual(f.state.markets,['5min','15min','1h']);assert.equal(f.state.modelCalls,1);

@@ -704,12 +704,12 @@ function normalizeGold(interval, values, source) {
 async function goldFromYahoo(interval) {
   const yahooInterval = {"1min":"1m","5min":"5m","15min":"15m","30min":"30m","1h":"60m"}[interval];
   const range = ["1min", "5min", "15min", "30min"].includes(interval) ? "5d" : "1mo";
-  const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD=X?interval=${yahooInterval}&range=${range}`);
+  const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD=X?interval=${yahooInterval}&range=${range}`,{signal:AbortSignal.timeout(8000)});
   const data = await response.json();
   const result = data.chart?.result?.[0];
   const quote = result?.indicators?.quote?.[0];
   if (!result || !quote || !Array.isArray(result.timestamp)) throw new Error("fallback unavailable");
-  return normalizeGold(interval, result.timestamp.map((time, index) => ({ time: time * 1000, open: quote.open?.[index], high: quote.high?.[index], low: quote.low?.[index], close: quote.close?.[index], volume: quote.volume?.[index] })), "Yahoo Finance");
+  return normalizeGold(interval, result.timestamp.map((time, index) => ({ time: time * 1000, open: quote.open?.[index], high: quote.high?.[index], low: quote.low?.[index], close: quote.close?.[index], volume: quote.volume?.[index] })), "Yahoo Finance · cotation susceptible d’être différée");
 }
 
 
@@ -719,7 +719,7 @@ async function gold(interval) {
   let result;
   try {
     if (process.env.TWELVEDATA_API_KEY) {
-      const response = await fetch(`https://api.twelvedata.com/time_series?symbol=XAU%2FUSD&interval=${interval}&outputsize=1000&timezone=UTC`, { headers: { authorization: `apikey ${process.env.TWELVEDATA_API_KEY}` } });
+      const response = await fetch(`https://api.twelvedata.com/time_series?symbol=XAU%2FUSD&interval=${interval}&outputsize=1000&timezone=UTC`, { signal:AbortSignal.timeout(8000),headers: { authorization: `apikey ${process.env.TWELVEDATA_API_KEY}` } });
       const data = await response.json();
       if (data.status === "ok" && Array.isArray(data.values)) result = normalizeGold(interval, data.values.map((bar) => ({ time: Date.parse(`${bar.datetime.replace(" ", "T")}Z`), ...bar })), "Twelve Data");
     }
@@ -752,6 +752,7 @@ async function goldPrice(request) {
   try {
     if (!goldPriceCache || Date.now() - goldPriceCache.receivedAt >= 15000) {
       const response = await fetch("https://api.twelvedata.com/price?symbol=XAU%2FUSD", {
+        signal:AbortSignal.timeout(8000),
         headers: { authorization: `apikey ${process.env.TWELVEDATA_API_KEY}` },
       });
       const data = await response.json();

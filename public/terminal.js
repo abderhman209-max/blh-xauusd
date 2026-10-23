@@ -4,7 +4,7 @@ class Terminal extends OriginalTerminal {
     automaticFollow:false,crypto:'none',payStep:-1,payLeft:0,copied:false,prices:{},appTab:'trader',tab:'chart',symbol:'XAU',tf:'5m',demo:false,
     ind:{ema:true,zone:true,plan:true,structure:true,pa:false,planner:false,heat:false,heatProfile:true},indOpen:false,notifOpen:false,detailsOpen:false,
     bars:[],loading:false,source:'',hover:null,lang:'Français',prefSignals:true,prefSound:false,paidWith:'Non configuré',tool:'cursor',trendPending:false,fs:false,
-    resultsOf:'blh',mobileResultsOpen:false,ms:{on:true,fib:true,term:'Mid',rr:2},lastFetch:null,feedErr:false,now:Date.now(),notice:''};
+    resultsOf:'blh',mobileResultsOpen:false,ms:{on:true,fib:true,term:'Mid',rr:2},lastFetch:null,quoteAt:null,feedMode:'rest',feedErr:false,now:Date.now(),notice:''};
   ex={jRange:'7d',jData:{},fStatus:'open',fDir:'all',calc:{capital:'10000',risk:'1',entry:'',stop:''},
     set:{tz:'Europe/Paris',contract:'100',lotStep:'0.01',risk:'1',confirmed:true,profile:'Standard',sessions:{asia:false,london:true,ny:true},sessionFilter:false,avoid:'',maxLossDay:'',maxTradesDay:'',goalR:'',monthlyMail:false},
     undo:[],setMsg:'',mtf:{},mtfLoading:false,pays:[],users:[]};
@@ -12,6 +12,7 @@ class Terminal extends OriginalTerminal {
   sup={tickets:[],cur:null,composing:false,draft:{cat:'Bot / signaux',subject:'',body:''},reply:'',typing:false,configured:null,busy:false,error:'',hasMore:false,older:false};
   lines={}; journal=[]; notifications=[]; preferences={}; settings=PIPVORIA_CORE.settings({timezone:'Europe/Paris'}); settingsRevision=null; settingsReady=false; settingsDirty=false;
   marketSerial=0; settingsSerial=0; journalDrafts=new Map(); pendingMessages=new Map();
+  liveFeedGeneration=0;liveProduct=null;cryptoPaintT=null;paintLive=null;historyStartedAt=0;marketPending=false;
   automatic=null;automaticBusy=false;automaticSerial=0;automaticAbort=null;automaticStage="";automaticNextAt=0;automaticError='';
   access=null;accessGeneration=0;accessSerial=0;paidStarted=null;
   signalTracker=PIPVORIA_CORE.tracker();
@@ -21,7 +22,7 @@ class Terminal extends OriginalTerminal {
     this.onKey=e=>{if(e.key==='Escape')this.setState({indOpen:false,notifOpen:false,textAt:null});if(e.key==='Enter'&&this.state.screen==='auth'&&e.target.tagName==='INPUT'){e.preventDefault();this.submitAuth();}};
     this.onFs=()=>this.setState({fs:!!document.fullscreenElement});
     this.onHash=()=>{if(this.session.user&&this.state.screen==='app')this.route(location.hash.slice(1));else this.publicRoute();};
-    this.onVisible=()=>{if(!document.hidden)this.checkSession();};
+    this.onVisible=()=>{if(document.hidden)this.stopLiveMarket();else this.checkSession().finally(()=>{if(this.hasPaidAccess())this.load(true);});};
     window.addEventListener('keydown',this.onKey);window.addEventListener('hashchange',this.onHash);document.addEventListener('fullscreenchange',this.onFs);document.addEventListener('visibilitychange',this.onVisible);
     this.ageT=setInterval(()=>{if(this.access?.active&&!this.hasPaidAccess())this.blockPaidAccess('subscription_required');this.setState({now:Date.now()});},1000);
     this.poll=setInterval(()=>{if(this.session.user&&!document.hidden&&!this.rp&&!this.state.demo)this.load(true);},15000);
@@ -33,10 +34,10 @@ class Terminal extends OriginalTerminal {
     this.publicRoute();this.restore();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   }
-  componentWillUnmount(){clearInterval(this.automaticT);this.cancelAutomaticAnalysis();window.PipvoriaPayments?.close();for(const t of [this.ageT,this.poll,this.sessionT,this.priceT,this.supportT,this.adminT,this.wlT,this.rpT,this.settingsT])clearInterval(t);
+  componentWillUnmount(){this.stopLiveMarket();clearInterval(this.automaticT);this.cancelAutomaticAnalysis();window.PipvoriaPayments?.close();for(const t of [this.ageT,this.poll,this.sessionT,this.priceT,this.supportT,this.adminT,this.wlT,this.rpT,this.settingsT])clearInterval(t);
     window.removeEventListener('keydown',this.onKey);window.removeEventListener('hashchange',this.onHash);window.removeEventListener('pointerup',this.onUp);
     document.removeEventListener('fullscreenchange',this.onFs);document.removeEventListener('visibilitychange',this.onVisible);this.ro?.disconnect();this.marketAbort?.abort();}
-  lock(reason){this.cancelAutomaticAnalysis();this.clearIndicatorModels();
+  lock(reason){this.stopLiveMarket();this.cancelAutomaticAnalysis();this.clearIndicatorModels();
     window.PipvoriaPayments?.close();this.billing=null;this.access=null;this.accessSerial++;this.accessGeneration++;this.paidStarted=null;clearInterval(this.wlT);
     window.BLH_AUTH={authenticated:false,user:null};this.ex.users=[];this.adminAudit=[];this.capabilities={};
     this.marketSerial++;this.marketAbort?.abort();clearTimeout(this.settingsT);this.endReplay(true);
@@ -59,7 +60,7 @@ class Terminal extends OriginalTerminal {
   hasPaidAccess(){return !!this.session?.user&&this.access?.active===true&&this.access.deadline>Date.now();}
   canUseIndicators(){return this.hasPaidAccess()&&this.session.user.isAdmin===true;}
   clearIndicatorModels(){this.model=null;this.perf=null;this.struct=null;this.msPerf=null;this.plannerM=null;this.plannerPerf=null;this.paM=null;this.paPerf=null;this.heat=null;this.lastSignal=null;this.ex.mtf={};this.ex.mtfSym=null;this.ex.mtfLoading=false;this.signalTracker.reset();}
-  blockPaidAccess(reason='subscription_required',data){this.cancelAutomaticAnalysis();this.clearIndicatorModels();
+  blockPaidAccess(reason='subscription_required',data){this.stopLiveMarket();this.cancelAutomaticAnalysis();this.clearIndicatorModels();
     this.accessSerial++;this.accessGeneration++;this.paidStarted=null;this.access={...data,active:false,status:reason==='subscription_access_unavailable'?'error':'inactive'};
     this.marketSerial++;this.marketAbort?.abort();clearInterval(this.wlT);this.endReplay(true);
     this.model=null;this.perf=null;this.struct=null;this.paM=null;this.plannerM=null;this.wl={};this.journal=[];this.notifications=[];this.biz.toasts=[];this.signalTracker.reset();
@@ -120,7 +121,7 @@ class Terminal extends OriginalTerminal {
   fmtT(t){return t?new Date(t).toLocaleString('fr-FR',{timeZone:this.ex.set.tz,day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';}
   analysisMemoryKey(){return this.session?.user?.id?'pipvoria-analysis:v1:'+this.session.user.id:null;}
   validSavedAnalysis(value){
-    if(!value||!['XAU','EUR'].includes(value.symbol)||!['1m','5m','15m','30m','1h'].includes(value.tf)||value.interval!==this.interval(value.tf)||!['ready','conditional','wait'].includes(value.status))return false;
+    if(!value||!['XAU','EUR','BTC'].includes(value.symbol)||!['1m','5m','15m','30m','1h'].includes(value.tf)||value.interval!==this.interval(value.tf)||!['ready','conditional','wait'].includes(value.status))return false;
     if(![value.asOf,value.generatedAt,value.validUntil].every(n=>Number.isFinite(n)&&n>0)||value.validUntil<=value.asOf||value.generatedAt>Date.now()+60000)return false;
     const p=value.plan;if(!p)return value.status==='wait';
     if(!['buy','sell'].includes(p.direction)||![p.entry,p.stop,p.rewardRisk].every(n=>Number.isFinite(n)&&n>0)||!Array.isArray(p.targets)||p.targets.length!==3||!p.targets.every(n=>Number.isFinite(n)&&n>0))return false;
@@ -130,7 +131,7 @@ class Terminal extends OriginalTerminal {
     const empty={version:1,owner:this.session?.user?.id,entries:{},last:null};
     try{const key=this.analysisMemoryKey();if(!key)return empty;const raw=window.localStorage?.getItem(key);if(!raw||raw.length>131072)return empty;
       const saved=JSON.parse(raw);if(saved.version!==1||saved.owner!==empty.owner||!saved.entries||typeof saved.entries!=='object')return empty;
-      for(const symbol of ['XAU','EUR'])for(const tf of ['1m','5m','15m','30m','1h']){const id=symbol+'|'+tf,value=saved.entries[id];if(this.validSavedAnalysis(value)&&value.symbol===symbol&&value.tf===tf)empty.entries[id]=value;}
+      for(const symbol of ['XAU','EUR','BTC'])for(const tf of ['1m','5m','15m','30m','1h']){const id=symbol+'|'+tf,value=saved.entries[id];if(this.validSavedAnalysis(value)&&value.symbol===symbol&&value.tf===tf)empty.entries[id]=value;}
       if(Object.hasOwn(empty.entries,saved.last))empty.last=saved.last;return empty;
     }catch{return empty;}
   }
@@ -160,9 +161,9 @@ class Terminal extends OriginalTerminal {
       const width=ctx.measureText(label).width+12,left=Math.max(2,pW-width-4);ctx.fillStyle='#0f1320';ctx.fillRect(left,yy-9,width,18);ctx.fillStyle=level.color;ctx.fillText(label,left+6,yy+4);
     }ctx.restore();
   }
-  startReplay(){if(!this.canUseIndicators())return;this.cancelAutomaticAnalysis();return super.startReplay();}
+  startReplay(){if(!this.canUseIndicators())return;this.stopLiveMarket();this.cancelAutomaticAnalysis();return super.startReplay();}
   async runAutomaticAnalysis(){
-    if(this.automaticBusy||!this.hasPaidAccess()||!['XAU','EUR'].includes(this.state.symbol)||this.state.demo||this.rp)return;
+    if(this.automaticBusy||!this.hasPaidAccess()||!['XAU','EUR','BTC'].includes(this.state.symbol)||this.state.demo||this.rp)return;
     const {symbol,tf}=this.state,epoch=this.session.epoch,generation=this.accessGeneration,serial=++this.automaticSerial;
     this.automaticAbort?.abort();this.automaticAbort=new AbortController();this.automaticBusy=true;this.automaticError='';this.automaticStage='Connexion au moteur IA…';this.automaticNextAt=Date.now()+60000;this.forceUpdate();
     const current=()=>serial===this.automaticSerial&&epoch===this.session.epoch&&generation===this.accessGeneration&&this.hasPaidAccess()&&symbol===this.state.symbol&&tf===this.state.tf&&!this.state.demo&&!this.rp;
@@ -171,28 +172,44 @@ class Terminal extends OriginalTerminal {
     }catch(error){if(current()&&error.name!=='AbortError'){const messages={analysis_data_stale:'Le marché peut être fermé ou le flux retardé : les dernières bougies sont trop anciennes.',analysis_history_insufficient:'L’historique récent est insuffisant ou interrompu. Aucun plan généré.',analysis_daily_limit:'La limite quotidienne de nouvelles analyses est atteinte. Réessayez demain.',analysis_in_progress:'Une analyse de cette bougie est déjà en cours. Réessayez dans quelques instants.',ai_not_configured:'Le moteur IA est en cours de configuration.'};this.automaticError=messages[error.message]||'Actualisation indisponible. Réessayez plus tard.';if(!this.automatic)this.automatic={status:'error',symbol,tf,message:this.automaticError,checks:[]};this.automaticNextAt=Date.now()+300000;if(error.message==='analysis_daily_limit')this.setState({automaticFollow:false});}}
     finally{if(serial===this.automaticSerial){this.automaticBusy=false;this.forceUpdate();}}
   }
+  stopLiveMarket(){this.liveFeedGeneration++;clearTimeout(this.cryptoPaintT);this.cryptoPaintT=null;this.paintLive=null;this.liveProduct=null;if(typeof CoinbaseMarket!=='undefined')CoinbaseMarket.stop();}
+  syncLiveMarket(){
+    const symbol=this.state.symbol,product=this.SYM[symbol]?.label.replace('/','-');
+    if(!this.hasPaidAccess()||!['BTC','ETH','SOL'].includes(symbol)||this.state.demo||this.rp||document.hidden){if(this.liveProduct)this.stopLiveMarket();return;}
+    if(typeof CoinbaseMarket==='undefined'||typeof CryptoLive==='undefined')return;
+    if(this.liveProduct===product&&this.liveEpoch===this.session.epoch&&this.liveAccessGeneration===this.accessGeneration)return;
+    this.stopLiveMarket();const epoch=this.session.epoch,generation=this.accessGeneration,serial=this.liveFeedGeneration,buffer=CryptoLive.for(product);
+    this.liveProduct=product;this.liveEpoch=epoch;this.liveAccessGeneration=generation;
+    const current=()=>serial===this.liveFeedGeneration&&epoch===this.session.epoch&&generation===this.accessGeneration&&this.hasPaidAccess()&&symbol===this.state.symbol&&!this.state.demo&&!this.rp&&!document.hidden;
+    this.paintLive=()=>{this.cryptoPaintT=null;if(!current()||!buffer.last||!this.state.bars.length||Date.now()-buffer.last.receivedAt>30000)return;
+      const tick=buffer.last;if(this.state.feedMode!=='live'&&tick.receivedAt<this.historyStartedAt)return;
+      const bars=buffer.merge(this.state.bars,this.interval(),0);
+      this.wl[symbol]={...this.wl[symbol],price:tick.price,source:'Coinbase · WebSocket'};
+      this.setState({lastFetch:tick.receivedAt,quoteAt:tick.time,feedErr:false});this.setBars(bars,'Coinbase · '+this.SYM[symbol].label+' · WebSocket');};
+    CoinbaseMarket.start(tick=>{if(!current()||tick.symbol!==this.SYM[symbol].label||!buffer.add(tick))return;if(!this.cryptoPaintT)this.cryptoPaintT=setTimeout(()=>this.paintLive?.(),250);},product,status=>{if(current())this.setState({feedMode:status});});
+  }
   async marketBars(symbol,tf,signal){
     if(!this.hasPaidAccess())throw Error('subscription_required');
     if(symbol==='XAU'){const data=await this.session.request('gold',{query:{interval:this.interval(tf)},signal});return data;}
-    if(['BTC','ETH','SOL'].includes(symbol)){
-      const bars=await CoinbaseMarket.history(this.interval(tf),signal,this.SYM[symbol].label.replace('/','-'));
-      return{bars,source:'Coinbase · '+this.SYM[symbol].label,fetchedAt:Date.now()};}
     return this.session.request('market',{query:{symbol,interval:this.interval(tf)},signal});
   }
   interval(tf=this.state.tf){return {'1m':'1min','5m':'5min','15m':'15min','30m':'30min','1h':'1h'}[tf];}
-  async load(silent=false){if(!this.hasPaidAccess())return;const {symbol,tf,demo}=this.state;if(this.rp&&silent)return;
-    const serial=++this.marketSerial,epoch=this.session.epoch;this.marketAbort?.abort();this.marketAbort=new AbortController();if(!silent)this.setState({loading:true});
+  async load(silent=false){if(!this.hasPaidAccess())return;const {symbol,tf,demo}=this.state;if(this.rp&&silent||silent&&this.marketPending)return;
+    this.syncLiveMarket();const started=Date.now(),serial=++this.marketSerial,epoch=this.session.epoch;this.marketPending=true;this.marketAbort?.abort();this.marketAbort=new AbortController();if(!silent)this.setState({loading:true});
     try{const data=demo?{bars:this.simBars(),source:'Démonstration · données simulées',fetchedAt:Date.now()}:await this.marketBars(symbol,tf,this.marketAbort.signal);
       if(serial!==this.marketSerial||epoch!==this.session.epoch||symbol!==this.state.symbol||tf!==this.state.tf)return;
-      const bars=data.bars?.filter(b=>[b.time,b.open,b.high,b.low,b.close].every(Number.isFinite)&&b.low<=Math.min(b.open,b.close)&&b.high>=Math.max(b.open,b.close));
+      let bars=data.bars?.filter(b=>[b.time,b.open,b.high,b.low,b.close].every(Number.isFinite)&&b.low<=Math.min(b.open,b.close)&&b.high>=Math.max(b.open,b.close));
       if(!bars?.length)throw Error('invalid_market_data');
-      this.setState({feedErr:false,lastFetch:data.fetchedAt||Date.now()});this.setBars(bars,data.source);
+      this.historyStartedAt=started;
+      if(!demo&&['BTC','ETH','SOL'].includes(symbol)&&typeof CryptoLive!=='undefined')bars=CryptoLive.for(this.SYM[symbol].label.replace('/','-')).merge(bars,this.interval(),started);
+      this.setState({feedErr:false,lastFetch:data.fetchedAt||Date.now(),...(!['BTC','ETH','SOL'].includes(symbol)?{quoteAt:null,feedMode:'rest'}:{})});this.setBars(bars,data.source);this.paintLive?.();
     }catch(error){if(serial!==this.marketSerial||epoch!==this.session.epoch||error.name==='AbortError')return;
-      this.setState({loading:false,feedErr:true,source:this.state.bars.length?this.state.source+' · flux interrompu':'Flux indisponible · aucune donnée simulée',notice:'Le flux '+this.SYM[symbol].label+' est indisponible. Réessayez ou choisissez le mode Démonstration.'});}}
+      this.setState({loading:false,feedErr:true,source:this.state.bars.length?this.state.source.replace(/ · flux interrompu$/,'')+' · flux interrompu':'Flux indisponible · aucune donnée simulée',notice:'Le flux '+this.SYM[symbol].label+' est indisponible. Réessayez.'});}
+    finally{if(serial===this.marketSerial)this.marketPending=false;}}
   async tickPrice(){if(!this.hasPaidAccess()||this.state.symbol!=='XAU'||this.state.demo||this.rp||document.hidden||this.ticking||!this.state.bars.length)return;this.ticking=true;
     const serial=this.marketSerial,epoch=this.session.epoch;try{const tick=await this.session.request('gold/price');
       if(serial!==this.marketSerial||epoch!==this.session.epoch||this.state.symbol!=='XAU'||this.rp||!Number.isFinite(tick.price))return;
-      GoldLive.add({...tick,time:tick.time||tick.receivedAt,receivedAt:tick.receivedAt||Date.now()});const bars=GoldLive.merge(this.state.bars,this.interval(),this.state.lastFetch||0);
+      if(!GoldLive.add({...tick,time:tick.time||tick.receivedAt,receivedAt:tick.receivedAt||Date.now()}))return;const bars=GoldLive.merge(this.state.bars,this.interval(),this.state.lastFetch||0);
       this.setState({lastFetch:tick.receivedAt||Date.now(),feedErr:false});this.setBars(bars,tick.source||this.state.source);
     }catch{}finally{this.ticking=false;}}
   setBars(bars,source){if(!this.hasPaidAccess())return;const duration=this.TFMS[this.state.tf];const closed=bars.filter(b=>b.closed!==false&&b.time+duration<=Date.now());
@@ -248,7 +265,7 @@ class Terminal extends OriginalTerminal {
   setSet(p,msg){if(!this.settingsReady)return;this.ex.undo.push(structuredClone(this.ex.set));Object.assign(this.ex.set,p);this.ex.setMsg=msg||'';this.queueSettings();if(this.state.bars.length)this.setBars(this.state.bars);this.forceUpdate();}
   saveLines(){this.queueSettings();this.draw();}
   setMs(p){if(!this.canUseIndicators())return;this.setState(s=>({ms:{...s.ms,...p}}),()=>{this.computeStruct();this.queueSettings();});}
-  setSymbol(symbol){if(!this.SYM[symbol]||symbol===this.state.symbol)return;this.cancelAutomaticAnalysis();this.endReplay(true);this.marketSerial++;this.model=null;this.perf=null;this.biz.sigSeen={};this.view=this.initialView();this.setState({symbol,bars:[],source:'',lastFetch:null,notice:''},()=>{this.restoreAutomaticAnalysis();this.applySettings();this.load();});}
+  setSymbol(symbol){if(!this.SYM[symbol]||symbol===this.state.symbol)return;this.stopLiveMarket();this.cancelAutomaticAnalysis();this.endReplay(true);this.marketSerial++;this.model=null;this.perf=null;this.biz.sigSeen={};this.view=this.initialView();this.setState({symbol,bars:[],source:'',lastFetch:null,quoteAt:null,feedMode:'rest',notice:''},()=>{this.restoreAutomaticAnalysis();this.applySettings();this.load();});}
   async loadWorkspace(){if(!this.hasPaidAccess())return;const epoch=this.session.epoch,generation=this.accessGeneration;try{const data=await this.session.request('workspace');if(epoch!==this.session.epoch||generation!==this.accessGeneration||!this.hasPaidAccess())return;this.journal=data.journal||[];this.notifications=data.notifications||[];this.preferences=data.preferences||{};this.setState({prefSignals:this.preferences.new_signal!==false});}catch{if(this.hasPaidAccess())this.setState({notice:'Votre journal est temporairement indisponible. Réessayez.'});}}
   async registerPlan(){const p=this.model?.plan;if(!this.canUseIndicators()||!p||this.state.demo||this.rp)return;const id=crypto.randomUUID(),now=Date.now();const risk=PIPVORIA_CORE.risk({balance:this.ex.calc.capital,riskPercent:this.ex.set.risk,entry:p.entry,stop:p.stop,contract:this.ex.set.contract,lotStep:this.ex.set.lotStep});
     const payload={symbol:this.SYM[this.state.symbol].label,interval:this.interval(),strategy:'blh',status:'planned',direction:p.direction===1?'buy':'sell',entry:p.entry,stopLoss:p.stop,takeProfits:p.tps,targetHits:[false,false,false],createdAt:now,clientUpdatedAt:now,riskPercent:Number(this.ex.set.risk),positionSize:risk.valid?risk.positionSize:null,source:this.state.source,notes:''};
@@ -369,21 +386,27 @@ class Terminal extends OriginalTerminal {
       faq:[{q:'Le bot passe-t-il des ordres ?',a:'Le site affiche des signaux et des plans. Aucun ordre n’est exécuté chez votre courtier.'},{q:'Comment sont calculés les résultats ?',a:'Les indicateurs utilisent les bougies clôturées. Les résultats du journal proviennent uniquement des trades enregistrés sur votre compte.'},{q:'Pourquoi un marché peut-il être indisponible ?',a:'Un problème de flux reste indiqué. Aucune donnée simulée ne remplace automatiquement le flux réel.'}]
     });
     const analysis=this.automatic&&this.automatic.symbol===s.symbol&&this.automatic.tf===s.tf?this.automatic:null;
-    const expired=analysis?.validUntil<=Date.now(),disabledMode=s.demo||!!this.rp,unsupported=!['XAU','EUR'].includes(s.symbol);
+    const expired=analysis?.validUntil<=Date.now(),disabledMode=s.demo||!!this.rp,unsupported=!['XAU','EUR','BTC'].includes(s.symbol);
     const displayable=!!analysis&&['ready','conditional','wait'].includes(analysis.status)&&!disabledMode&&this.hasPaidAccess(),usable=displayable&&!expired;
     const hasPlan=usable&&!!analysis.plan,ready=hasPlan&&analysis.status==='ready',conditional=hasPlan&&analysis.status==='conditional';
     const displayPlan=displayable&&!!analysis.plan,targets=displayPlan?analysis.plan.targets||[]:[];
     Object.assign(v,{onAnalysisSymbol:e=>this.setSymbol(e.target.value),runAutomaticAnalysis:()=>this.runAutomaticAnalysis(),analysisUnsupported:unsupported,analysisMarketName:this.SYM[s.symbol].label,
       toggleDemo:()=>{if(!this.canUseIndicators())return;this.cancelAutomaticAnalysis();this.setState({demo:!s.demo,bars:[]},()=>{this.restoreAutomaticAnalysis();this.load();});},
       analysisDisabled:this.automaticBusy||disabledMode||unsupported||!this.hasPaidAccess(),analysisButton:this.automaticBusy?'Analyse en cours…':'Analyser',analysisReady:ready,analysisShowLevels:displayable,analysisHasPlan:hasPlan,analysisError:this.automaticError,analysisValidity:expired?'Ancien calcul · à actualiser':'Valide jusqu’au '+this.fmtT(analysis?.validUntil),automaticFollow:s.automaticFollow,onAutomaticFollow:e=>this.setState({automaticFollow:e.target.checked},()=>{if(e.target.checked)this.runAutomaticAnalysis();}),
-      analysisTitle:this.automaticBusy?'Le bot analyse…':disabledMode?'Mode réel requis':unsupported?'Choisissez l’or ou EUR/USD':expired?'Ancien calcul · à actualiser':conditional?(analysis.plan.direction==='buy'?'ACHAT À CONFIRMER':'VENTE À CONFIRMER'):ready?(analysis.plan.direction==='buy'?'ACHAT':'VENTE'):analysis?.status==='wait'?'ATTENDRE':analysis?.status==='error'?'Analyse indisponible':analysis?.status==='stale'?'Données trop anciennes':analysis?.status==='insufficient'?'Historique insuffisant':'Prêt à analyser',
-      analysisMessage:this.automaticBusy?this.automaticStage:disabledMode?'Quittez la démonstration ou le replay pour analyser les dernières données disponibles.':unsupported?'Cette analyse est disponible pour XAU/USD et EUR/USD.':expired?'Une nouvelle bougie doit être analysée. Relancez le calcul avant d’utiliser un plan.':analysis?.message||'Une IA interprète les bougies et recoupe les périodes. Elle peut conclure qu’aucun trade n’est justifié.',
+      analysisTitle:this.automaticBusy?'Le bot analyse…':disabledMode?'Mode réel requis':unsupported?'Choisissez l’or, Bitcoin ou EUR/USD':expired?'Ancien calcul · à actualiser':conditional?(analysis.plan.direction==='buy'?'ACHAT À CONFIRMER':'VENTE À CONFIRMER'):ready?(analysis.plan.direction==='buy'?'ACHAT':'VENTE'):analysis?.status==='wait'?'ATTENDRE':analysis?.status==='error'?'Analyse indisponible':analysis?.status==='stale'?'Données trop anciennes':analysis?.status==='insufficient'?'Historique insuffisant':'Prêt à analyser',
+      analysisMessage:this.automaticBusy?this.automaticStage:disabledMode?'Quittez la démonstration ou le replay pour analyser les dernières données disponibles.':unsupported?'Cette analyse est disponible pour XAU/USD, BTC/USD et EUR/USD.':expired?'Une nouvelle bougie doit être analysée. Relancez le calcul avant d’utiliser un plan.':analysis?.message||'Une IA interprète les bougies et recoupe les périodes. Elle peut conclure qu’aucun trade n’est justifié.',
       analysisPlanHeading:conditional?'Scénario conditionnel · attendre le déclencheur':ready?'Plan proposé par l’IA':'Aucun scénario chiffré validé',
       analysisPlanNotice:conditional?'L’entrée reste à confirmer. Le prix seul ne valide pas la condition décrite ci-dessous.':ready?'Niveaux calculés sur les bougies clôturées. Vérifiez les conditions d’entrée et de sortie.':'L’IA n’a pas retenu de niveaux cohérents. Une nouvelle analyse est nécessaire avant de définir un plan.',
       analysisEntry:displayPlan?f(analysis.plan.entry):'—',analysisStop:displayPlan?f(analysis.plan.stop):'—',analysisTp1:targets[0]?f(targets[0]):'—',analysisTp2:targets[1]?f(targets[1]):'—',analysisTp3:targets[2]?f(targets[2]):'—',analysisRr:displayPlan?String(analysis.plan.rewardRisk)+' R':'—',
       analysisTrigger:hasPlan?analysis.plan.trigger:'',analysisExit:hasPlan?analysis.plan.exitRule:'',analysisChecks:!disabledMode&&!expired?analysis?.checks||[]:[],
       analysisAsOf:displayable?this.fmtT(analysis.asOf):'—',analysisUntil:displayable?this.fmtT(analysis.validUntil):'—',
       analysisMeta:analysis?.asOf?analysis.source+' · Dernière clôture : '+this.fmtT(analysis.asOf)+' · Calcul : '+this.fmtT(analysis.generatedAt)+' · Niveaux théoriques, sans spread ni frais. Actualités non connectées · Aucun ordre exécuté.':'Interprétation IA des cours fournis · Actualités non connectées · Aucun ordre exécuté. Les cotations peuvent être différées.'});
+    const cryptoMarket=['BTC','ETH','SOL'].includes(s.symbol),quoteAge=s.quoteAt?Math.max(0,Math.round((Date.now()-s.quoteAt)/1000)):null;
+    const direct=cryptoMarket&&s.feedMode==='live'&&quoteAge!==null&&quoteAge<15&&!s.feedErr&&!s.demo;
+    const delayed=/Yahoo|différée/i.test(s.source),feedStatus=s.demo?'Simulation':direct?'Direct Coinbase':cryptoMarket?(s.feedMode==='reconnecting'?'Reconnexion · historique REST':'Direct en attente · historique REST'):delayed?'Données différées':'Actualisation périodique';
+    Object.assign(v,{analysisPriceLabel:direct?'Cours en direct':'Dernier cours reçu',analysisLivePrice:this.hasPaidAccess()&&!s.demo&&s.bars.length?f(s.bars.at(-1).close):'—',analysisFeedStatus:feedStatus,
+      sourceLabel:feedStatus+' · '+s.source+(quoteAge!==null?' · cotation il y a '+quoteAge+' s':s.lastFetch?' · reçu il y a '+Math.max(0,Math.round((Date.now()-s.lastFetch)/1000))+' s':''),
+      feedColor:s.feedErr?'#f2707a':direct?'#3fd2a4':delayed||cryptoMarket||Date.now()-s.lastFetch>30000?'#f0b45b':'#3fd2a4'});
     const indicators=this.canUseIndicators();
     Object.assign(v,{canUseIndicators:indicators,showIndicatorResults:indicators&&s.tab==='chart',indOpen:indicators&&s.indOpen,
       toggleInd:()=>{if(this.canUseIndicators())this.setState({indOpen:!s.indOpen});},

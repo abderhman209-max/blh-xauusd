@@ -14,6 +14,14 @@ export function modelValue(packet,decision='buy'){
   return {decision,summary:'Les périodes montrent une reprise à confirmer.',structure:'Clôtures en progression.',liquidity:'Les mèches testent les creux récents.',context:'Comparer la tendance horaire.',invalidation:'Le scénario est invalidé sous le creux.',
     scenario:decision==='wait'?null:{direction:decision,entry,stop:entry+(decision==='sell'?1:-1)*f.atr,tp1:entry+(decision==='sell'?-1:1)*f.atr,tp2:entry+(decision==='sell'?-1:1)*2*f.atr,tp3:entry+(decision==='sell'?-1:1)*3*f.atr,trigger:'Attendre une clôture de confirmation au niveau d’entrée.',exitRule:'Prises de profit aux trois objectifs ; sortie au stop si invalidé.'},evidenceTimes:[f.candles.at(-1)[0]]};
 }
+
+test('Bitcoin analysis uses two price decimals and the same independent risk and stale-data validation',()=>{
+ const data=dataset('5min');for(const bar of data.bars)for(const key of ['open','high','low','close'])bar[key]*=25;
+ const packet=marketPacket('BTC','5min',[data],now),value=modelValue(packet),result=validateModelAnalysis(value,packet,now);
+ assert.equal(result.symbol,'BTC');assert.equal(result.status,'ready');assert.equal(result.plan.targets.length,3);assert.equal(result.plan.entry,Number(result.plan.entry.toFixed(2)));
+ const bad=structuredClone(value);bad.scenario.stop=bad.scenario.entry+1;assert.throws(()=>validateModelAnalysis(bad,packet,now),/invalid_output/);
+ assert.throws(()=>marketPacket('BTC','5min',[data],now+300000),/stale/);
+});
 test('market packets exclude open candles, reject stale/gapped data, and keep cache identities independent of request time',async()=>{
   const data=dataset('5min'),packet=marketPacket('XAU','5min',[data],now);
   data.bars.push({time:now,open:9999,high:10000,low:9998,close:9999,closed:false});

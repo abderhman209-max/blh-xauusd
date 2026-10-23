@@ -7,9 +7,9 @@ import {additionalMarket} from '../lib/terminal-market.js';
 const C=globalThis.PIPVORIA_CORE;
 function session(fetcher){const ctx={URLSearchParams,TextDecoder,Uint8Array,globalThis:null};ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('public/terminal-api.js','utf8'),ctx);return new ctx.TerminalSession({fetcher});}
 const response=(body,status=200)=>({ok:status<400,status,json:async()=>body});
-function terminalApp(storage){
-  const ctx={Date,Intl,URLSearchParams,structuredClone,console,AbortController,clearInterval(){},clearTimeout(){},setTimeout(){return 1;},setInterval(){return 1;},location:{pathname:'/',hash:'',search:''},history:{replaceState(_a,_b,url){ctx.location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},scrollTo(){},ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;ctx.localStorage=storage;vm.createContext(ctx);
-  for(const name of ['core','structure','smart','blh-clean','pa-liquidity','heatmap','indicator-performance','terminal-original','terminal'])vm.runInContext(fs.readFileSync('public/'+name+'.js','utf8'),ctx);
+function terminalApp(storage,extras={}){
+  const ctx={Date,Intl,URLSearchParams,structuredClone,console,AbortController,clearInterval(){},clearTimeout(){},setTimeout(){return 1;},setInterval(){return 1;},location:{pathname:'/',hash:'',search:''},history:{replaceState(_a,_b,url){ctx.location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},scrollTo(){},ResizeObserver:class{observe(){}disconnect(){}},addEventListener(){},removeEventListener(){},document:{querySelector:()=>null},window:null,DCLogic:class{props={};setState(p,cb){Object.assign(this.state,typeof p==='function'?p(this.state):p);cb?.();}forceUpdate(){}}};ctx.window=ctx;ctx.localStorage=storage;Object.assign(ctx,extras);vm.createContext(ctx);
+  for(const name of ['live','core','structure','smart','blh-clean','pa-liquidity','heatmap','indicator-performance','terminal-original','terminal'])vm.runInContext(fs.readFileSync('public/'+name+'.js','utf8'),ctx);
   const app=vm.runInContext('new Terminal()',ctx);app.session={epoch:1,user:{id:'paid-fixture'}};app.access={active:true,deadline:Date.now()+3600000};return app;
 }
 test('public landing survives a missing session, while login/signup and protected links open auth',async()=>{
@@ -243,4 +243,25 @@ test('AI chart levels and table values agree while conditional, wait, stale and 
  text.length=0;app.automatic.validUntil=Date.now()-1;app.draw();assert.equal(app.analysisChartLevels().length,0);assert.ok(!text.some(s=>s.startsWith('IA ')));assert.equal(app.renderVals().analysisEntry,'4200.00');
  app.automatic={...savedAnalysis(),tf:'5m',status:'wait',plan:null};view=app.renderVals();assert.equal(view.analysisDirection,'ATTENDRE');assert.equal(view.analysisEntry,'—');assert.equal(app.analysisChartLevels().length,0);
  app.automatic={...savedAnalysis(),tf:'5m'};app.state.tf='15m';assert.equal(app.analysisChartLevels().length,0);app.state.tf='5m';app.state.demo=true;assert.equal(app.analysisChartLevels().length,0);app.state.demo=false;app.access=null;assert.equal(app.analysisChartLevels().length,0);assert.equal(app.renderVals().analysisEntry,'—');
+});
+
+test('Bitcoin can run and restore AI calculations while live ticks update the chart and table without replacing the plan',async()=>{
+ const sockets=[];class Socket{readyState=0;constructor(){sockets.push(this);}send(){}close(){this.readyState=3;this.onclose?.();}}
+ const storage=analysisStorage(),app=terminalApp(storage,{WebSocket:Socket});app.state.symbol='BTC';
+ app.session.request=async(route,options)=>{assert.equal(route,'market');assert.equal(options.query.symbol,'BTC');return {bars:[{time:Math.floor(Date.now()/300000)*300000,open:100000,high:100100,low:99900,close:100010,volume:8,closed:false}],source:'Coinbase · BTC/USD',fetchedAt:Date.now()};};
+ await app.load();assert.equal(sockets.length,1);const socket=sockets[0];socket.readyState=1;socket.onopen();
+ app.session.stream=async(_route,options)=>{assert.equal(options.body.symbol,'BTC');return savedAnalysis('BTC');};await app.runAutomaticAnalysis();assert.equal(app.renderVals().analysisUnsupported,false);
+ socket.onmessage({data:JSON.stringify({type:'ticker',product_id:'BTC-USD',price:'100123.45',time:new Date().toISOString()})});app.paintLive();
+ let view=app.renderVals();assert.equal(app.state.bars.at(-1).close,100123.45);assert.equal(view.analysisLivePrice,'100123.45');assert.equal(view.analysisPriceLabel,'Cours en direct');assert.equal(app.automatic.plan.entry,4200);
+ const restored=terminalApp(storage);await restored.restoreAutomaticAnalysis(true);assert.equal(restored.state.symbol,'BTC');assert.equal(restored.automatic.plan.entry,4200);
+ app.state.quoteAt=Date.now()-40000;assert.notEqual(app.renderVals().analysisPriceLabel,'Cours en direct');
+ app.lock('logout_pending');const previous=app.state.bars.length;socket.onmessage({data:JSON.stringify({type:'ticker',product_id:'BTC-USD',price:'200000',time:new Date().toISOString()})});assert.equal(app.state.bars.length,previous);assert.equal(app.liveProduct,null);
+});
+test('a live price arriving during slow history loading survives REST reconciliation and late loads cannot cross logout',async()=>{
+ const sockets=[];class Socket{readyState=1;constructor(){sockets.push(this);}send(){}close(){this.readyState=3;this.onclose?.();}}
+ const app=terminalApp(undefined,{WebSocket:Socket});app.state.symbol='BTC';let finish;app.session.request=()=>new Promise(r=>finish=r);
+ const loading=app.load();sockets[0].onmessage({data:JSON.stringify({type:'ticker',product_id:'BTC-USD',price:'100200',time:new Date().toISOString()})});
+ const data={bars:[{time:Math.floor(Date.now()/300000)*300000,open:100000,high:100100,low:99900,close:100010,volume:8,closed:false}],source:'Coinbase',fetchedAt:Date.now()};finish(data);await loading;assert.equal(app.state.bars.at(-1).close,100200);
+ const late=app.load();app.lock('logout_pending');app.session.epoch++;finish(data);await late;assert.equal(app.state.bars.length,0);
+ const delayed=terminalApp();delayed.state.symbol='EUR';delayed.state.source='Yahoo Finance · cotation susceptible d’être différée';delayed.state.lastFetch=Date.now();assert.match(delayed.renderVals().sourceLabel,/Données différées/);
 });

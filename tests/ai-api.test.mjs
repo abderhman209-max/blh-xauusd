@@ -48,3 +48,21 @@ test('stale data, persistent limits, missing credentials and injected inputs can
  delete process.env.OPENAI_API_KEY;assert.equal((await f.handler(req({symbol:'XAU',interval:'5min'}),null,'run')).status,503);
  assert.equal(f.state.modelCalls,0);process.env.OPENAI_API_KEY='fixture-ai-key';
 });
+test('bot stats replay closed candles for stored plans, persist new outcomes and never call the model',async()=>{
+ const ms=AI_FRAMES['5min'],end=Math.floor(Date.now()/ms)*ms,asOf=end-10*ms,writes=[],markets=[];let modelCalls=0;
+ globalThis.fetch=async()=>{modelCalls++;throw Error('no model');};
+ const plan={direction:'buy',conditional:false,entry:100,stop:90,targets:[110,120,130],rewardRisk:2};
+ const rows=[{cache_key:'a'.repeat(64),result:{symbol:'XAU',interval:'5min',asOf,generatedAt:asOf,plan},outcome:null},
+  {cache_key:'b'.repeat(64),result:{symbol:'XAU',interval:'5min',asOf,generatedAt:asOf,plan:null},outcome:null},
+  {cache_key:'c'.repeat(64),result:{symbol:'EUR',interval:'1h',asOf,generatedAt:asOf,plan},outcome:{v:1,state:'closed',checkedThrough:asOf,reached:[true,true,true],enteredAt:asOf,bars:1,exit:{reason:'tp3',time:asOf,resultR:2}}}];
+ const candles=[[asOf-ms,100,101,99],[asOf,100,101,99],[asOf+ms,111,131,101]].map(([time,open,high,low])=>({time,open,high,low,close:open,closed:true}));
+ const handler=analysisApi({currentSession:async()=>({user:{id:'fixture-owner'}}),json,sessionJson:json,body:r=>r.json(),
+  gold:async frame=>{markets.push(frame);return{bars:candles};},additionalMarket:async()=>assert.fail('Closed plans need no market data'),
+  supabaseAdminData:async(path,init)=>{if(!init)return json(rows);writes.push({path,body:JSON.parse(init.body)});return json([]);}});
+ const data=await(await handler(new Request('https://site.invalid/api?route=analysis/stats'),null,'stats')).json();
+ assert.equal(modelCalls,0);assert.deepEqual(markets,['5min']);assert.equal(writes.length,1);assert.match(writes[0].path,/cache_key=eq\.a{64}/);
+ assert.equal(writes[0].body.outcome.exit.reason,'tp3');assert.equal(data.overall.plans,2);assert.equal(data.overall.closed,2);assert.equal(data.overall.winRate,100);
+ const broken=analysisApi({currentSession:async()=>({user:{id:'x'}}),json,sessionJson:json,body:r=>r.json(),gold:async()=>({bars:[]}),additionalMarket:async()=>({bars:[]}),supabaseAdminData:async()=>json({},500)});
+ assert.equal((await broken(new Request('https://site.invalid/api?route=analysis/stats'),null,'stats')).status,503);
+ assert.equal((await analysisApi({currentSession:async()=>null,json,sessionJson:json})(new Request('https://site.invalid/'),null,'stats')).status,401);
+});

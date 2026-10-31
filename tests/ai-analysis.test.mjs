@@ -43,7 +43,8 @@ test('default fetch preserves its runtime receiver and credentials reject intern
 test('only referenced, bounded and correctly ordered model levels become a trade plan',()=>{
   const packet=marketPacket('XAU','5min',[dataset('5min')],now),value=modelValue(packet);
   const valid=validateModelAnalysis(value,packet,now);assert.equal(valid.status,'ready');assert.equal(valid.plan.rewardRisk,2);
-  for(const patch of [{entry:1},{stop:value.scenario.entry+2},{tp1:value.scenario.entry-2},{stop:value.scenario.entry-.001},{tp2:value.scenario.tp1},{tp3:value.scenario.entry+20*packet.frames[0].atr},{trigger:''},{exitRule:''},{direction:'sell'}]){
+  assert.equal(valid.plan.adjusted,false);
+  for(const patch of [{entry:1},{stop:value.scenario.entry+2},{trigger:''},{exitRule:''},{direction:'sell'}]){
     assert.throws(()=>validateModelAnalysis({...value,scenario:{...value.scenario,...patch}},packet,now),/invalid_output/);
   }
   for(const patch of [{evidenceTimes:[1]},{summary:''},{scenario:null}])assert.throws(()=>validateModelAnalysis({...value,...patch},packet,now),/invalid_output/);
@@ -75,4 +76,23 @@ test('the real model request is bounded, server authenticated and structured; re
   for(const response of [{status:'incomplete'}, {status:'completed',output:[{type:'message',content:[{type:'refusal',refusal:'No'}]}]}]){
     await assert.rejects(()=>inferAnalysis(packet,{key:'fixture-only',fetcher:async()=>new Response(JSON.stringify(response))}),/incomplete|refused/);
   }
+});
+
+test('the server recomputes stop and targets the model got wrong instead of failing the analysis',()=>{
+  const packet=marketPacket('XAU','5min',[dataset('5min')],now),value=modelValue(packet),atr=packet.frames[0].atr,entry=value.scenario.entry;
+  for(const patch of [{tp1:entry-2},{tp2:value.scenario.tp1},{tp3:entry+20*atr},{stop:entry-.001},{stop:entry-30*atr},{tp1:entry+.1,tp2:entry+.1,tp3:entry+.1}]){
+    const plan=validateModelAnalysis({...value,scenario:{...value.scenario,...patch}},packet,now).plan,risk=plan.entry-plan.stop,r=plan.targets.map(t=>(t-plan.entry)/risk);
+    assert.equal(plan.adjusted,true);assert.equal(plan.entry,entry);
+    assert.ok(risk>=atr*.3-.01&&risk<=atr*5+.01,'stop distance '+risk);
+    assert.ok(r[0]>=1&&r[1]>=1.5&&r[2]>=2&&r[2]<=5.01&&r[0]<r[1]&&r[1]<r[2],'targets '+r);
+    assert.deepEqual(plan.rewardRisks,r.map(n=>Number(n.toFixed(2))));
+    for(const n of [plan.stop,...plan.targets])assert.equal(n,Number(n.toFixed(2)));
+  }
+  const sell=modelValue(packet,'sell');sell.scenario.tp3=sell.scenario.entry+5;
+  const plan=validateModelAnalysis(sell,packet,now).plan;assert.ok(plan.stop>plan.entry&&plan.entry>plan.targets[0]&&plan.targets[0]>plan.targets[1]&&plan.targets[1]>plan.targets[2]);
+  const eur=dataset('5min');for(const bar of eur.bars)for(const key of ['open','high','low','close'])bar[key]/=4000;
+  const eurPacket=marketPacket('EUR','5min',[eur],now),eurValue=modelValue(eurPacket);
+  const e={...eurValue.scenario,entry:Number(eurPacket.frames[0].latestClose.toFixed(5))};e.stop=e.entry-eurPacket.frames[0].atr;e.tp1=e.tp2=e.tp3=e.entry+eurPacket.frames[0].atr/10;
+  const ep=validateModelAnalysis({...eurValue,scenario:e},eurPacket,now).plan;assert.ok(ep.rewardRisks[0]>=1&&ep.rewardRisks[2]>ep.rewardRisks[1]);
+  for(const n of [ep.stop,...ep.targets])assert.equal(n,Number(n.toFixed(5)));
 });

@@ -915,6 +915,7 @@ export default async function handler(request) {
     }
     if(route==='analysis/config'&&request.method==='GET'&&sameOrigin(request))return await handleAnalysis(request,url,'config');
     if(route==='analysis/run'&&request.method==='POST'&&sameOrigin(request))return await handleAnalysis(request,url,'run');
+    if(route==='analysis/stats'&&request.method==='GET'&&sameOrigin(request))return await handleAnalysis(request,url,'stats');
     if (route === "settings" && (request.method === "GET" || request.method === "POST" && sameOrigin(request))) return await accountSettings(request);
     if (route === "profile/avatar") return await profileAvatar(request);
     if (route === "gold" && request.method === "GET") return await marketData(request, url);

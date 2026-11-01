@@ -82,7 +82,7 @@ class Terminal extends OriginalTerminal {
     const epoch=this.session.epoch,generation=this.accessGeneration;
     await this.restoreAutomaticAnalysis(true);
     if(epoch!==this.session.epoch||generation!==this.accessGeneration||!this.hasPaidAccess())return;
-    await Promise.allSettled([this.loadWorkspace(),this.loadCapabilities(),this.load(),this.loadWatch()]);
+    await Promise.allSettled([this.loadWorkspace(),this.loadCapabilities(),this.load(),this.loadWatch(),this.loadBotStats()]);
     if(!this.hasPaidAccess())return;this.monthlyReminder();clearInterval(this.wlT);this.wlT=setInterval(()=>{if(this.hasPaidAccess()&&!document.hidden)this.loadWatch();},60000);
   }
   async unlock(user){
@@ -169,7 +169,7 @@ class Terminal extends OriginalTerminal {
     this.automaticAbort?.abort();this.automaticAbort=new AbortController();this.automaticBusy=true;this.automaticError='';this.automaticStage='Connexion au moteur IA…';this.automaticNextAt=Date.now()+60000;this.forceUpdate();
     const current=()=>serial===this.automaticSerial&&epoch===this.session.epoch&&generation===this.accessGeneration&&this.hasPaidAccess()&&symbol===this.state.symbol&&tf===this.state.tf&&!this.state.demo&&!this.rp;
     try{const result=await this.session.stream('analysis/run',{body:{symbol,interval:this.interval(tf)},signal:this.automaticAbort.signal,onEvent:event=>{if(current()){this.automaticStage=event.label;this.forceUpdate();}}});if(!current())return;
-      this.automatic={...result,tf};this.automaticNextAt=result.validUntil||Date.now()+60000;this.saveAutomaticAnalysis();
+      this.automatic={...result,tf};this.automaticNextAt=result.validUntil||Date.now()+60000;this.saveAutomaticAnalysis();if(result.plan&&!result.cached)this.loadBotStats();
     }catch(error){if(current()&&error.name!=='AbortError'){const messages={analysis_data_stale:'Le marché peut être fermé ou le flux retardé : les dernières bougies sont trop anciennes.',analysis_history_insufficient:'L’historique récent est insuffisant ou interrompu. Aucun plan généré.',analysis_daily_limit:'La limite quotidienne de nouvelles analyses est atteinte. Réessayez demain.',analysis_in_progress:'Une analyse de cette bougie est déjà en cours. Réessayez dans quelques instants.',ai_not_configured:'Le moteur IA est en cours de configuration.'};this.automaticError=messages[error.message]||'Actualisation indisponible. Réessayez plus tard.';if(!this.automatic)this.automatic={status:'error',symbol,tf,message:this.automaticError,checks:[]};this.automaticNextAt=Date.now()+300000;if(error.message==='analysis_daily_limit')this.setState({automaticFollow:false});}}
     finally{if(serial===this.automaticSerial){this.automaticBusy=false;this.forceUpdate();}}
   }
@@ -267,6 +267,25 @@ class Terminal extends OriginalTerminal {
   saveLines(){this.queueSettings();this.draw();}
   setMs(p){if(!this.canUseIndicators())return;this.setState(s=>({ms:{...s.ms,...p}}),()=>{this.computeStruct();this.queueSettings();});}
   setSymbol(symbol){if(!this.SYM[symbol]||symbol===this.state.symbol)return;this.stopLiveMarket();this.cancelAutomaticAnalysis();this.endReplay(true);this.marketSerial++;this.model=null;this.perf=null;this.biz.sigSeen={};this.view=this.initialView();this.setState({symbol,bars:[],source:'',lastFetch:null,quoteAt:null,feedMode:'rest',notice:''},()=>{this.restoreAutomaticAnalysis();this.applySettings();this.load();});}
+  async loadBotStats(){if(!this.hasPaidAccess()||this.botStatsBusy)return;const epoch=this.session.epoch,generation=this.accessGeneration;this.botStatsBusy=true;this.botStatsError='';this.forceUpdate();
+    try{const data=await this.session.request('analysis/stats');if(epoch===this.session.epoch&&generation===this.accessGeneration)this.botStats=data;}
+    catch{if(epoch===this.session.epoch)this.botStatsError='Statistiques du bot indisponibles pour le moment. Réessayez.';}
+    finally{this.botStatsBusy=false;this.forceUpdate();}}
+  botStatsView(){
+    const st=this.hasPaidAccess()?this.botStats:null,o=st?.overall,pct=n=>n==null?'—':n+' %',r=n=>n==null?'—':(n>0?'+':'')+n+' R';
+    const tf={'1min':'1m','5min':'5m','15min':'15m','30min':'30m','1h':'1h'},market=m=>(this.SYM[m.symbol]?.label||m.symbol)+' · '+(tf[m.interval]||m.interval);
+    const states={waiting:'Entrée non atteinte',open:'En cours',not_triggered:'Non déclenché',unknown:'Historique manquant'},reasons={stop:'Stop',tp3:'TP3',timeout:'Clôturé (durée max.)'};
+    const tone=n=>n==null?'#e9ebf2':n>0?'#3fd2a4':n<0?'#f2707a':'#e9ebf2';
+    return {botStatsLoading:!!this.botStatsBusy&&!st,botStatsError:this.botStatsError||'',botStatsHas:!!o?.plans,botStatsEmpty:!!st&&!o?.plans,
+      refreshBotStats:()=>this.loadBotStats(),botStatsButton:this.botStatsBusy?'Actualisation…':'Actualiser',botStatsBusy:!!this.botStatsBusy,
+      botStatsChecked:st?.checkedAt?'Mis à jour '+this.fmtT(st.checkedAt):'',
+      botKpis:o?[{label:'Plans suivis',value:String(o.plans),color:'#c9bfff'},{label:'Déclenchés',value:String(o.triggered),color:'#e9ebf2'},{label:'Taux de réussite',value:pct(o.winRate),color:o.winRate==null?'#e9ebf2':o.winRate>=50?'#3fd2a4':'#f0b45b'},
+        {label:'R moyen',value:r(o.avgR),color:tone(o.avgR)},{label:'Total',value:r(o.totalR),color:tone(o.totalR)},{label:'TP1 / TP2 / TP3',value:o.tpRate.map(pct).join(' · '),color:'#3fd2a4'}]:[],
+      botKinds:st?[['Signaux ACHAT/VENTE',st.ready],['Scénarios à confirmer',st.conditional],['Niveaux ajustés serveur',st.adjusted]].filter(([,b])=>b.plans).map(([label,b])=>({label,plans:String(b.plans),closed:String(b.closed),winRate:pct(b.winRate),avgR:r(b.avgR),color:tone(b.avgR)})):[],
+      botMarkets:(st?.markets||[]).map(m=>({market:market(m),plans:String(m.plans),triggered:String(m.triggered),closed:String(m.closed),winRate:pct(m.winRate),avgR:r(m.avgR),totalR:r(m.totalR),color:tone(m.totalR)})),
+      botRecent:(st?.recent||[]).map(p=>({time:this.fmtT(p.generatedAt),market:market(p),direction:(p.direction==='buy'?'ACHAT':'VENTE')+(p.conditional?' · à confirmer':''),dirColor:p.direction==='buy'?'#3fd2a4':'#f2707a',
+        result:p.state==='closed'?reasons[p.reason]||'Clôturé':states[p.state]||p.state,tps:p.reached.map((hit,i)=>hit?'TP'+(i+1):null).filter(Boolean).join(' ')||'—',r:r(p.resultR),color:tone(p.resultR)}))};
+  }
   async loadWorkspace(){if(!this.hasPaidAccess())return;const epoch=this.session.epoch,generation=this.accessGeneration;try{const data=await this.session.request('workspace');if(epoch!==this.session.epoch||generation!==this.accessGeneration||!this.hasPaidAccess())return;this.journal=data.journal||[];this.notifications=data.notifications||[];this.preferences=data.preferences||{};this.setState({prefSignals:this.preferences.new_signal!==false});}catch{if(this.hasPaidAccess())this.setState({notice:'Votre journal est temporairement indisponible. Réessayez.'});}}
   // Contract size and lot step per market: gold uses the editable settings, EUR/USD a standard 100 000 lot, crypto units.
   sizing(symbol){return symbol==='XAU'?{contract:this.ex.set.contract,lotStep:this.ex.set.lotStep}:symbol==='EUR'?{contract:this.settings.eurContract,lotStep:this.settings.eurLotStep}:symbol==='NAS'?{contract:1,lotStep:.01}:{contract:this.settings.btcContract,lotStep:this.settings.btcLotStep};}
@@ -404,6 +423,7 @@ class Terminal extends OriginalTerminal {
       analysisTrigger:hasPlan?analysis.plan.trigger:'',analysisExit:hasPlan?analysis.plan.exitRule:'',analysisChecks:!disabledMode&&!expired?analysis?.checks||[]:[],
       analysisAsOf:displayable?this.fmtT(analysis.asOf):'—',analysisUntil:displayable?this.fmtT(analysis.validUntil):'—',
       analysisMeta:analysis?.asOf?analysis.source+' · Dernière clôture : '+this.fmtT(analysis.asOf)+' · Calcul : '+this.fmtT(analysis.generatedAt)+' · Niveaux théoriques, sans spread ni frais. Actualités non connectées · Aucun ordre exécuté.':'Interprétation IA des cours fournis · Actualités non connectées · Aucun ordre exécuté. Les cotations peuvent être différées.'});
+    Object.assign(v,this.botStatsView());
     const cryptoMarket=['BTC','ETH','SOL'].includes(s.symbol),quoteAge=s.quoteAt?Math.max(0,Math.round((Date.now()-s.quoteAt)/1000)):null;
     const direct=cryptoMarket&&s.feedMode==='live'&&quoteAge!==null&&quoteAge<15&&!s.feedErr&&!s.demo;
     const delayed=/Yahoo|différée/i.test(s.source),feedStatus=s.demo?'Simulation':direct?'Direct Coinbase':cryptoMarket?(s.feedMode==='reconnecting'?'Reconnexion · historique REST':'Direct en attente · historique REST'):delayed?'Données différées':'Actualisation périodique';

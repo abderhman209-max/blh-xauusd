@@ -3,6 +3,7 @@ test('AI cache reserves once, enforces persistent user/global limits and denies 
  const db=new PGlite();try{
   await db.exec('create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create table auth.users(id uuid primary key);');
   await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261019210000_pipvoria_ai_analysis.sql',import.meta.url),'utf8'));
+  await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261101090000_pipvoria_ai_plan_outcomes.sql',import.meta.url),'utf8'));
   const user='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
   await db.query('insert into auth.users values ($1),($2)',[user,other]);
   await db.exec('set role service_role');
@@ -22,5 +23,17 @@ test('AI cache reserves once, enforces persistent user/global limits and denies 
     await assert.rejects(()=>db.query('select * from public.ai_analysis_cache'));
     await assert.rejects(()=>reserve('e'.repeat(64)));
   }
+ }finally{await db.close();}
+});
+test('plan outcomes are stored on completed rows, validated and kept server-only',async()=>{
+ const db=new PGlite();try{
+  await db.exec('create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create table auth.users(id uuid primary key);');
+  for(const name of ['20261019210000_pipvoria_ai_analysis','20261101090000_pipvoria_ai_plan_outcomes'])await db.exec(fs.readFileSync(new URL('../supabase/migrations/'+name+'.sql',import.meta.url),'utf8'));
+  await db.exec('set role service_role');
+  await db.query("insert into public.ai_analysis_cache(cache_key,status,expires_at,result,outcome) values ($1,'completed',now()+interval '1 hour','{}',$2)",['f'.repeat(64),JSON.stringify({state:'waiting'})]);
+  await db.query("update public.ai_analysis_cache set outcome=$1 where cache_key=$2",[JSON.stringify({state:'closed',exit:{resultR:2}}),'f'.repeat(64)]);
+  assert.equal((await db.query("select outcome->>'state' s from public.ai_analysis_cache")).rows[0].s,'closed');
+  await assert.rejects(()=>db.query("update public.ai_analysis_cache set outcome='{\"state\":\"won\"}'"));
+  for(const role of ['anon','authenticated']){await db.exec('reset role;set role '+role);await assert.rejects(()=>db.query('select outcome from public.ai_analysis_cache'));}
  }finally{await db.close();}
 });

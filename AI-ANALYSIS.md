@@ -22,6 +22,14 @@ Insufficient, malformed, interrupted recent or stale market data prevents a mode
 
 Structured output must reference supplied candle timestamps. The model chooses direction, entry, stop and targets; the server does the arithmetic. The entry must stay within two ATR of the latest close and the stop must be on the protective side, otherwise the output fails closed. The server then clamps the stop distance to 0.3–5 ATR and each target to its band (TP1 1–3R, TP2 1.5–4R, TP3 2–5R, each farther than the previous one), rounds stop and targets away from the entry so the ratios still hold after rounding, and recomputes the R ratios. When it changes a model level, the plan carries `adjusted: true` and an extra « Niveaux · contrôle serveur » check is shown. Trigger and exit instructions must be present. The v3 cache identity excludes results validated by the older rules. Invalid, incomplete or refused model output fails closed. These checks validate consistency, not predictive accuracy or profitability. Spread, fees and slippage are not included. The model can return `wait` without levels.
 
+## Bot track record
+
+Terminal → **Performance de l’agent IA** shows how the stored plans of the last 90 days actually played out, shared across all accounts. `GET /api?route=analysis/stats` (paid access) reads completed cache rows that carry a plan. For each market and period that still has open plans, it fetches the latest candles once, without any model call. It replays them with `lib/ai-outcomes.js` and saves the progress in `ai_analysis_cache.outcome`, so later checks continue where the last one stopped.
+
+Replay rules: the entry fills when a closed candle trades through the entry price within 12 candles after the analysis; otherwise the plan is `not_triggered`. One third closes at each TP and the stop is fixed. When the stop and a target fall in the same candle, the stop counts first; on the entry candle only the stop can close the trade. A trade still open after 200 candles closes at that candle's close. When the provider history no longer reaches back to the last check, the plan is `unknown` and excluded from the rates. Results are theoretical: no spread, fees or slippage, and a conditional scenario's textual trigger is approximated by the entry touch.
+
+Apply `supabase/migrations/20261101090000_pipvoria_ai_plan_outcomes.sql` before deploying. Until it is applied, analyses keep working and only the statistics panel reports itself unavailable.
+
 ## Verification
 
 `npm run build` checks syntax/assets and runs the full suite. Tests cover closed-candle packets, stale data, references and numeric bounds, the Responses request and refusal paths, streamed results, cache reuse, persistent quotas, database permissions, approval/subscription checks and account changes during streaming.

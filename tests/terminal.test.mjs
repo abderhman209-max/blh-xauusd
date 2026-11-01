@@ -284,13 +284,17 @@ test('bot performance renders shared outcomes only with paid access and refreshe
  const app=terminalApp();let calls=0;const stats={checkedAt:Date.now(),overall:{plans:3,triggered:2,closed:2,winRate:50,avgR:.5,totalR:1,tpRate:[50,50,0]},ready:{plans:2,closed:1,winRate:100,avgR:2},conditional:{plans:1,closed:1,winRate:0,avgR:-1},adjusted:{plans:0},
   markets:[{symbol:'XAU',interval:'5min',plans:3,triggered:2,closed:2,winRate:50,avgR:.5,totalR:1}],recent:[{generatedAt:Date.now(),symbol:'XAU',interval:'5min',direction:'sell',conditional:true,state:'closed',reason:'stop',reached:[true,false,false],resultR:-.33}]};
  app.session.request=async route=>{assert.equal(route,'analysis/stats');calls++;return stats;};
- await app.loadBotStats();let v=app.renderVals();
+ let v=app.renderVals();assert.equal(v.botStatsOpen,false);assert.equal(v.botStatsToggle,'Afficher');assert.equal(calls,0);
+ v.toggleBotStats();await new Promise(r=>setImmediate(r));assert.equal(calls,1);v=app.renderVals();assert.equal(v.botStatsOpen,true);assert.equal(v.botStatsToggle,'Masquer');
  assert.equal(v.botStatsHas,true);assert.equal(v.botKpis[2].value,'50 %');assert.equal(v.botKpis[3].value,'+0.5 R');assert.equal(v.botKinds.length,2);
  assert.equal(v.botMarkets[0].market,'XAU/USD · 5m');assert.equal(v.botRecent[0].direction,'VENTE · à confirmer');assert.equal(v.botRecent[0].result,'Stop');assert.equal(v.botRecent[0].tps,'TP1');assert.equal(v.botRecent[0].r,'-0.33 R');
  app.session.stream=async()=>({symbol:'XAU',interval:'5min',status:'ready',asOf:Date.now()-1000,generatedAt:Date.now(),validUntil:Date.now()+60000,plan:{direction:'buy',entry:4200,stop:4190,targets:[4210,4220,4230],rewardRisk:2,trigger:'t',exitRule:'e'}});
  await app.runAutomaticAnalysis();await new Promise(r=>setImmediate(r));assert.equal(calls,2);
  app.session.request=async()=>{throw Error('analysis_stats_unavailable');};await app.loadBotStats();assert.match(app.renderVals().botStatsError,/indisponibles/);
  app.access=null;v=app.renderVals();assert.equal(v.botStatsHas,false);assert.equal(v.botKpis.length,0);
+ app.access={active:true,deadline:Date.now()+60000};app.renderVals().toggleBotStats();assert.equal(app.renderVals().botStatsOpen,false);
+ app.session.stream=async()=>({symbol:'XAU',interval:'5min',status:'ready',asOf:Date.now()-1000,generatedAt:Date.now(),validUntil:Date.now()+60000,plan:{direction:'buy',entry:4200,stop:4190,targets:[4210,4220,4230],rewardRisk:2,trigger:'t',exitRule:'e'}});
+ const before=calls;app.session.request=async()=>{calls++;return stats;};await app.runAutomaticAnalysis();await new Promise(r=>setImmediate(r));assert.equal(calls,before,'A closed panel never loads stats');
 });
 test('a conditional AI scenario activates on a close beyond its trigger, alerts once and survives until its own expiry',()=>{
  const app=terminalApp(),ms=300000,asOf=Math.floor(Date.now()/ms)*ms-3*ms,toasts=[];app.pushToast=t=>toasts.push(t);app.state.symbol='XAU';app.state.tf='5m';

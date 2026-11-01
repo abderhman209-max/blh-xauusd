@@ -1,5 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
-import {cryptoHistory,createCryptoMarket} from '../lib/crypto-market.js';import {marketPacket} from '../lib/ai-analysis.js';
+import {cryptoHistory,createCryptoMarket,krakenHistory} from '../lib/crypto-market.js';import {marketPacket} from '../lib/ai-analysis.js';
 const now=Math.floor(Date.now()/3600000)*3600000+30000;
 const rows=(seconds,at=now)=>Array.from({length:300},(_,i)=>[Math.floor(at/seconds/1000)*seconds-i*seconds,99000,100500,100000,100100+i*.1,5]);
 const json=value=>new Response(JSON.stringify(value));
@@ -19,7 +19,7 @@ test('shared crypto history deduplicates concurrent requests and refreshes at th
  let at=now,calls=0,finish;const provider=createCryptoMarket({clock:()=>at,fetcher:()=>{calls++;return new Promise(resolve=>finish=()=>resolve(json(rows(60,at))));}});
  const a=provider('BTC','1min'),b=provider('BTC','1min');assert.equal(calls,1);finish();assert.equal(await a,await b);await provider('BTC','1min');assert.equal(calls,1);
  at=now+29000;const c=provider('BTC','1min');finish();await c;assert.equal(calls,2);at=now+31000;const d=provider('BTC','1min');finish();await d;assert.equal(calls,3);
- let failures=0;const offline=createCryptoMarket({fetcher:async()=>{failures++;throw Error('offline');}});await assert.rejects(()=>offline('BTC','5min'),/offline/);await assert.rejects(()=>offline('BTC','5min'),/offline/);assert.equal(failures,2);
+ let failures=0;const offline=createCryptoMarket({fetcher:async()=>{failures++;throw Error('offline');}});await assert.rejects(()=>offline('BTC','5min'),/offline/);await assert.rejects(()=>offline('BTC','5min'),/offline/);assert.equal(failures,4,'each attempt tries Coinbase then Kraken');
 });
 function liveFixture(){
  const sockets=[],timeouts=new Map(),intervals=new Map();let id=0;
@@ -38,4 +38,18 @@ test('stream candles preserve provider volume and product boundaries and remain 
  const f=liveFixture(),btc=f.buffers.for('BTC-USD'),eth=f.buffers.for('ETH-USD'),time=Date.now(),bucket=Math.floor(time/300000)*300000;
  const base=[{time:bucket,open:100,high:103,low:99,close:102,volume:8,closed:false}];btc.add({price:105,time,receivedAt:time});let merged=btc.merge(base,'5min',0);assert.equal(merged.at(-1).close,105);assert.equal(merged.at(-1).volume,8);assert.equal(merged.at(-1).closed,false);
  merged=btc.merge(merged,'5min',0);assert.equal(merged.at(-1).volume,8);assert.equal(eth.last,null);assert.equal(btc.add({price:1,time:time-1000,receivedAt:time}),false);
+});
+
+test('Kraken serves closed candles when Coinbase refuses the server, and both calls identify the client',async()=>{
+ const t=Math.floor(now/300000)*300000,seen=[];
+ const kraken=Array.from({length:120},(_,i)=>{const time=(t-(119-i)*300000)/1000,o=78000+i;return [time,String(o),String(o+20),String(o-15),String(o+5),String(o+2),'1.5',42];});
+ const fetcher=async(raw,init)=>{const url=new URL(raw);seen.push(url.hostname);assert.match(init.headers['user-agent'],/^Pipvoria/);
+   if(url.hostname==='api.exchange.coinbase.com')return new Response('{"message":"Forbidden"}',{status:403});
+   assert.equal(url.searchParams.get('pair'),'XBTUSD');assert.equal(url.searchParams.get('interval'),'5');
+   return json({error:[],result:{XXBTZUSD:kraken,last:t/1000}});};
+ const data=await cryptoHistory('BTC','5min',{now,fetcher});
+ assert.deepEqual(seen,['api.exchange.coinbase.com','api.kraken.com']);assert.equal(data.source,'Kraken · BTC/USD');
+ assert.equal(data.bars.length,120);assert.equal(data.bars.at(-1).closed,false);assert.equal(data.bars.at(-2).closed,true);
+ assert.ok(marketPacket('BTC','5min',[{...data,interval:'5min'}],now).frames[0].candles.length>=60);
+ await assert.rejects(()=>krakenHistory('SOL','1h',{now,fetcher:async()=>json({error:['EQuery:Unknown asset pair']})}),/unavailable/);
 });

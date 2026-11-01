@@ -931,7 +931,8 @@ export default async function handler(request) {
     if (route === 'market' && request.method === 'GET') {
       const session=await currentSession(request);if(!session)return json({error:'authentication_required'},401);
       try{return sessionJson(await additionalMarket(url.searchParams.get('symbol'),url.searchParams.get('interval')),200,session);}
-      catch(error){return json({error:error.message==='invalid_market'?'invalid_market':'market_data_unavailable'},error.message==='invalid_market'?400:503);}
+      catch(error){if(error.message!=='invalid_market')console.warn('Pipvoria market:',JSON.stringify({symbol:String(url.searchParams.get('symbol')).slice(0,8),interval:String(url.searchParams.get('interval')).slice(0,8),error:String(error.message).slice(0,80)}));
+        return json({error:error.message==='invalid_market'?'invalid_market':'market_data_unavailable'},error.message==='invalid_market'?400:503);}
     }
     if (route === 'terminal/capabilities' && request.method === 'GET') {
       const session=await currentSession(request);if(!session)return json({error:'authentication_required'},401);

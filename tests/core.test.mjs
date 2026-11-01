@@ -16,5 +16,12 @@ test('settings sanitize profile keys, timezone and risk',()=>{const s=C.settings
 test('engine win accounting regression stays at or below 100%',()=>{const context={PIPVORIA_CORE:C,document:{querySelector:()=>null}};vm.createContext(context);vm.runInContext(fs.readFileSync(new URL('../public/smart.js',import.meta.url),'utf8')+';globalThis.engine=SmartEngine;',context);let seed=4;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};let price=4300;const bars=Array.from({length:121},(_,i)=>{const open=price;price+=(random()-.48)*12;return{time:i*300000,open,close:price,high:Math.max(open,price)+random()*3,low:Math.min(open,price)-random()*3,closed:true}});const result=context.engine.analyze(bars,{zone:.5,rr:[1,2,3]});assert.ok(result.stats.wins<=result.stats.closed);assert.equal(result.stats.wins+result.stats.losses+result.stats.breakeven,result.stats.closed);assert.equal(result.stats.closed,result.trades.length)});
 
 test('EUR/USD lots use a standard 100 000 contract by default',()=>{const v=C.settings({});assert.equal(v.eurContract,100000);assert.equal(v.eurLotStep,.01);
-  assert.equal(C.risk({balance:10000,riskPercent:1,entry:1.08,stop:1.078,contract:v.eurContract,lotStep:v.eurLotStep}).positionSize,.49);
+  assert.equal(C.risk({balance:10000,riskPercent:1,entry:1.08,stop:1.078,contract:v.eurContract,lotStep:v.eurLotStep}).positionSize,.5);
   assert.equal(C.settings({eurContract:-1}).eurContract,100000);});
+test('the broker spread is added to the stop distance when sizing a position',()=>{
+  const base={balance:10000,riskPercent:1,entry:4200,stop:4190,contract:100,lotStep:.01};
+  assert.equal(C.risk(base).positionSize,.1);
+  const withSpread=C.risk({...base,spread:2.5});assert.equal(withSpread.positionSize,.08);assert.equal(withSpread.spread,2.5);assert.ok(Math.abs(withSpread.actualRisk-.08*12.5*100)<1e-9);
+  assert.equal(C.risk({...base,spread:-1}).positionSize,.1);
+  const v=C.settings({spreads:{XAU:.3,EUR:-2,BTC:'x'}});assert.deepEqual([v.spreads.XAU,v.spreads.EUR,v.spreads.BTC,v.spreads.SOL],[.3,0,0,0]);
+});

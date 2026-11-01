@@ -310,3 +310,34 @@ test('a conditional AI scenario activates on a close beyond its trigger, alerts 
  assert.equal(v.analysisTitle,'SCÉNARIO ANNULÉ');assert.equal(app.analysisChartLevels().length,0);
  app.automatic.plan.activeUntil=Date.now()-1;assert.equal(app.renderVals().analysisTitle,'Ancien calcul · à actualiser');
 });
+test('EUR/USD and crypto contracts and per-market spreads are editable and drive the calculator',()=>{
+ const app=terminalApp();app.settingsReady=true;let queued=0;app.queueSettings=()=>queued++;
+ Object.assign(app.ex.calc,{capital:'10000',risk:'1',entry:'1.08',stop:'1.078'});app.state.symbol='EUR';
+ let v=app.renderVals();assert.equal(v.marketSettings[0].contract,'100000');assert.equal(v.calcOut[2].value,'0.5');
+ v.marketSettings[0].onContract({target:{value:'10000'}});assert.equal(app.renderVals().calcOut[2].value,'5');
+ app.renderVals().spreadSettings.find(s=>s.label==='EUR/USD').onChange({target:{value:'0,0002'}});
+ v=app.renderVals();assert.equal(app.settings.spreads.EUR,.0002);assert.equal(v.calcOut[2].value,'4.54');assert.match(v.calcOut[1].value,/spread/);
+ v.marketSettings[1].onLotStep({target:{value:'-1'}});assert.equal(app.settings.btcLotStep,.0001);assert.match(app.ex.setMsg,/invalide/);
+ assert.equal(queued,2);
+});
+test('the terminal names the release that pauses the agent and warns about one during an open plan',async()=>{
+ const app=terminalApp(),at=new Date(Date.now()+600000).toISOString();app.state.symbol='XAU';app.state.tf='5m';
+ app.session.stream=async()=>{throw Object.assign(Error('analysis_news_window'),{event:{name:'Inflation CPI',at}});};
+ await app.runAutomaticAnalysis();assert.match(app.automaticError,/Inflation CPI/);assert.equal(app.automaticNextAt,Date.parse(at)+31*60000);
+ app.automatic={symbol:'XAU',interval:'5min',tf:'5m',status:'ready',asOf:Date.now()-1000,generatedAt:Date.now(),validUntil:Date.now()+60000,source:'F',message:'m',checks:[],news:{name:'Décision de la Fed',at},
+  plan:{direction:'buy',entry:4200,stop:4190,targets:[4210,4220,4230],rewardRisk:2,trigger:'t',exitRule:'e'}};
+ assert.match(app.renderVals().analysisNewsLine,/Décision de la Fed/);
+});
+test('phone notifications subscribe through the service worker, send a test and can be turned off',async()=>{
+ const pushManager={sub:null,async getSubscription(){return this.sub;},async subscribe(o){assert.equal(o.userVisibleOnly,true);assert.equal(o.applicationServerKey.length,65);
+   this.sub={endpoint:'https://fcm.googleapis.com/fcm/send/x',toJSON:()=>({endpoint:'https://fcm.googleapis.com/fcm/send/x',keys:{p256dh:'p',auth:'a'}}),unsubscribe:async()=>{pushManager.sub=null;}};return this.sub;}};
+ let permission='default';const Notification={get permission(){return permission;},requestPermission:async()=>(permission='granted')};
+ const app=terminalApp(undefined,{atob,navigator:{serviceWorker:{ready:Promise.resolve({pushManager}),register:async()=>{}}},PushManager:class{},Notification});
+ const routes=[];app.session.request=async(route,o)=>{routes.push(route);return route==='push/config'?{configured:true,publicKey:'B'+'A'.repeat(86)}:route==='push/test'?{sent:1}:{};};
+ await app.loadPush();let v=app.renderVals();assert.equal(v.pushVisible,true);assert.equal(v.pushButton,'Activer');assert.match(v.pushLabel,/même site fermé/);
+ await v.togglePush();v=app.renderVals();assert.equal(v.pushButton,'Désactiver');assert.match(v.pushMsg,/test/);assert.deepEqual(routes,['push/config','push/subscribe','push/test']);
+ await v.togglePush();assert.equal(app.renderVals().pushButton,'Activer');assert.equal(pushManager.sub,null);assert.equal(routes.at(-1),'push/unsubscribe');
+ const denied=terminalApp(undefined,{navigator:{serviceWorker:{ready:Promise.resolve({pushManager}),register:async()=>{}}},PushManager:class{},Notification:{permission:'default',requestPermission:async()=>'denied'}});
+ denied.session.request=app.session.request;await denied.loadPush();await denied.togglePush();assert.match(denied.renderVals().pushMsg,/Autorisez/);
+ const old=terminalApp();old.session.request=app.session.request;await old.loadPush();assert.match(old.renderVals().pushLabel,/non prises en charge/);
+});

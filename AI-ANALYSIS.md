@@ -1,6 +1,6 @@
 # Pipvoria market analysis
 
-The terminal can request a real OpenAI Responses analysis for XAU/USD or EUR/USD. A single `gpt-6-luna` call compares the selected interval with 15-minute and hourly candles. The structure, liquidity, context and invalidation sections are interpretations from that call, not separate agents or an internal chain of thought. Streamed stages describe actual server operations.
+The terminal can request a real OpenAI Responses analysis for XAU/USD, EUR/USD, BTC/USD, ETH/USD or SOL/USD (crypto from Coinbase, every day). A single `gpt-6-luna` call compares the selected interval with 15-minute and hourly candles. The structure, liquidity, context and invalidation sections are interpretations from that call, not separate agents or an internal chain of thought. Streamed stages describe actual server operations.
 
 The server sends at most 100 closed OHLC candles per interval, their source, timestamps and calculated EMA/ATR context. It sends no customer identity, email, account balance or position history. XAU uses the existing Twelve Data feed with the existing Yahoo fallback; EUR uses the existing market provider. These feeds can be delayed. News and order-book feeds are not connected. The model does not learn continuously or execute broker orders.
 
@@ -21,6 +21,16 @@ Following new candles is opt-in and runs only while the trader view is visible. 
 Gold and EUR/USD analyses are refused with `analysis_market_closed` from Friday 21:00 to Sunday 22:00 UTC, before any reservation or model call. The same error is returned when the last six candles of the analysed period are less than a fifth as wide as usual: a frozen feed, a holiday or a provider still emitting flat weekend candles. BTC trades continuously and only gets the frozen-feed check.
 
 A firm decision (`buy`/`sell`) is expected when the latest closed candles already confirm the move; its entry is near the last close. A `wait` scenario has a single verifiable trigger: one close of the analysed period beyond `triggerLevel` (above for a buy, below for a sell); the trigger must stay on the protective side of the stop. Such a plan carries `activeUntil`, 12 candles after the analysis. The terminal shows it until then and watches the closed candles. A close beyond the trigger turns it into « ACHAT/VENTE ACTIVÉE » with one alert; a stop touched first shows « SCÉNARIO ANNULÉ » and hides its levels. Auto-follow does not replace a scenario that is still waiting for its trigger. The track record replays the same rule. The v4 cache identity excludes plans without a trigger level.
+
+## Economic releases
+
+`lib/economic-calendar.js` lists the US releases shown in the terminal calendar. High-impact ones (CPI, employment, FOMC) pause the agent from 30 minutes before to 30 minutes after: `analysis_news_window` is returned with the release name before any market fetch, reservation or model call, and auto-follow resumes after the window. A plan still open when a high-impact release comes (a conditional scenario lasts 12 candles) carries `news` and the terminal warns about it. The list must be extended from the official BLS and Federal Reserve schedules before its last date; entries marked « date à confirmer » follow the usual pattern.
+
+## Background tick and phone notifications
+
+`POST /api?route=cron/tick` replays new closed candles for every open plan (`lib/ai-api.js` `outcomeTracker`, the same code as the statistics panel), so outcomes no longer depend on someone opening the panel. pg_cron in Supabase calls it every 5 minutes through pg_net (`20261101120100_pipvoria_background_tick.sql`). The request carries `x-cron-secret`, compared in constant time with the Vault secret `pipvoria_tick_secret`; without it the route answers 404.
+
+When a saved transition concerns a plan generated in the last 24 hours, the account that generated it receives a Web Push notification: scenario activated, plan closed (TP3, stop or time limit with its R) or scenario cancelled. Only paid accounts (or the exempt super admin) are notified. `lib/web-push.js` implements VAPID (RFC 8292) and aes128gcm encryption (RFC 8291) with WebCrypto; it only posts to the browsers' push services, and subscriptions answered 404/410 are deleted. The VAPID key pair lives in Vault (`pipvoria_vapid_public`, `pipvoria_vapid_private`), read through the service-role-only `pipvoria_push_secrets()` function: no Vercel variable is needed. In the terminal, Agent IA → **Activer** asks the browser permission, subscribes, stores it with `push/subscribe` and sends a test notification. On iPhone the site must first be added to the home screen.
 
 ## Output checks
 

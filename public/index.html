@@ -724,12 +724,14 @@ select option{background:#11151f;color:#e9ebf2}
     </sc-if>
     <section class="pv-analysis" data-trader-block="bot" aria-labelledby="pv-analysis-title">
       <div class="pv-analysis-head"><h2 id="pv-analysis-title">Agent IA</h2>
-        <div class="pv-analysis-controls"><sc-raw-select aria-label="Marché à analyser" value="{{ symbol }}" sc-camel-on-change="{{ onAnalysisSymbol }}"><option value="XAU">Or · XAU/USD</option><option value="BTC">Bitcoin · BTC/USD</option><option value="EUR">EUR/USD</option><sc-if value="{{ analysisUnsupported }}"><option value="{{ symbol }}">{{ analysisMarketName }}</option></sc-if></sc-raw-select>
+        <div class="pv-analysis-controls"><sc-raw-select aria-label="Marché à analyser" value="{{ symbol }}" sc-camel-on-change="{{ onAnalysisSymbol }}"><option value="XAU">Or · XAU/USD</option><option value="BTC">Bitcoin · BTC/USD</option><option value="ETH">Ethereum · ETH/USD</option><option value="SOL">Solana · SOL/USD</option><option value="EUR">EUR/USD</option><sc-if value="{{ analysisUnsupported }}"><option value="{{ symbol }}">{{ analysisMarketName }}</option></sc-if></sc-raw-select>
           <sc-raw-select aria-label="Période à analyser" value="{{ tf }}" sc-camel-on-change="{{ onTf }}"><option value="1m">1 min</option><option value="5m">5 min</option><option value="15m">15 min</option><option value="30m">30 min</option><option value="1h">1 heure</option></sc-raw-select>
           <button sc-camel-on-click="{{ runAutomaticAnalysis }}" disabled="{{ analysisDisabled }}">{{ analysisButton }}</button></div>
       </div>
       <label class="pv-analysis-follow"><input type="checkbox" checked="{{ automaticFollow }}" sc-camel-on-change="{{ onAutomaticFollow }}"> Auto <span>20 nouvelles analyses/jour</span></label>
+      <sc-if value="{{ pushVisible }}"><div class="pv-analysis-push"><span>{{ pushLabel }}</span><button class="pv-push-button" sc-camel-on-click="{{ togglePush }}" disabled="{{ pushDisabled }}">{{ pushButton }}</button></div><sc-if value="{{ pushMsg }}"><p class="pv-analysis-push-msg" role="status">{{ pushMsg }}</p></sc-if></sc-if>
       <div role="status" aria-live="polite" class="pv-analysis-state"><strong>{{ analysisTitle }}</strong><span class="terminal-mini">{{ analysisMarketName }} · {{ tf }}</span></div>
+      <sc-if value="{{ analysisNewsLine }}"><p class="pv-analysis-news" role="status">{{ analysisNewsLine }}</p></sc-if>
       <sc-if value="{{ analysisScenarioLine }}"><p class="pv-analysis-scenario" style="color:{{ analysisTableColor }}">{{ analysisScenarioLine }}</p></sc-if>
       <sc-if value="{{ analysisShowLevels }}">
 
@@ -936,15 +938,30 @@ select option{background:#11151f;color:#e9ebf2}
         <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Fuseau horaire
           <sc-raw-select value="{{ setTz }}" sc-camel-on-change="{{ onSetTz }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-size:13px"><option>Europe/Paris</option><option>UTC</option><option>Africa/Casablanca</option><option>America/New_York</option><option>Asia/Dubai</option></sc-raw-select>
         </label>
-        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Taille de contrat (XAU)
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Taille de contrat (XAU/USD)
           <input value="{{ setContract }}" sc-camel-on-change="{{ onSetContract }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
         </label>
-        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Pas de lot
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Pas de lot (XAU/USD)
           <input value="{{ setLotStep }}" sc-camel-on-change="{{ onSetLotStep }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
         </label>
+        <sc-for list="{{ marketSettings }}" as="m" hint-placeholder-count="2">
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">{{ m.contractLabel }}
+          <input inputmode="decimal" value="{{ m.contract }}" sc-camel-on-change="{{ m.onContract }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">{{ m.lotLabel }}
+          <input inputmode="decimal" value="{{ m.lotStep }}" sc-camel-on-change="{{ m.onLotStep }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
+        </label>
+        </sc-for>
         <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">Risque par défaut (%)
           <input value="{{ setRisk }}" sc-camel-on-change="{{ onSetRisk }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none">
         </label>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid #1a2030;padding-top:14px">
+        <div style="font-size:14px;font-weight:600">Spread de votre courtier (en prix)</div>
+        <div style="font-size:12px;color:#8d93a8">Ajouté à la distance du stop dans le calculateur : la taille de position couvre aussi le spread. Exemple or : 0.30.</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
+          <sc-for list="{{ spreadSettings }}" as="sp" hint-placeholder-count="5"><label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#8d93a8">{{ sp.label }}<input inputmode="decimal" value="{{ sp.value }}" sc-camel-on-change="{{ sp.onChange }}" style="background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-family:'JetBrains Mono',monospace;font-size:13px;outline:none"></label></sc-for>
+        </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid #1a2030;padding-top:14px">
         <div style="font-size:14px;font-weight:600">Sessions de trading (UTC)</div>

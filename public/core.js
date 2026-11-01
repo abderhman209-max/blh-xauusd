@@ -75,11 +75,14 @@
     for (const [key,[min,max]] of Object.entries(limits)) if (!numeric(input[key]) || Number(input[key]) < min || Number(input[key]) > max) errors[key] = 'bounds';
     if (numeric(input.entry) && numeric(input.stop) && Number(input.entry) === Number(input.stop)) errors.stop = 'same';
     if (Object.keys(errors).length) return {valid:false,errors};
-    const balance=Number(input.balance),riskPercent=Number(input.riskPercent),distance=Math.abs(Number(input.entry)-Number(input.stop));
-    const riskAmount=balance*riskPercent/100,rawSize=riskAmount/(distance*Number(input.contract));
-    const positionSize=Math.floor((rawSize+Number.EPSILON)/Number(input.lotStep))*Number(input.lotStep);
+    // The spread is paid on top of the stop distance when the stop is hit.
+    const spread=numeric(input.spread)&&Number(input.spread)>=0?Number(input.spread):0;
+    const balance=Number(input.balance),riskPercent=Number(input.riskPercent),distance=Math.abs(Number(input.entry)-Number(input.stop)),loss=distance+spread;
+    const riskAmount=balance*riskPercent/100,rawSize=riskAmount/(loss*Number(input.contract));
+    // The tolerance absorbs float noise such as 1.08-1.078 = 0.0020000000000002.
+    const steps=Math.floor(rawSize/Number(input.lotStep)*(1+1e-9)),positionSize=steps*Number(input.lotStep);
     if (!Number.isFinite(positionSize) || positionSize <= 0) return {valid:false,errors:{lotStep:'tooSmall'}};
-    return {valid:true,errors:{},balance,riskPercent,distance,riskAmount,positionSize:Number(positionSize.toPrecision(12)),actualRisk:positionSize*distance*Number(input.contract)};
+    return {valid:true,errors:{},balance,riskPercent,distance,spread,riskAmount,positionSize:Number(positionSize.toPrecision(12)),actualRisk:positionSize*loss*Number(input.contract)};
   }
   function advanceTrade(position, bar, {priority='Stop first',trailing=false,atr=0,multiplier=1.5}={}) {
     if(!validTargets(position.tps?.map(price=>position.direction*(price-position.entry))))throw new RangeError('Targets must increase with distance from entry');
@@ -136,7 +139,7 @@
     const profiles={};
     for(const [key,profile] of Object.entries(v.marketProfiles||{}).slice(0,10))if(/^(XAU\/USD|BTC\/USD)\|(1min|5min|15min|30min|1h)$/.test(key))profiles[key]=settings({indicators:profile}).indicators;
     const presets=(Array.isArray(v.presets)?v.presets:[]).slice(0,20).filter(p=>p&&typeof p.name==='string').map(p=>({name:p.name.slice(0,50),indicators:settings({indicators:p.indicators}).indicators}));
-    return {version:1,timezone:validTimezone(v.timezone)?v.timezone:'UTC',confirmedOnly:v.confirmedOnly!==false,demo:!!v.demo,risk:{balance:numeric(v.risk?.balance)&&v.risk.balance>=1&&v.risk.balance<=1e12?Number(v.risk.balance):10000,percent:numeric(v.risk?.percent)&&v.risk.percent>=.01&&v.risk.percent<=100?Number(v.risk.percent):1},indicators:clean,marketProfiles:profiles,presets,contract:numeric(v.contract)&&v.contract>0&&v.contract<=1e9?Number(v.contract):100,lotStep:numeric(v.lotStep)&&v.lotStep>0&&v.lotStep<=1e7?Number(v.lotStep):.01,btcContract:numeric(v.btcContract)&&v.btcContract>0?Number(v.btcContract):1,btcLotStep:numeric(v.btcLotStep)&&v.btcLotStep>0?Number(v.btcLotStep):.0001,eurContract:numeric(v.eurContract)&&v.eurContract>0&&v.eurContract<=1e9?Number(v.eurContract):100000,eurLotStep:numeric(v.eurLotStep)&&v.eurLotStep>0&&v.eurLotStep<=1e7?Number(v.eurLotStep):.01,goal:v.goal&&numeric(v.goal.targetR)&&v.goal.targetR>0&&numeric(v.goal.maxRisk)&&v.goal.maxRisk>0&&v.goal.maxRisk<=100?{targetR:Number(v.goal.targetR),maxRisk:Number(v.goal.maxRisk)}:null,terminal:terminalSettings(v.terminal)};
+    return {version:1,timezone:validTimezone(v.timezone)?v.timezone:'UTC',confirmedOnly:v.confirmedOnly!==false,demo:!!v.demo,risk:{balance:numeric(v.risk?.balance)&&v.risk.balance>=1&&v.risk.balance<=1e12?Number(v.risk.balance):10000,percent:numeric(v.risk?.percent)&&v.risk.percent>=.01&&v.risk.percent<=100?Number(v.risk.percent):1},indicators:clean,marketProfiles:profiles,presets,contract:numeric(v.contract)&&v.contract>0&&v.contract<=1e9?Number(v.contract):100,lotStep:numeric(v.lotStep)&&v.lotStep>0&&v.lotStep<=1e7?Number(v.lotStep):.01,btcContract:numeric(v.btcContract)&&v.btcContract>0?Number(v.btcContract):1,btcLotStep:numeric(v.btcLotStep)&&v.btcLotStep>0?Number(v.btcLotStep):.0001,eurContract:numeric(v.eurContract)&&v.eurContract>0&&v.eurContract<=1e9?Number(v.eurContract):100000,eurLotStep:numeric(v.eurLotStep)&&v.eurLotStep>0&&v.eurLotStep<=1e7?Number(v.eurLotStep):.01,spreads:Object.fromEntries(['XAU','EUR','BTC','ETH','SOL','NAS'].map(k=>[k,numeric(v.spreads?.[k])&&v.spreads[k]>=0&&v.spreads[k]<=1e6?Number(v.spreads[k]):0])),goal:v.goal&&numeric(v.goal.targetR)&&v.goal.targetR>0&&numeric(v.goal.maxRisk)&&v.goal.maxRisk>0&&v.goal.maxRisk<=100?{targetR:Number(v.goal.targetR),maxRisk:Number(v.goal.maxRisk)}:null,terminal:terminalSettings(v.terminal)};
   }
   function terminalSettings(value) {
     const v=value&&typeof value==='object'?value:{},positive=(x,max)=>numeric(x)&&Number(x)>0&&Number(x)<=max?Number(x):null;

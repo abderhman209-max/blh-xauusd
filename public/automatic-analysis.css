@@ -14,3 +14,5 @@
 .pv-analysis .pv-analysis-scenario{font-weight:600;font-size:14px}
 .pv-bot-recent summary{cursor:pointer;font-size:12px;color:#929ab2;padding:4px 0;list-style-position:inside}.pv-bot-recent summary span{color:#c9bfff}.pv-bot-recent[open] summary span{display:none}.pv-bot-recent .pv-ai-results-scroll{margin-top:8px}
 .pv-bot-stats-body{display:grid;gap:14px}.pv-bot-stats .pv-bot-toggle{background:#9d8cff22;border-color:#9d8cff66;color:#c9bfff}
+.pv-analysis .pv-analysis-news{color:#f0b45b;font-weight:600;font-size:13px;border:1px solid #f0b45b55;background:#f0b45b14;border-radius:9px;padding:8px 12px}
+.pv-analysis-push{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:#a8aec2;border:1px solid #302a4b;border-radius:10px;padding:8px 12px}.pv-analysis .pv-push-button{background:#141422;color:#c9bfff;border-color:#4a3f8f;padding:6px 12px;font-size:12px}.pv-analysis .pv-analysis-push-msg{font-size:12px;color:#c9bfff}

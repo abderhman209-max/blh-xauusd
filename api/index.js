@@ -5,6 +5,8 @@ import { accountApproval, requireAccountApproval } from '../lib/account-approval
 import { billingApi } from '../lib/crypto-billing.js';
 import { PAID_ROUTES, paidAccess } from '../lib/paid-access.js';
 import { analysisApi } from '../lib/ai-api.js';
+import { CALENDAR } from '../lib/economic-calendar.js';
+import { pushApi } from '../lib/push-api.js';
 import { createQuoteCache } from '../lib/quote-cache.js';
 export const config = { runtime: "edge" };
 
@@ -895,6 +897,7 @@ async function profileAvatar(request) {
 const handleTickets = ticketApi({currentSession,requireSuperAdmin,supabaseData,supabaseAdminData,sessionJson,json,body,uuid,publicUser,validatedSessionId});
 const handleBilling = billingApi({currentSession,supabaseAdminData,sessionJson,json,body,requestBytes,uuid});
 const handleAnalysis = analysisApi({currentSession,supabaseAdminData,sessionJson,json,body,gold,additionalMarket});
+const handlePush = pushApi({currentSession,supabaseAdminData,sessionJson,json,body,gold,additionalMarket});
 export default async function handler(request) {
   const url = new URL(request.url);
   const route = url.searchParams.get("route") || "";
@@ -916,6 +919,11 @@ export default async function handler(request) {
     if(route==='analysis/config'&&request.method==='GET'&&sameOrigin(request))return await handleAnalysis(request,url,'config');
     if(route==='analysis/run'&&request.method==='POST'&&sameOrigin(request))return await handleAnalysis(request,url,'run');
     if(route==='analysis/stats'&&request.method==='GET'&&sameOrigin(request))return await handleAnalysis(request,url,'stats');
+    // Called every 5 minutes by pg_cron in Supabase with the Vault tick secret; no browser session.
+    if(route==='cron/tick'&&request.method==='POST')return await handlePush(request,url,'tick');
+    if(route==='push/config'&&request.method==='GET'&&sameOrigin(request))return await handlePush(request,url,'config');
+    const pushRoute=/^push\/(subscribe|unsubscribe|test)$/.exec(route);
+    if(pushRoute&&request.method==='POST'&&sameOrigin(request))return await handlePush(request,url,pushRoute[1]);
     if (route === "settings" && (request.method === "GET" || request.method === "POST" && sameOrigin(request))) return await accountSettings(request);
     if (route === "profile/avatar") return await profileAvatar(request);
     if (route === "gold" && request.method === "GET") return await marketData(request, url);
@@ -927,16 +935,7 @@ export default async function handler(request) {
     }
     if (route === 'terminal/capabilities' && request.method === 'GET') {
       const session=await currentSession(request);if(!session)return json({error:'authentication_required'},401);
-      return sessionJson({billingConfigured:false,referralConfigured:false,mfaConfigured:false,calendar:[
-        {at:'2026-10-14T12:30:00Z',name:'Inflation CPI · septembre',url:'https://www.bls.gov/schedule/2026/10_sched_list.htm',source:'BLS'},
-        {at:'2026-10-15T12:30:00Z',name:'Inflation PPI · septembre',url:'https://www.bls.gov/schedule/2026/10_sched_list.htm',source:'BLS'},
-        {at:'2026-10-28T18:00:00Z',name:'Décision de la Fed · FOMC',url:'https://www.federalreserve.gov/newsevents/2026-october.htm',source:'Federal Reserve'},
-        {at:'2026-10-30T12:30:00Z',name:'Coût de l’emploi · T3',url:'https://www.bls.gov/schedule/2026/10_sched_list.htm',source:'BLS'},
-        {at:'2026-11-03T15:00:00Z',name:'Offres d’emploi JOLTS · septembre',url:'https://www.bls.gov/schedule/2026/11_sched_list.htm',source:'BLS'},
-        {at:'2026-11-06T13:30:00Z',name:'Emploi américain · octobre',url:'https://www.bls.gov/schedule/2026/11_sched_list.htm',source:'BLS'},
-        {at:'2026-11-10T13:30:00Z',name:'Inflation CPI · octobre',url:'https://www.bls.gov/schedule/2026/11_sched_list.htm',source:'BLS'},
-        {at:'2026-11-13T13:30:00Z',name:'Inflation PPI · octobre',url:'https://www.bls.gov/schedule/2026/11_sched_list.htm',source:'BLS'}
-      ]},200,session);
+      return sessionJson({billingConfigured:false,referralConfigured:false,mfaConfigured:false,calendar:CALENDAR},200,session);
     }
     if (route === "workspace" && request.method === "GET") return await workspaceData(request);
     if (route === "admin/users" && request.method === "GET" && sameOrigin(request)) return await listAdminUsers(request);

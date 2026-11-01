@@ -628,34 +628,6 @@ select option{background:#11151f;color:#e9ebf2}
       </sc-if>
       <sc-if value="{{ analysisNoResult }}"><p class="terminal-mini">Lancez l’agent IA ci-dessous pour afficher ses résultats.</p></sc-if>
     </section>
-    <section class="pv-bot-stats" aria-labelledby="pv-bot-stats-title">
-      <div class="pv-ai-results-heading"><h2 id="pv-bot-stats-title">Performance de l’agent IA</h2>
-        <div class="pv-bot-stats-actions"><sc-if value="{{ botStatsOpen }}"><span class="terminal-mini">{{ botStatsChecked }}</span><button sc-camel-on-click="{{ refreshBotStats }}" disabled="{{ botStatsBusy }}">{{ botStatsButton }}</button></sc-if><button class="pv-bot-toggle" aria-expanded="{{ botStatsOpen }}" aria-controls="pv-bot-stats-body" sc-camel-on-click="{{ toggleBotStats }}">{{ botStatsToggle }}</button></div></div>
-      <sc-if value="{{ botStatsOpen }}"><div id="pv-bot-stats-body" class="pv-bot-stats-body">
-      <sc-if value="{{ botStatsLoading }}"><p class="terminal-mini" role="status">Calcul des résultats sur les bougies clôturées…</p></sc-if>
-      <sc-if value="{{ botStatsError }}"><p role="status">{{ botStatsError }}</p></sc-if>
-      <sc-if value="{{ botStatsEmpty }}"><p class="terminal-mini">Aucun plan chiffré sur les 90 derniers jours. Les résultats apparaîtront après les prochaines analyses.</p></sc-if>
-      <sc-if value="{{ botStatsHas }}">
-        <div class="pv-bot-kpis"><sc-for list="{{ botKpis }}" as="k" hint-placeholder-count="6"><div><span>{{ k.label }}</span><b style="color:{{ k.color }}">{{ k.value }}</b></div></sc-for></div>
-        <div class="pv-ai-results-scroll"><table class="pv-ai-results-table pv-bot-table">
-          <caption>Par type de plan</caption>
-          <thead><tr><th scope="col">Type</th><th scope="col">Plans</th><th scope="col">Clôturés</th><th scope="col">Réussite</th><th scope="col">R moyen</th></tr></thead>
-          <tbody><sc-for list="{{ botKinds }}" as="m" hint-placeholder-count="2"><tr><td data-label="Type">{{ m.label }}</td><td data-label="Plans">{{ m.plans }}</td><td data-label="Clôturés">{{ m.closed }}</td><td data-label="Réussite">{{ m.winRate }}</td><td data-label="R moyen" style="color:{{ m.color }}">{{ m.avgR }}</td></tr></sc-for></tbody>
-        </table></div>
-        <div class="pv-ai-results-scroll"><table class="pv-ai-results-table pv-bot-table">
-          <caption>Par marché et période</caption>
-          <thead><tr><th scope="col">Marché</th><th scope="col">Plans</th><th scope="col">Déclenchés</th><th scope="col">Clôturés</th><th scope="col">Réussite</th><th scope="col">R moyen</th><th scope="col">Total</th></tr></thead>
-          <tbody><sc-for list="{{ botMarkets }}" as="m" hint-placeholder-count="3"><tr><td data-label="Marché">{{ m.market }}</td><td data-label="Plans">{{ m.plans }}</td><td data-label="Déclenchés">{{ m.triggered }}</td><td data-label="Clôturés">{{ m.closed }}</td><td data-label="Réussite">{{ m.winRate }}</td><td data-label="R moyen">{{ m.avgR }}</td><td data-label="Total" style="color:{{ m.color }}">{{ m.totalR }}</td></tr></sc-for></tbody>
-        </table></div>
-        <details class="pv-bot-recent"><summary>Derniers plans <span>{{ botRecentCount }}</span></summary>
-        <div class="pv-ai-results-scroll"><table class="pv-ai-results-table pv-bot-table">
-                    <thead><tr><th scope="col">Calcul</th><th scope="col">Marché</th><th scope="col">Sens</th><th scope="col">Résultat</th><th scope="col">TP atteints</th><th scope="col">R</th></tr></thead>
-          <tbody><sc-for list="{{ botRecent }}" as="p" hint-placeholder-count="5"><tr><td data-label="Calcul">{{ p.time }}</td><td data-label="Marché">{{ p.market }}</td><td data-label="Sens" style="color:{{ p.dirColor }}">{{ p.direction }}</td><td data-label="Résultat">{{ p.result }}</td><td data-label="TP atteints">{{ p.tps }}</td><td data-label="R" style="color:{{ p.color }}">{{ p.r }}</td></tr></sc-for></tbody>
-        </table></div></details>
-        <p class="pv-bot-note">Résultats théoriques sur les bougies clôturées, tous comptes confondus, 90 derniers jours. Entrée quand une bougie touche le prix d’entrée dans les 12 bougies suivant l’analyse ; un tiers de la position est clôturé à chaque TP, stop fixe ; si le stop et un TP sont touchés dans la même bougie, le stop compte en premier. Sans spread, frais ni glissement. Les résultats passés ne garantissent pas les résultats futurs.</p>
-      </sc-if>
-      </div></sc-if>
-    </section>
     </sc-if>
 
     <sc-if value="{{ isSummaryTab }}" hint-placeholder-val="{{ false }}">
@@ -766,6 +738,36 @@ select option{background:#11151f;color:#e9ebf2}
       </sc-if>
       <sc-if value="{{ analysisError }}"><p role="status">{{ analysisError }}</p></sc-if>
     </section>
+    <sc-if value="{{ isChartTab }}">
+    <section class="pv-bot-stats" data-trader-block="performance" aria-labelledby="pv-bot-stats-title">
+      <div class="pv-ai-results-heading"><h2 id="pv-bot-stats-title">Performance de l’agent IA</h2>
+        <div class="pv-bot-stats-actions"><sc-if value="{{ botStatsOpen }}"><span class="terminal-mini">{{ botStatsChecked }}</span><button sc-camel-on-click="{{ refreshBotStats }}" disabled="{{ botStatsBusy }}">{{ botStatsButton }}</button></sc-if><button class="pv-bot-toggle" aria-expanded="{{ botStatsOpen }}" aria-controls="pv-bot-stats-body" sc-camel-on-click="{{ toggleBotStats }}">{{ botStatsToggle }}</button></div></div>
+      <sc-if value="{{ botStatsOpen }}"><div id="pv-bot-stats-body" class="pv-bot-stats-body">
+      <sc-if value="{{ botStatsLoading }}"><p class="terminal-mini" role="status">Calcul des résultats sur les bougies clôturées…</p></sc-if>
+      <sc-if value="{{ botStatsError }}"><p role="status">{{ botStatsError }}</p></sc-if>
+      <sc-if value="{{ botStatsEmpty }}"><p class="terminal-mini">Aucun plan chiffré sur les 90 derniers jours. Les résultats apparaîtront après les prochaines analyses.</p></sc-if>
+      <sc-if value="{{ botStatsHas }}">
+        <div class="pv-bot-kpis"><sc-for list="{{ botKpis }}" as="k" hint-placeholder-count="6"><div><span>{{ k.label }}</span><b style="color:{{ k.color }}">{{ k.value }}</b></div></sc-for></div>
+        <div class="pv-ai-results-scroll"><table class="pv-ai-results-table pv-bot-table">
+          <caption>Par type de plan</caption>
+          <thead><tr><th scope="col">Type</th><th scope="col">Plans</th><th scope="col">Clôturés</th><th scope="col">Réussite</th><th scope="col">R moyen</th></tr></thead>
+          <tbody><sc-for list="{{ botKinds }}" as="m" hint-placeholder-count="2"><tr><td data-label="Type">{{ m.label }}</td><td data-label="Plans">{{ m.plans }}</td><td data-label="Clôturés">{{ m.closed }}</td><td data-label="Réussite">{{ m.winRate }}</td><td data-label="R moyen" style="color:{{ m.color }}">{{ m.avgR }}</td></tr></sc-for></tbody>
+        </table></div>
+        <div class="pv-ai-results-scroll"><table class="pv-ai-results-table pv-bot-table">
+          <caption>Par marché et période</caption>
+          <thead><tr><th scope="col">Marché</th><th scope="col">Plans</th><th scope="col">Déclenchés</th><th scope="col">Clôturés</th><th scope="col">Réussite</th><th scope="col">R moyen</th><th scope="col">Total</th></tr></thead>
+          <tbody><sc-for list="{{ botMarkets }}" as="m" hint-placeholder-count="3"><tr><td data-label="Marché">{{ m.market }}</td><td data-label="Plans">{{ m.plans }}</td><td data-label="Déclenchés">{{ m.triggered }}</td><td data-label="Clôturés">{{ m.closed }}</td><td data-label="Réussite">{{ m.winRate }}</td><td data-label="R moyen">{{ m.avgR }}</td><td data-label="Total" style="color:{{ m.color }}">{{ m.totalR }}</td></tr></sc-for></tbody>
+        </table></div>
+        <details class="pv-bot-recent"><summary>Derniers plans <span>{{ botRecentCount }}</span></summary>
+        <div class="pv-ai-results-scroll"><table class="pv-ai-results-table pv-bot-table">
+                    <thead><tr><th scope="col">Calcul</th><th scope="col">Marché</th><th scope="col">Sens</th><th scope="col">Résultat</th><th scope="col">TP atteints</th><th scope="col">R</th></tr></thead>
+          <tbody><sc-for list="{{ botRecent }}" as="p" hint-placeholder-count="5"><tr><td data-label="Calcul">{{ p.time }}</td><td data-label="Marché">{{ p.market }}</td><td data-label="Sens" style="color:{{ p.dirColor }}">{{ p.direction }}</td><td data-label="Résultat">{{ p.result }}</td><td data-label="TP atteints">{{ p.tps }}</td><td data-label="R" style="color:{{ p.color }}">{{ p.r }}</td></tr></sc-for></tbody>
+        </table></div></details>
+        <p class="pv-bot-note">Résultats théoriques sur les bougies clôturées, tous comptes confondus, 90 derniers jours. Entrée quand une bougie touche le prix d’entrée dans les 12 bougies suivant l’analyse ; un tiers de la position est clôturé à chaque TP, stop fixe ; si le stop et un TP sont touchés dans la même bougie, le stop compte en premier. Sans spread, frais ni glissement. Les résultats passés ne garantissent pas les résultats futurs.</p>
+      </sc-if>
+      </div></sc-if>
+    </section>
+    </sc-if>
   </div>
   </sc-if>
 

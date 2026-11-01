@@ -26,6 +26,12 @@ A firm decision (`buy`/`sell`) is expected when the latest closed candles alread
 
 `lib/economic-calendar.js` lists the US releases shown in the terminal calendar. High-impact ones (CPI, employment, FOMC) pause the agent from 30 minutes before to 30 minutes after: `analysis_news_window` is returned with the release name before any market fetch, reservation or model call, and auto-follow resumes after the window. A plan still open when a high-impact release comes (a conditional scenario lasts 12 candles) carries `news` and the terminal warns about it. The list must be extended from the official BLS and Federal Reserve schedules before its last date; entries marked « date à confirmer » follow the usual pattern.
 
+## Background tick and phone notifications
+
+`POST /api?route=cron/tick` replays new closed candles for every open plan (`lib/ai-api.js` `outcomeTracker`, the same code as the statistics panel), so outcomes no longer depend on someone opening the panel. pg_cron in Supabase calls it every 5 minutes through pg_net (`20261101120100_pipvoria_background_tick.sql`). The request carries `x-cron-secret`, compared in constant time with the Vault secret `pipvoria_tick_secret`; without it the route answers 404.
+
+When a saved transition concerns a plan generated in the last 24 hours, the account that generated it receives a Web Push notification: scenario activated, plan closed (TP3, stop or time limit with its R) or scenario cancelled. Only paid accounts (or the exempt super admin) are notified. `lib/web-push.js` implements VAPID (RFC 8292) and aes128gcm encryption (RFC 8291) with WebCrypto; it only posts to the browsers' push services, and subscriptions answered 404/410 are deleted. The VAPID key pair lives in Vault (`pipvoria_vapid_public`, `pipvoria_vapid_private`), read through the service-role-only `pipvoria_push_secrets()` function: no Vercel variable is needed. In the terminal, Agent IA → **Activer** asks the browser permission, subscribes, stores it with `push/subscribe` and sends a test notification. On iPhone the site must first be added to the home screen.
+
 ## Output checks
 
 Insufficient, malformed, interrupted recent or stale market data prevents a model call. Older session gaps are disclosed in the market packet. A plan expires at the next primary candle close, including when that close happens during inference. Expired levels are hidden in the terminal.

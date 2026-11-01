@@ -328,3 +328,16 @@ test('the terminal names the release that pauses the agent and warns about one d
   plan:{direction:'buy',entry:4200,stop:4190,targets:[4210,4220,4230],rewardRisk:2,trigger:'t',exitRule:'e'}};
  assert.match(app.renderVals().analysisNewsLine,/Décision de la Fed/);
 });
+test('phone notifications subscribe through the service worker, send a test and can be turned off',async()=>{
+ const pushManager={sub:null,async getSubscription(){return this.sub;},async subscribe(o){assert.equal(o.userVisibleOnly,true);assert.equal(o.applicationServerKey.length,65);
+   this.sub={endpoint:'https://fcm.googleapis.com/fcm/send/x',toJSON:()=>({endpoint:'https://fcm.googleapis.com/fcm/send/x',keys:{p256dh:'p',auth:'a'}}),unsubscribe:async()=>{pushManager.sub=null;}};return this.sub;}};
+ let permission='default';const Notification={get permission(){return permission;},requestPermission:async()=>(permission='granted')};
+ const app=terminalApp(undefined,{atob,navigator:{serviceWorker:{ready:Promise.resolve({pushManager}),register:async()=>{}}},PushManager:class{},Notification});
+ const routes=[];app.session.request=async(route,o)=>{routes.push(route);return route==='push/config'?{configured:true,publicKey:'B'+'A'.repeat(86)}:route==='push/test'?{sent:1}:{};};
+ await app.loadPush();let v=app.renderVals();assert.equal(v.pushVisible,true);assert.equal(v.pushButton,'Activer');assert.match(v.pushLabel,/même site fermé/);
+ await v.togglePush();v=app.renderVals();assert.equal(v.pushButton,'Désactiver');assert.match(v.pushMsg,/test/);assert.deepEqual(routes,['push/config','push/subscribe','push/test']);
+ await v.togglePush();assert.equal(app.renderVals().pushButton,'Activer');assert.equal(pushManager.sub,null);assert.equal(routes.at(-1),'push/unsubscribe');
+ const denied=terminalApp(undefined,{navigator:{serviceWorker:{ready:Promise.resolve({pushManager}),register:async()=>{}}},PushManager:class{},Notification:{permission:'default',requestPermission:async()=>'denied'}});
+ denied.session.request=app.session.request;await denied.loadPush();await denied.togglePush();assert.match(denied.renderVals().pushMsg,/Autorisez/);
+ const old=terminalApp();old.session.request=app.session.request;await old.loadPush();assert.match(old.renderVals().pushLabel,/non prises en charge/);
+});

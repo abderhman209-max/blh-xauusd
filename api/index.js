@@ -6,6 +6,7 @@ import { billingApi } from '../lib/crypto-billing.js';
 import { PAID_ROUTES, paidAccess } from '../lib/paid-access.js';
 import { analysisApi } from '../lib/ai-api.js';
 import { CALENDAR } from '../lib/economic-calendar.js';
+import { pushApi } from '../lib/push-api.js';
 import { createQuoteCache } from '../lib/quote-cache.js';
 export const config = { runtime: "edge" };
 
@@ -896,6 +897,7 @@ async function profileAvatar(request) {
 const handleTickets = ticketApi({currentSession,requireSuperAdmin,supabaseData,supabaseAdminData,sessionJson,json,body,uuid,publicUser,validatedSessionId});
 const handleBilling = billingApi({currentSession,supabaseAdminData,sessionJson,json,body,requestBytes,uuid});
 const handleAnalysis = analysisApi({currentSession,supabaseAdminData,sessionJson,json,body,gold,additionalMarket});
+const handlePush = pushApi({currentSession,supabaseAdminData,sessionJson,json,body,gold,additionalMarket});
 export default async function handler(request) {
   const url = new URL(request.url);
   const route = url.searchParams.get("route") || "";
@@ -917,6 +919,11 @@ export default async function handler(request) {
     if(route==='analysis/config'&&request.method==='GET'&&sameOrigin(request))return await handleAnalysis(request,url,'config');
     if(route==='analysis/run'&&request.method==='POST'&&sameOrigin(request))return await handleAnalysis(request,url,'run');
     if(route==='analysis/stats'&&request.method==='GET'&&sameOrigin(request))return await handleAnalysis(request,url,'stats');
+    // Called every 5 minutes by pg_cron in Supabase with the Vault tick secret; no browser session.
+    if(route==='cron/tick'&&request.method==='POST')return await handlePush(request,url,'tick');
+    if(route==='push/config'&&request.method==='GET'&&sameOrigin(request))return await handlePush(request,url,'config');
+    const pushRoute=/^push\/(subscribe|unsubscribe|test)$/.exec(route);
+    if(pushRoute&&request.method==='POST'&&sameOrigin(request))return await handlePush(request,url,pushRoute[1]);
     if (route === "settings" && (request.method === "GET" || request.method === "POST" && sameOrigin(request))) return await accountSettings(request);
     if (route === "profile/avatar") return await profileAvatar(request);
     if (route === "gold" && request.method === "GET") return await marketData(request, url);

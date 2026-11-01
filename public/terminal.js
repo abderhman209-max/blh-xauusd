@@ -83,7 +83,7 @@ class Terminal extends OriginalTerminal {
     const epoch=this.session.epoch,generation=this.accessGeneration;
     await this.restoreAutomaticAnalysis(true);
     if(epoch!==this.session.epoch||generation!==this.accessGeneration||!this.hasPaidAccess())return;
-    await Promise.allSettled([this.loadWorkspace(),this.loadCapabilities(),this.load(),this.loadWatch(),this.botStatsVisible()?this.loadBotStats():null]);
+    await Promise.allSettled([this.loadWorkspace(),this.loadCapabilities(),this.load(),this.loadWatch(),this.botStatsVisible()?this.loadBotStats():null,this.loadPush()]);
     if(!this.hasPaidAccess())return;this.monthlyReminder();clearInterval(this.wlT);this.wlT=setInterval(()=>{if(this.hasPaidAccess()&&!document.hidden)this.loadWatch();},60000);
   }
   async unlock(user){
@@ -293,6 +293,25 @@ class Terminal extends OriginalTerminal {
     try{const data=await this.session.request('analysis/stats');if(epoch===this.session.epoch&&generation===this.accessGeneration)this.botStats=data;}
     catch{if(epoch===this.session.epoch)this.botStatsError='Statistiques du bot indisponibles pour le moment. Réessayez.';}
     finally{this.botStatsBusy=false;this.forceUpdate();}}
+  // Phone notifications (Web Push): the server sends activation, closure and cancellation of AI plans.
+  pushSupported(){return typeof navigator!=='undefined'&&'serviceWorker' in navigator&&typeof window.PushManager!=='undefined'&&typeof window.Notification!=='undefined';}
+  async pushRegistration(){return navigator.serviceWorker.ready;}
+  async loadPush(){if(!this.hasPaidAccess())return;const epoch=this.session.epoch;
+    if(!this.pushSupported()){this.push={supported:false};this.forceUpdate();return;}
+    try{const config=await this.session.request('push/config');const sub=config.configured?await(await this.pushRegistration()).pushManager.getSubscription():null;
+      if(epoch===this.session.epoch)this.push={supported:true,configured:!!config.configured,publicKey:config.publicKey,subscribed:!!sub&&window.Notification.permission==='granted',msg:''};}
+    catch{if(epoch===this.session.epoch)this.push={supported:true,configured:false,msg:''};}
+    this.forceUpdate();}
+  async togglePush(){const p=this.push;if(!p?.configured||p.busy)return;p.busy=true;p.msg='';this.forceUpdate();
+    try{const reg=await this.pushRegistration();
+      if(p.subscribed){const sub=await reg.pushManager.getSubscription();if(sub){await this.session.request('push/unsubscribe',{body:{endpoint:sub.endpoint}});await sub.unsubscribe();}p.subscribed=false;p.msg='Notifications désactivées sur cet appareil.';}
+      else{if(await window.Notification.requestPermission()!=='granted'){p.msg='Autorisez les notifications dans le navigateur pour les recevoir.';return;}
+        const key=Uint8Array.from(atob(p.publicKey.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-p.publicKey.length%4)%4)),c=>c.charCodeAt(0));
+        const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+        await this.session.request('push/subscribe',{body:sub.toJSON()});p.subscribed=true;
+        const test=await this.session.request('push/test',{body:{}});p.msg=test.sent?'Notifications actives : une notification de test vient d’être envoyée.':'Abonnement enregistré, mais le test n’a pas pu être envoyé.';}
+    }catch{p.msg='Activation impossible sur ce navigateur. Sur iPhone, ajoutez d’abord le site à l’écran d’accueil.';}
+    finally{p.busy=false;this.forceUpdate();}}
   // The performance panel starts closed; each viewer's choice is kept in this browser and stats load only when shown.
   botStatsVisible(){if(this.botStatsOpen===undefined){try{this.botStatsOpen=window.localStorage?.getItem('pipvoria-bot-stats-open')==='1';}catch{this.botStatsOpen=false;}}return this.botStatsOpen;}
   toggleBotStats(){this.botStatsOpen=!this.botStatsVisible();try{window.localStorage?.setItem('pipvoria-bot-stats-open',this.botStatsOpen?'1':'0');}catch{}
@@ -452,6 +471,8 @@ class Terminal extends OriginalTerminal {
       analysisMessage:this.automaticBusy?this.automaticStage:disabledMode?'Quittez la démonstration ou le replay pour analyser les dernières données disponibles.':unsupported?'Cette analyse est disponible pour XAU/USD, EUR/USD, BTC/USD, ETH/USD et SOL/USD.':expired?'Une nouvelle bougie doit être analysée. Relancez le calcul avant d’utiliser un plan.':analysis?.message||'Une IA interprète les bougies et recoupe les périodes. Elle peut conclure qu’aucun trade n’est justifié.',
       analysisPlanHeading:cancelled?'Scénario annulé · stop touché avant le déclencheur':activated?'Scénario activé · clôture au-delà du déclencheur':conditional?'Scénario conditionnel · attendre le déclencheur':ready?'Plan proposé par l’IA':'Aucun scénario chiffré validé',
       analysisPlanNotice:cancelled?'Le prix a touché le stop avant la clôture de déclenchement : n’utilisez pas ce plan. Relancez une analyse.':activated?'La clôture de déclenchement est arrivée le '+this.fmtT(scenario.time)+'. Entrée, stop et TP ci-dessous.':conditional?'Déclencheur : une clôture '+(side?'au-dessus de ':'au-dessous de ')+f(analysis.plan.triggerLevel??analysis.plan.entry)+'. L’entrée reste à confirmer.':ready?'Niveaux calculés sur les bougies clôturées. Vérifiez les conditions d’entrée et de sortie.':'L’IA n’a pas retenu de niveaux cohérents. Une nouvelle analyse est nécessaire avant de définir un plan.',
+      pushVisible:!!this.push&&this.hasPaidAccess(),pushLabel:!this.push?.supported?'Notifications téléphone : non prises en charge par ce navigateur.':!this.push.configured?'Notifications téléphone : bientôt disponibles.':this.push.subscribed?'Notifications téléphone activées : activation, clôture et annulation des plans IA.':'Recevez sur ce téléphone l’activation et la clôture des plans IA, même site fermé.',
+      pushButton:this.push?.busy?'…':this.push?.subscribed?'Désactiver':'Activer',pushDisabled:!this.push?.configured||!!this.push?.busy,togglePush:()=>this.togglePush(),pushMsg:this.push?.msg||'',
       analysisNewsLine:usable&&analysis.news&&Date.parse(analysis.news.at)>Date.now()-1800000?'⚠ '+analysis.news.name+' à '+this.fmtT(Date.parse(analysis.news.at))+' : forte volatilité attendue, réduisez le risque ou attendez.':'',
       analysisScenarioLine:conditional?(cancelled?'Annulé : le stop a été touché avant la clôture de déclenchement.':activated?'Activé le '+this.fmtT(scenario.time)+' : clôture au-delà de '+f(analysis.plan.triggerLevel)+'.':'Déclencheur : une clôture '+s.tf+' '+(side?'au-dessus de ':'au-dessous de ')+f(analysis.plan.triggerLevel??analysis.plan.entry)+' · alerte à l’activation.'):'',
       analysisEntry:displayPlan?f(analysis.plan.entry):'—',analysisStop:displayPlan?f(analysis.plan.stop):'—',analysisTp1:targets[0]?f(targets[0]):'—',analysisTp2:targets[1]?f(targets[1]):'—',analysisTp3:targets[2]?f(targets[2]):'—',analysisRr:displayPlan?String(analysis.plan.rewardRisk)+' R':'—',

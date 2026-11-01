@@ -82,7 +82,7 @@ class Terminal extends OriginalTerminal {
     const epoch=this.session.epoch,generation=this.accessGeneration;
     await this.restoreAutomaticAnalysis(true);
     if(epoch!==this.session.epoch||generation!==this.accessGeneration||!this.hasPaidAccess())return;
-    await Promise.allSettled([this.loadWorkspace(),this.loadCapabilities(),this.load(),this.loadWatch(),this.loadBotStats()]);
+    await Promise.allSettled([this.loadWorkspace(),this.loadCapabilities(),this.load(),this.loadWatch(),this.botStatsVisible()?this.loadBotStats():null]);
     if(!this.hasPaidAccess())return;this.monthlyReminder();clearInterval(this.wlT);this.wlT=setInterval(()=>{if(this.hasPaidAccess()&&!document.hidden)this.loadWatch();},60000);
   }
   async unlock(user){
@@ -189,7 +189,7 @@ class Terminal extends OriginalTerminal {
     this.automaticAbort?.abort();this.automaticAbort=new AbortController();this.automaticBusy=true;this.automaticError='';this.automaticStage='Connexion au moteur IA…';this.automaticNextAt=Date.now()+60000;this.forceUpdate();
     const current=()=>serial===this.automaticSerial&&epoch===this.session.epoch&&generation===this.accessGeneration&&this.hasPaidAccess()&&symbol===this.state.symbol&&tf===this.state.tf&&!this.state.demo&&!this.rp;
     try{const result=await this.session.stream('analysis/run',{body:{symbol,interval:this.interval(tf)},signal:this.automaticAbort.signal,onEvent:event=>{if(current()){this.automaticStage=event.label;this.forceUpdate();}}});if(!current())return;
-      this.automatic={...result,tf};this.automaticNextAt=this.analysisExpiry(result)||Date.now()+60000;this.saveAutomaticAnalysis();if(result.plan&&!result.cached)this.loadBotStats();
+      this.automatic={...result,tf};this.automaticNextAt=this.analysisExpiry(result)||Date.now()+60000;this.saveAutomaticAnalysis();if(result.plan&&!result.cached&&this.botStatsVisible())this.loadBotStats();
     }catch(error){if(current()&&error.name!=='AbortError'){const messages={analysis_market_closed:'Le marché est fermé (week-end ou séance terminée) : les bougies ne bougent plus. Relancez l’analyse à la réouverture.',analysis_data_stale:'Le marché peut être fermé ou le flux retardé : les dernières bougies sont trop anciennes.',analysis_history_insufficient:'L’historique récent est insuffisant ou interrompu. Aucun plan généré.',analysis_daily_limit:'La limite quotidienne de nouvelles analyses est atteinte. Réessayez demain.',analysis_in_progress:'Une analyse de cette bougie est déjà en cours. Réessayez dans quelques instants.',ai_not_configured:'Le moteur IA est en cours de configuration.'};this.automaticError=messages[error.message]||'Actualisation indisponible. Réessayez plus tard.';if(!this.automatic)this.automatic={status:'error',symbol,tf,message:this.automaticError,checks:[]};this.automaticNextAt=Date.now()+300000;if(error.message==='analysis_daily_limit')this.setState({automaticFollow:false});}}
     finally{if(serial===this.automaticSerial){this.automaticBusy=false;this.forceUpdate();}}
   }
@@ -292,12 +292,17 @@ class Terminal extends OriginalTerminal {
     try{const data=await this.session.request('analysis/stats');if(epoch===this.session.epoch&&generation===this.accessGeneration)this.botStats=data;}
     catch{if(epoch===this.session.epoch)this.botStatsError='Statistiques du bot indisponibles pour le moment. Réessayez.';}
     finally{this.botStatsBusy=false;this.forceUpdate();}}
+  // The performance panel starts closed; each viewer's choice is kept in this browser and stats load only when shown.
+  botStatsVisible(){if(this.botStatsOpen===undefined){try{this.botStatsOpen=window.localStorage?.getItem('pipvoria-bot-stats-open')==='1';}catch{this.botStatsOpen=false;}}return this.botStatsOpen;}
+  toggleBotStats(){this.botStatsOpen=!this.botStatsVisible();try{window.localStorage?.setItem('pipvoria-bot-stats-open',this.botStatsOpen?'1':'0');}catch{}
+    if(this.botStatsOpen&&!this.botStats)this.loadBotStats();else this.forceUpdate();}
   botStatsView(){
     const st=this.hasPaidAccess()?this.botStats:null,o=st?.overall,pct=n=>n==null?'—':n+' %',r=n=>n==null?'—':(n>0?'+':'')+n+' R';
     const tf={'1min':'1m','5min':'5m','15min':'15m','30min':'30m','1h':'1h'},market=m=>(this.SYM[m.symbol]?.label||m.symbol)+' · '+(tf[m.interval]||m.interval);
     const states={waiting:'Entrée non atteinte',open:'En cours',not_triggered:'Non déclenché',unknown:'Historique manquant'},reasons={stop:'Stop',tp3:'TP3',timeout:'Clôturé (durée max.)'};
     const tone=n=>n==null?'#e9ebf2':n>0?'#3fd2a4':n<0?'#f2707a':'#e9ebf2';
     return {botStatsLoading:!!this.botStatsBusy&&!st,botStatsError:this.botStatsError||'',botStatsHas:!!o?.plans,botStatsEmpty:!!st&&!o?.plans,
+      botStatsOpen:this.botStatsVisible(),toggleBotStats:()=>this.toggleBotStats(),botStatsToggle:this.botStatsVisible()?'Masquer':'Afficher',
       refreshBotStats:()=>this.loadBotStats(),botStatsButton:this.botStatsBusy?'Actualisation…':'Actualiser',botStatsBusy:!!this.botStatsBusy,
       botStatsChecked:st?.checkedAt?'Mis à jour '+this.fmtT(st.checkedAt):'',
       botKpis:o?[{label:'Plans suivis',value:String(o.plans),color:'#c9bfff'},{label:'Déclenchés',value:String(o.triggered),color:'#e9ebf2'},{label:'Taux de réussite',value:pct(o.winRate),color:o.winRate==null?'#e9ebf2':o.winRate>=50?'#3fd2a4':'#f0b45b'},

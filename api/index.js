@@ -5,6 +5,7 @@ import { accountApproval, requireAccountApproval } from '../lib/account-approval
 import { billingApi } from '../lib/crypto-billing.js';
 import { PAID_ROUTES, paidAccess } from '../lib/paid-access.js';
 import { analysisApi } from '../lib/ai-api.js';
+import { CALENDAR } from '../lib/economic-calendar.js';
 import { createQuoteCache } from '../lib/quote-cache.js';
 export const config = { runtime: "edge" };
 
@@ -927,16 +928,7 @@ export default async function handler(request) {
     }
     if (route === 'terminal/capabilities' && request.method === 'GET') {
       const session=await currentSession(request);if(!session)return json({error:'authentication_required'},401);
-      return sessionJson({billingConfigured:false,referralConfigured:false,mfaConfigured:false,calendar:[
-        {at:'2026-10-14T12:30:00Z',name:'Inflation CPI · septembre',url:'https://www.bls.gov/schedule/2026/10_sched_list.htm',source:'BLS'},
-        {at:'2026-10-15T12:30:00Z',name:'Inflation PPI · septembre',url:'https://www.bls.gov/schedule/2026/10_sched_list.htm',source:'BLS'},
-        {at:'2026-10-28T18:00:00Z',name:'Décision de la Fed · FOMC',url:'https://www.federalreserve.gov/newsevents/2026-october.htm',source:'Federal Reserve'},
-        {at:'2026-10-30T12:30:00Z',name:'Coût de l’emploi · T3',url:'https://www.bls.gov/schedule/2026/10_sched_list.htm',source:'BLS'},
-        {at:'2026-11-03T15:00:00Z',name:'Offres d’emploi JOLTS · septembre',url:'https://www.bls.gov/schedule/2026/11_sched_list.htm',source:'BLS'},
-        {at:'2026-11-06T13:30:00Z',name:'Emploi américain · octobre',url:'https://www.bls.gov/schedule/2026/11_sched_list.htm',source:'BLS'},
-        {at:'2026-11-10T13:30:00Z',name:'Inflation CPI · octobre',url:'https://www.bls.gov/schedule/2026/11_sched_list.htm',source:'BLS'},
-        {at:'2026-11-13T13:30:00Z',name:'Inflation PPI · octobre',url:'https://www.bls.gov/schedule/2026/11_sched_list.htm',source:'BLS'}
-      ]},200,session);
+      return sessionJson({billingConfigured:false,referralConfigured:false,mfaConfigured:false,calendar:CALENDAR},200,session);
     }
     if (route === "workspace" && request.method === "GET") return await workspaceData(request);
     if (route === "admin/users" && request.method === "GET" && sameOrigin(request)) return await listAdminUsers(request);

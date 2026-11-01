@@ -72,3 +72,17 @@ test('a closed market stops the analysis before any reservation or model call',a
  const events=await read(await handler(req({symbol:'XAU',interval:'5min'}),null,'run'));
  assert.equal(events.at(-1).error,'analysis_market_closed');assert.equal(f.state.modelCalls,0);
 });
+test('a high-impact release window stops the analysis with its name, and later plans carry a warning',async()=>{
+ const at=new Date(Date.now()+10*60000).toISOString(),f=fixture();
+ const paused=analysisApi({currentSession:async()=>({user:{id:'o'}}),json,sessionJson:json,body:r=>r.json(),marketHours:()=>false,calendar:[{at,name:'Emploi américain',high:true}],
+  gold:async()=>assert.fail('No market fetch during a release window'),additionalMarket:async()=>assert.fail(),supabaseAdminData:async()=>assert.fail()});
+ const events=await read(await paused(req({symbol:'XAU',interval:'5min'}),null,'run'));
+ assert.equal(events.at(-1).error,'analysis_news_window');assert.deepEqual(events.at(-1).event,{name:'Emploi américain',at});assert.equal(f.state.modelCalls,0);
+ const later=new Date(Date.now()+40*60000).toISOString(),g=fixture();
+ const warned=analysisApi({currentSession:async()=>({user:{id:'o'}}),json,sessionJson:json,body:r=>r.json(),marketHours:()=>false,calendar:[{at:later,name:'Fed',high:true}],
+  gold:async frame=>bars(frame),additionalMarket:async(_s,frame)=>bars(frame),supabaseAdminData:async(path,init)=>path.startsWith('rpc/')?json({status:'reserved',claimId:'c'}):(g.state.writes.push(JSON.parse(init.body)),json([{}]))});
+ const done=await read(await warned(req({symbol:'XAU',interval:'5min'}),null,'run'));
+ assert.equal(done.at(-1).type,'result');
+ // A wait result is valid until the next 5-minute close; a release 40 minutes away is outside that window.
+ assert.equal(done.at(-1).result.news,undefined);
+});

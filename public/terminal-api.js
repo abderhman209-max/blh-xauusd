@@ -39,7 +39,7 @@
         if(!value.trim())return;
         const event=JSON.parse(value);
         if(epoch!==this.epoch||this.locked||this.pendingLogout)throw Error('session_changed');
-        if(event.type==='error')throw Error(event.error||'analysis_unavailable');
+        if(event.type==='error')throw Object.assign(Error(event.error||'analysis_unavailable'),event.event?{event:event.event}:{});
         if(event.type==='result')result=event.result;
         else if(event.type==='stage')onEvent(event);
       };

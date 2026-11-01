@@ -22,6 +22,10 @@ Gold and EUR/USD analyses are refused with `analysis_market_closed` from Friday 
 
 A firm decision (`buy`/`sell`) is expected when the latest closed candles already confirm the move; its entry is near the last close. A `wait` scenario has a single verifiable trigger: one close of the analysed period beyond `triggerLevel` (above for a buy, below for a sell); the trigger must stay on the protective side of the stop. Such a plan carries `activeUntil`, 12 candles after the analysis. The terminal shows it until then and watches the closed candles. A close beyond the trigger turns it into « ACHAT/VENTE ACTIVÉE » with one alert; a stop touched first shows « SCÉNARIO ANNULÉ » and hides its levels. Auto-follow does not replace a scenario that is still waiting for its trigger. The track record replays the same rule. The v4 cache identity excludes plans without a trigger level.
 
+## Economic releases
+
+`lib/economic-calendar.js` lists the US releases shown in the terminal calendar. High-impact ones (CPI, employment, FOMC) pause the agent from 30 minutes before to 30 minutes after: `analysis_news_window` is returned with the release name before any market fetch, reservation or model call, and auto-follow resumes after the window. A plan still open when a high-impact release comes (a conditional scenario lasts 12 candles) carries `news` and the terminal warns about it. The list must be extended from the official BLS and Federal Reserve schedules before its last date; entries marked « date à confirmer » follow the usual pattern.
+
 ## Output checks
 
 Insufficient, malformed, interrupted recent or stale market data prevents a model call. Older session gaps are disclosed in the market packet. A plan expires at the next primary candle close, including when that close happens during inference. Expired levels are hidden in the terminal.

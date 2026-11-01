@@ -14,3 +14,4 @@
 .pv-analysis .pv-analysis-scenario{font-weight:600;font-size:14px}
 .pv-bot-recent summary{cursor:pointer;font-size:12px;color:#929ab2;padding:4px 0;list-style-position:inside}.pv-bot-recent summary span{color:#c9bfff}.pv-bot-recent[open] summary span{display:none}.pv-bot-recent .pv-ai-results-scroll{margin-top:8px}
 .pv-bot-stats-body{display:grid;gap:14px}.pv-bot-stats .pv-bot-toggle{background:#9d8cff22;border-color:#9d8cff66;color:#c9bfff}
+.pv-analysis .pv-analysis-news{color:#f0b45b;font-weight:600;font-size:13px;border:1px solid #f0b45b55;background:#f0b45b14;border-radius:9px;padding:8px 12px}

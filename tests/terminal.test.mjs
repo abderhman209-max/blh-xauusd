@@ -320,3 +320,11 @@ test('EUR/USD and crypto contracts and per-market spreads are editable and drive
  v.marketSettings[1].onLotStep({target:{value:'-1'}});assert.equal(app.settings.btcLotStep,.0001);assert.match(app.ex.setMsg,/invalide/);
  assert.equal(queued,2);
 });
+test('the terminal names the release that pauses the agent and warns about one during an open plan',async()=>{
+ const app=terminalApp(),at=new Date(Date.now()+600000).toISOString();app.state.symbol='XAU';app.state.tf='5m';
+ app.session.stream=async()=>{throw Object.assign(Error('analysis_news_window'),{event:{name:'Inflation CPI',at}});};
+ await app.runAutomaticAnalysis();assert.match(app.automaticError,/Inflation CPI/);assert.equal(app.automaticNextAt,Date.parse(at)+31*60000);
+ app.automatic={symbol:'XAU',interval:'5min',tf:'5m',status:'ready',asOf:Date.now()-1000,generatedAt:Date.now(),validUntil:Date.now()+60000,source:'F',message:'m',checks:[],news:{name:'Décision de la Fed',at},
+  plan:{direction:'buy',entry:4200,stop:4190,targets:[4210,4220,4230],rewardRisk:2,trigger:'t',exitRule:'e'}};
+ assert.match(app.renderVals().analysisNewsLine,/Décision de la Fed/);
+});

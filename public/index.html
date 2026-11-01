@@ -730,6 +730,7 @@ select option{background:#11151f;color:#e9ebf2}
       </div>
       <label class="pv-analysis-follow"><input type="checkbox" checked="{{ automaticFollow }}" sc-camel-on-change="{{ onAutomaticFollow }}"> Auto <span>20 nouvelles analyses/jour</span></label>
       <div role="status" aria-live="polite" class="pv-analysis-state"><strong>{{ analysisTitle }}</strong><span class="terminal-mini">{{ analysisMarketName }} · {{ tf }}</span></div>
+      <sc-if value="{{ analysisNewsLine }}"><p class="pv-analysis-news" role="status">{{ analysisNewsLine }}</p></sc-if>
       <sc-if value="{{ analysisScenarioLine }}"><p class="pv-analysis-scenario" style="color:{{ analysisTableColor }}">{{ analysisScenarioLine }}</p></sc-if>
       <sc-if value="{{ analysisShowLevels }}">
 

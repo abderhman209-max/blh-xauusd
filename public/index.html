@@ -646,11 +646,11 @@ select option{background:#11151f;color:#e9ebf2}
           <thead><tr><th scope="col">Marché</th><th scope="col">Plans</th><th scope="col">Déclenchés</th><th scope="col">Clôturés</th><th scope="col">Réussite</th><th scope="col">R moyen</th><th scope="col">Total</th></tr></thead>
           <tbody><sc-for list="{{ botMarkets }}" as="m" hint-placeholder-count="3"><tr><td data-label="Marché">{{ m.market }}</td><td data-label="Plans">{{ m.plans }}</td><td data-label="Déclenchés">{{ m.triggered }}</td><td data-label="Clôturés">{{ m.closed }}</td><td data-label="Réussite">{{ m.winRate }}</td><td data-label="R moyen">{{ m.avgR }}</td><td data-label="Total" style="color:{{ m.color }}">{{ m.totalR }}</td></tr></sc-for></tbody>
         </table></div>
+        <details class="pv-bot-recent"><summary>Derniers plans <span>{{ botRecentCount }}</span></summary>
         <div class="pv-ai-results-scroll"><table class="pv-ai-results-table pv-bot-table">
-          <caption>Derniers plans</caption>
-          <thead><tr><th scope="col">Calcul</th><th scope="col">Marché</th><th scope="col">Sens</th><th scope="col">Résultat</th><th scope="col">TP atteints</th><th scope="col">R</th></tr></thead>
+                    <thead><tr><th scope="col">Calcul</th><th scope="col">Marché</th><th scope="col">Sens</th><th scope="col">Résultat</th><th scope="col">TP atteints</th><th scope="col">R</th></tr></thead>
           <tbody><sc-for list="{{ botRecent }}" as="p" hint-placeholder-count="5"><tr><td data-label="Calcul">{{ p.time }}</td><td data-label="Marché">{{ p.market }}</td><td data-label="Sens" style="color:{{ p.dirColor }}">{{ p.direction }}</td><td data-label="Résultat">{{ p.result }}</td><td data-label="TP atteints">{{ p.tps }}</td><td data-label="R" style="color:{{ p.color }}">{{ p.r }}</td></tr></sc-for></tbody>
-        </table></div>
+        </table></div></details>
         <p class="pv-bot-note">Résultats théoriques sur les bougies clôturées, tous comptes confondus, 90 derniers jours. Entrée quand une bougie touche le prix d’entrée dans les 12 bougies suivant l’analyse ; un tiers de la position est clôturé à chaque TP, stop fixe ; si le stop et un TP sont touchés dans la même bougie, le stop compte en premier. Sans spread, frais ni glissement. Les résultats passés ne garantissent pas les résultats futurs.</p>
       </sc-if>
     </section>
@@ -756,6 +756,7 @@ select option{background:#11151f;color:#e9ebf2}
       </div>
       <label class="pv-analysis-follow"><input type="checkbox" checked="{{ automaticFollow }}" sc-camel-on-change="{{ onAutomaticFollow }}"> Auto <span>20 nouvelles analyses/jour</span></label>
       <div role="status" aria-live="polite" class="pv-analysis-state"><strong>{{ analysisTitle }}</strong><span class="terminal-mini">{{ analysisMarketName }} · {{ tf }}</span></div>
+      <sc-if value="{{ analysisScenarioLine }}"><p class="pv-analysis-scenario" style="color:{{ analysisTableColor }}">{{ analysisScenarioLine }}</p></sc-if>
       <sc-if value="{{ analysisShowLevels }}">
 
         <sc-if value="{{ analysisHasPlan }}"><details class="pv-analysis-condition"><summary>Condition d’entrée</summary><p>{{ analysisTrigger }}</p></details></sc-if>

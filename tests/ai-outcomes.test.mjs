@@ -42,3 +42,10 @@ test('summaries split markets and plan types and leave pending plans out of the 
   assert.equal(s.conditional.plans,1);assert.equal(s.adjusted.losses,1);assert.equal(s.markets[0].symbol,'XAU');assert.equal(s.markets.find(m=>m.symbol==='BTC').avgR,-1);
   assert.equal(s.recent.length,4);assert.equal(s.recent[0].state,'closed');assert.equal(s.recent[2].state,'waiting');
 });
+test('a conditional plan with a trigger enters only after a close beyond it and is cancelled by an earlier stop',()=>{
+  const p=plan('buy',{conditional:true,triggerLevel:102}),r=result(p);
+  const touchedOnly=run(r,[[103,99,101],[101,99,100]]);assert.equal(touchedOnly.state,'waiting');
+  const activated=run(r,[[103,99,102.5],[101,99],[131,101]]);assert.equal(activated.state,'closed');assert.equal(activated.exit.reason,'tp3');assert.equal(activated.activatedAt,asOf);
+  assert.equal(run(r,[[101,89,95]]).state,'not_triggered');
+  assert.equal(run(result(plan('buy',{conditional:true})),[[101,99],[131,101]]).exit.reason,'tp3');
+});

@@ -1,7 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {AI_FRAMES,AI_MODEL,marketPacket,packetKey,inferAnalysis,validateModelAnalysis} from '../lib/ai-analysis.js';
-const now=Math.floor(Date.now()/3600000)*3600000+30000;
+import {AI_FRAMES,AI_MODEL,marketPacket,marketClosed,packetKey,inferAnalysis,validateModelAnalysis} from '../lib/ai-analysis.js';
+// A fixed Wednesday: gold and EUR/USD are open whatever day the suite runs.
+const now=Date.UTC(2026,9,28,12,0,30),open={closed:()=>false};
 export function dataset(interval,at=now){
   const ms=AI_FRAMES[interval],end=Math.floor(at/ms)*ms;
   return {interval,source:'Fixture synthetic',bars:Array.from({length:100},(_,i)=>{
@@ -12,7 +13,7 @@ export function dataset(interval,at=now){
 export function modelValue(packet,decision='buy'){
   const f={...packet.frames[0],atr:Number(packet.frames[0].atr.toFixed(2))},entry=Number(f.latestClose.toFixed(2));
   return {decision,summary:'Les périodes montrent une reprise à confirmer.',structure:'Clôtures en progression.',liquidity:'Les mèches testent les creux récents.',context:'Comparer la tendance horaire.',invalidation:'Le scénario est invalidé sous le creux.',
-    scenario:decision==='wait'?null:{direction:decision,entry,stop:entry+(decision==='sell'?1:-1)*f.atr,tp1:entry+(decision==='sell'?-1:1)*f.atr,tp2:entry+(decision==='sell'?-1:1)*2*f.atr,tp3:entry+(decision==='sell'?-1:1)*3*f.atr,trigger:'Attendre une clôture de confirmation au niveau d’entrée.',exitRule:'Prises de profit aux trois objectifs ; sortie au stop si invalidé.'},evidenceTimes:[f.candles.at(-1)[0]]};
+    scenario:decision==='wait'?null:{direction:decision,entry,stop:entry+(decision==='sell'?1:-1)*f.atr,tp1:entry+(decision==='sell'?-1:1)*f.atr,tp2:entry+(decision==='sell'?-1:1)*2*f.atr,tp3:entry+(decision==='sell'?-1:1)*3*f.atr,triggerLevel:entry,trigger:'Attendre une clôture de confirmation au niveau d’entrée.',exitRule:'Prises de profit aux trois objectifs ; sortie au stop si invalidé.'},evidenceTimes:[f.candles.at(-1)[0]]};
 }
 
 test('Bitcoin analysis uses two price decimals and the same independent risk and stale-data validation',()=>{
@@ -33,7 +34,7 @@ test('market packets exclude open candles, reject stale/gapped data, and keep ca
 });
 
 test('default fetch preserves its runtime receiver and credentials reject internal whitespace before transmission',async()=>{
-  const at=Date.now(),packet=marketPacket('XAU','5min',[dataset('5min',at)],at),original=globalThis.fetch;let calls=0;
+  const at=Date.now(),packet=marketPacket('XAU','5min',[dataset('5min',at)],at,open),original=globalThis.fetch;let calls=0;
   try{
     globalThis.fetch=async function(_url,init){assert.equal(this,globalThis);calls++;assert.equal(init.headers.authorization,'Bearer fixture-only');return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(modelValue(packet,'wait'))}]}]}));};
     assert.equal((await inferAnalysis(packet,{key:'  fixture-only\n'})).status,'wait');
@@ -61,7 +62,7 @@ test('an unconfirmed scenario has all levels and exit rules without becoming an 
   assert.throws(()=>validateModelAnalysis({...value,evidenceTimes:[]},packet,now),/invalid_output/);
 });
 test('the real model request is bounded, server authenticated and structured; refusals and incomplete replies never become plans',async()=>{
-  const at=Date.now(),packet=marketPacket('XAU','5min',[dataset('5min',at)],at);
+  const at=Date.now(),packet=marketPacket('XAU','5min',[dataset('5min',at)],at,open);
   let requests=0;
   const fetcher=async(url,init)=>{
     requests++;assert.equal(url,'https://api.openai.com/v1/responses');
@@ -95,4 +96,25 @@ test('the server recomputes stop and targets the model got wrong instead of fail
   const e={...eurValue.scenario,entry:Number(eurPacket.frames[0].latestClose.toFixed(5))};e.stop=e.entry-eurPacket.frames[0].atr;e.tp1=e.tp2=e.tp3=e.entry+eurPacket.frames[0].atr/10;
   const ep=validateModelAnalysis({...eurValue,scenario:e},eurPacket,now).plan;assert.ok(ep.rewardRisks[0]>=1&&ep.rewardRisks[2]>ep.rewardRisks[1]);
   for(const n of [ep.stop,...ep.targets])assert.equal(n,Number(n.toFixed(5)));
+});
+
+test('closed sessions and frozen feeds never reach the model',()=>{
+  for(const at of [Date.UTC(2026,9,31,12),Date.UTC(2026,9,30,21,30),Date.UTC(2026,10,1,1,8),Date.UTC(2026,10,1,21,59)])assert.equal(marketClosed('XAU',at),true,new Date(at).toISOString());
+  for(const at of [Date.UTC(2026,10,1,22),Date.UTC(2026,9,28,12),Date.UTC(2026,9,30,20,59)])assert.equal(marketClosed('EUR',at),false);
+  assert.equal(marketClosed('BTC',Date.UTC(2026,9,31,12)),false);
+  assert.throws(()=>marketPacket('XAU','5min',[dataset('5min',Date.UTC(2026,10,1,1,8,30))],Date.UTC(2026,10,1,1,8,30)),/market_closed/);
+  // Sunday 2026-11-01 01:05 UTC: the provider kept emitting candles about 0.2 wide after a normal session.
+  const flat=dataset('5min');flat.bars.slice(-12).forEach(b=>{b.open=b.close=3875.4;b.high=3875.5;b.low=3875.3;});
+  assert.throws(()=>marketPacket('XAU','5min',[flat],now),/market_closed/);
+  const h=dataset('1h');h.interval='1h';h.bars.slice(-12).forEach(b=>{b.open=b.close=3875.4;b.high=3875.5;b.low=3875.3;});
+  assert.equal(marketPacket('XAU','5min',[dataset('5min'),h],now).frames.length,2);
+});
+test('a conditional scenario carries one close trigger and stays usable for twelve candles',()=>{
+  const packet=marketPacket('XAU','5min',[dataset('5min')],now),value={...modelValue(packet),decision:'wait'},atr=packet.frames[0].atr;
+  value.scenario={...value.scenario,triggerLevel:value.scenario.entry+atr/2};
+  const plan=validateModelAnalysis(value,packet,now).plan;
+  assert.equal(plan.triggerLevel,Number((value.scenario.entry+atr/2).toFixed(2)));assert.equal(plan.activeUntil,packet.asOf+12*AI_FRAMES['5min']);
+  const firm=validateModelAnalysis(modelValue(packet),packet,now).plan;assert.equal(firm.triggerLevel,undefined);assert.equal(firm.activeUntil,undefined);
+  for(const triggerLevel of [value.scenario.stop-1,packet.frames[0].latestClose+3*atr])
+    assert.throws(()=>validateModelAnalysis({...value,scenario:{...value.scenario,triggerLevel}},packet,now),/invalid_output/);
 });

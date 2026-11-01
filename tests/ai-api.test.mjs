@@ -15,7 +15,7 @@ function fixture(mode='reserved'){
    const value={decision:'wait',summary:'Attendre une confirmation.',structure:'Structure mixte.',liquidity:'Pas de balayage clair.',context:'Périodes divergentes.',invalidation:'Réévaluer à la prochaine clôture.',scenario:null,evidenceTimes:[packet.frames[0].candles.at(-1)[0]]};
    return json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}]});
  };
- const handler=analysisApi({currentSession:async()=>({user:{id:'fixture-owner'}}),json,sessionJson:json,body:r=>r.json(),
+ const handler=analysisApi({currentSession:async()=>({user:{id:'fixture-owner'}}),json,sessionJson:json,body:r=>r.json(),marketHours:()=>false,
    gold:async frame=>{state.markets.push(frame);const data=bars(frame);if(mode==='stale')data.bars=data.bars.map(b=>({...b,time:b.time-86400000}));return data;},
    additionalMarket:async(symbol,frame)=>{state.symbols.push(symbol);state.markets.push(frame);return bars(frame);},
    supabaseAdminData:async(path,init)=>{
@@ -65,4 +65,10 @@ test('bot stats replay closed candles for stored plans, persist new outcomes and
  const broken=analysisApi({currentSession:async()=>({user:{id:'x'}}),json,sessionJson:json,body:r=>r.json(),gold:async()=>({bars:[]}),additionalMarket:async()=>({bars:[]}),supabaseAdminData:async()=>json({},500)});
  assert.equal((await broken(new Request('https://site.invalid/api?route=analysis/stats'),null,'stats')).status,503);
  assert.equal((await analysisApi({currentSession:async()=>null,json,sessionJson:json})(new Request('https://site.invalid/'),null,'stats')).status,401);
+});
+test('a closed market stops the analysis before any reservation or model call',async()=>{
+ const f=fixture(),handler=analysisApi({currentSession:async()=>({user:{id:'o'}}),json,sessionJson:json,body:r=>r.json(),marketHours:()=>true,
+  gold:async frame=>bars(frame),additionalMarket:async(_s,frame)=>bars(frame),supabaseAdminData:async()=>assert.fail('No reservation when closed')});
+ const events=await read(await handler(req({symbol:'XAU',interval:'5min'}),null,'run'));
+ assert.equal(events.at(-1).error,'analysis_market_closed');assert.equal(f.state.modelCalls,0);
 });

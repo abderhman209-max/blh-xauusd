@@ -292,3 +292,17 @@ test('bot performance renders shared outcomes only with paid access and refreshe
  app.session.request=async()=>{throw Error('analysis_stats_unavailable');};await app.loadBotStats();assert.match(app.renderVals().botStatsError,/indisponibles/);
  app.access=null;v=app.renderVals();assert.equal(v.botStatsHas,false);assert.equal(v.botKpis.length,0);
 });
+test('a conditional AI scenario activates on a close beyond its trigger, alerts once and survives until its own expiry',()=>{
+ const app=terminalApp(),ms=300000,asOf=Math.floor(Date.now()/ms)*ms-3*ms,toasts=[];app.pushToast=t=>toasts.push(t);app.state.symbol='XAU';app.state.tf='5m';
+ app.automatic={symbol:'XAU',interval:'5min',tf:'5m',status:'conditional',asOf,generatedAt:asOf+1000,validUntil:asOf+ms,source:'Fixture',message:'m',checks:[],
+  plan:{direction:'buy',conditional:true,entry:4200,stop:4190,targets:[4210,4220,4230],rewardRisk:2,rewardRisks:[1,2,3],triggerLevel:4202,activeUntil:asOf+12*ms,trigger:'Clôture au-dessus de 4202.',exitRule:'e'}};
+ const bar=(i,low,high,close)=>({time:asOf+i*ms,open:close,high,low,close,closed:true});
+ app.state.bars=[bar(0,4195,4203,4199)];let v=app.renderVals();
+ assert.equal(v.analysisTitle,'ACHAT À CONFIRMER');assert.match(v.analysisScenarioLine,/clôture 5m au-dessus de 4202/);assert.equal(v.analysisShowLevels,true);assert.match(v.analysisPlanNotice,/au-dessus de 4202/);
+ assert.ok(app.analysisChartLevels().some(l=>l.label.startsWith('IA DÉCLENCHEUR')));assert.match(v.analysisValidity,/Valide/);
+ app.state.bars.push(bar(1,4199,4206,4204));app.checkScenarioTrigger(app.state.bars);app.checkScenarioTrigger(app.state.bars);v=app.renderVals();
+ assert.equal(v.analysisTitle,'ACHAT ACTIVÉ');assert.match(v.analysisScenarioLine,/^Activé le/);assert.equal(toasts.length,1);assert.match(toasts[0].title,/Scénario IA activé/);
+ app.state.bars=[bar(0,4189,4199,4195),bar(1,4199,4206,4204)];v=app.renderVals();
+ assert.equal(v.analysisTitle,'SCÉNARIO ANNULÉ');assert.equal(app.analysisChartLevels().length,0);
+ app.automatic.plan.activeUntil=Date.now()-1;assert.equal(app.renderVals().analysisTitle,'Ancien calcul · à actualiser');
+});

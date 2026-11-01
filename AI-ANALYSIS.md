@@ -16,6 +16,12 @@ Limits are 20 generated analyses per account and 100 globally per UTC day, inclu
 
 Following new candles is opt-in and runs only while the trader view is visible. Changing market, interval, login or entitlement cancels the displayed request. Closing the page cancels its stream. The server may already have incurred usage before cancellation.
 
+## Market hours and conditional scenarios
+
+Gold and EUR/USD analyses are refused with `analysis_market_closed` from Friday 21:00 to Sunday 22:00 UTC, before any reservation or model call. The same error is returned when the last six candles of the analysed period are less than a fifth as wide as usual: a frozen feed, a holiday or a provider still emitting flat weekend candles. BTC trades continuously and only gets the frozen-feed check.
+
+A firm decision (`buy`/`sell`) is expected when the latest closed candles already confirm the move; its entry is near the last close. A `wait` scenario has a single verifiable trigger: one close of the analysed period beyond `triggerLevel` (above for a buy, below for a sell); the trigger must stay on the protective side of the stop. Such a plan carries `activeUntil`, 12 candles after the analysis. The terminal shows it until then and watches the closed candles. A close beyond the trigger turns it into « ACHAT/VENTE ACTIVÉE » with one alert; a stop touched first shows « SCÉNARIO ANNULÉ » and hides its levels. Auto-follow does not replace a scenario that is still waiting for its trigger. The track record replays the same rule. The v4 cache identity excludes plans without a trigger level.
+
 ## Output checks
 
 Insufficient, malformed, interrupted recent or stale market data prevents a model call. Older session gaps are disclosed in the market packet. A plan expires at the next primary candle close, including when that close happens during inference. Expired levels are hidden in the terminal.

@@ -118,3 +118,11 @@ test('a conditional scenario carries one close trigger and stays usable for twel
   for(const triggerLevel of [value.scenario.stop-1,packet.frames[0].latestClose+3*atr])
     assert.throws(()=>validateModelAnalysis({...value,scenario:{...value.scenario,triggerLevel}},packet,now),/invalid_output/);
 });
+test('Ethereum and Solana analyses trade every day and round to their own price precision',()=>{
+  const saturday=Date.UTC(2026,9,31,12,0,30),eth=dataset('5min',saturday),sol=dataset('5min',saturday);
+  for(const bar of sol.bars)for(const key of ['open','high','low','close'])bar[key]=Number((bar[key]/23).toFixed(3));
+  assert.equal(marketPacket('ETH','5min',[eth],saturday).symbol,'ETH');
+  const packet=marketPacket('SOL','5min',[sol],saturday),plan=validateModelAnalysis(modelValue(packet),packet,saturday).plan;
+  for(const n of [plan.entry,plan.stop,...plan.targets])assert.equal(n,Number(n.toFixed(3)));
+  assert.throws(()=>marketPacket('DOGE','5min',[eth],saturday),/invalid_analysis/);
+});

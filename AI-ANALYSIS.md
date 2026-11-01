@@ -1,6 +1,6 @@
 # Pipvoria market analysis
 
-The terminal can request a real OpenAI Responses analysis for XAU/USD or EUR/USD. A single `gpt-6-luna` call compares the selected interval with 15-minute and hourly candles. The structure, liquidity, context and invalidation sections are interpretations from that call, not separate agents or an internal chain of thought. Streamed stages describe actual server operations.
+The terminal can request a real OpenAI Responses analysis for XAU/USD, EUR/USD, BTC/USD, ETH/USD or SOL/USD (crypto from Coinbase, every day). A single `gpt-6-luna` call compares the selected interval with 15-minute and hourly candles. The structure, liquidity, context and invalidation sections are interpretations from that call, not separate agents or an internal chain of thought. Streamed stages describe actual server operations.
 
 The server sends at most 100 closed OHLC candles per interval, their source, timestamps and calculated EMA/ATR context. It sends no customer identity, email, account balance or position history. XAU uses the existing Twelve Data feed with the existing Yahoo fallback; EUR uses the existing market provider. These feeds can be delayed. News and order-book feeds are not connected. The model does not learn continuously or execute broker orders.
 

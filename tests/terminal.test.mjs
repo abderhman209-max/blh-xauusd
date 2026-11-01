@@ -310,3 +310,13 @@ test('a conditional AI scenario activates on a close beyond its trigger, alerts 
  assert.equal(v.analysisTitle,'SCÉNARIO ANNULÉ');assert.equal(app.analysisChartLevels().length,0);
  app.automatic.plan.activeUntil=Date.now()-1;assert.equal(app.renderVals().analysisTitle,'Ancien calcul · à actualiser');
 });
+test('EUR/USD and crypto contracts and per-market spreads are editable and drive the calculator',()=>{
+ const app=terminalApp();app.settingsReady=true;let queued=0;app.queueSettings=()=>queued++;
+ Object.assign(app.ex.calc,{capital:'10000',risk:'1',entry:'1.08',stop:'1.078'});app.state.symbol='EUR';
+ let v=app.renderVals();assert.equal(v.marketSettings[0].contract,'100000');assert.equal(v.calcOut[2].value,'0.5');
+ v.marketSettings[0].onContract({target:{value:'10000'}});assert.equal(app.renderVals().calcOut[2].value,'5');
+ app.renderVals().spreadSettings.find(s=>s.label==='EUR/USD').onChange({target:{value:'0,0002'}});
+ v=app.renderVals();assert.equal(app.settings.spreads.EUR,.0002);assert.equal(v.calcOut[2].value,'4.54');assert.match(v.calcOut[1].value,/spread/);
+ v.marketSettings[1].onLotStep({target:{value:'-1'}});assert.equal(app.settings.btcLotStep,.0001);assert.match(app.ex.setMsg,/invalide/);
+ assert.equal(queued,2);
+});

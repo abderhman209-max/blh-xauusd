@@ -304,6 +304,7 @@ class Terminal extends OriginalTerminal {
         {label:'R moyen',value:r(o.avgR),color:tone(o.avgR)},{label:'Total',value:r(o.totalR),color:tone(o.totalR)},{label:'TP1 / TP2 / TP3',value:o.tpRate.map(pct).join(' · '),color:'#3fd2a4'}]:[],
       botKinds:st?[['Signaux ACHAT/VENTE',st.ready],['Scénarios à confirmer',st.conditional],['Niveaux ajustés serveur',st.adjusted]].filter(([,b])=>b.plans).map(([label,b])=>({label,plans:String(b.plans),closed:String(b.closed),winRate:pct(b.winRate),avgR:r(b.avgR),color:tone(b.avgR)})):[],
       botMarkets:(st?.markets||[]).map(m=>({market:market(m),plans:String(m.plans),triggered:String(m.triggered),closed:String(m.closed),winRate:pct(m.winRate),avgR:r(m.avgR),totalR:r(m.totalR),color:tone(m.totalR)})),
+      botRecentCount:st?.recent?.length?'· '+st.recent.length+' · afficher':'',
       botRecent:(st?.recent||[]).map(p=>({time:this.fmtT(p.generatedAt),market:market(p),direction:(p.direction==='buy'?'ACHAT':'VENTE')+(p.conditional?' · à confirmer':''),dirColor:p.direction==='buy'?'#3fd2a4':'#f2707a',
         result:p.state==='closed'?reasons[p.reason]||'Clôturé':states[p.state]||p.state,tps:p.reached.map((hit,i)=>hit?'TP'+(i+1):null).filter(Boolean).join(' ')||'—',r:r(p.resultR),color:tone(p.resultR)}))};
   }

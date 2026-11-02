@@ -922,7 +922,7 @@ export default async function handler(request) {
     // Called every 5 minutes by pg_cron in Supabase with the Vault tick secret; no browser session.
     if(route==='cron/tick'&&request.method==='POST')return await handlePush(request,url,'tick');
     if(route==='push/config'&&request.method==='GET'&&sameOrigin(request))return await handlePush(request,url,'config');
-    const pushRoute=/^push\/(subscribe|unsubscribe|test)$/.exec(route);
+    const pushRoute=/^push\/(subscribe|unsubscribe|test|watch)$/.exec(route);
     if(pushRoute&&request.method==='POST'&&sameOrigin(request))return await handlePush(request,url,pushRoute[1]);
     if (route === "settings" && (request.method === "GET" || request.method === "POST" && sameOrigin(request))) return await accountSettings(request);
     if (route === "profile/avatar") return await profileAvatar(request);

@@ -32,6 +32,10 @@ A firm decision (`buy`/`sell`) is expected when the latest closed candles alread
 
 When a saved transition concerns a plan generated in the last 24 hours, the account that generated it receives a Web Push notification: scenario activated, plan closed (TP3, stop or time limit with its R) or scenario cancelled. Only paid accounts (or the exempt super admin) are notified. `lib/web-push.js` implements VAPID (RFC 8292) and aes128gcm encryption (RFC 8291) with WebCrypto; it only posts to the browsers' push services, and subscriptions answered 404/410 are deleted. The VAPID key pair lives in Vault (`pipvoria_vapid_public`, `pipvoria_vapid_private`), read through the service-role-only `pipvoria_push_secrets()` function: no Vercel variable is needed. In the terminal, Agent IA → **Activer** asks the browser permission, subscribes, stores it with `push/subscribe` and sends a test notification. On iPhone the site must first be added to the home screen.
 
+## Automatic signals
+
+Agent IA → **Suivre** stores one watch per account (`ai_auto_watch`: market, period 5m–1h). Each tick runs at most one analysis, through the same runner as the terminal (`analysisRunner`: news window, market hours, cache, quotas). It picks the watch that waited longest, at most hourly, and skips closed markets, release windows and unpaid accounts. A new plan is pushed once to the owner: a firm signal, or a scenario with its trigger close. Later activation, closure or cancellation of that plan also reaches every account whose watch received it. Automatic analyses count in the same 20-per-account and 100-per-day limits. The tick answers with one byte at once and the JSON summary at the end, so a model call never hits the Edge first-byte limit; pg_net waits up to two minutes.
+
 ## Output checks
 
 Insufficient, malformed, interrupted recent or stale market data prevents a model call. Older session gaps are disclosed in the market packet. A plan expires at the next primary candle close, including when that close happens during inference. Expired levels are hidden in the terminal.

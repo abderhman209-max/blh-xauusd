@@ -729,7 +729,9 @@ select option{background:#11151f;color:#e9ebf2}
           <button sc-camel-on-click="{{ runAutomaticAnalysis }}" disabled="{{ analysisDisabled }}">{{ analysisButton }}</button></div>
       </div>
       <label class="pv-analysis-follow"><input type="checkbox" checked="{{ automaticFollow }}" sc-camel-on-change="{{ onAutomaticFollow }}"> Auto <span>20 nouvelles analyses/jour</span></label>
-      <sc-if value="{{ pushVisible }}"><div class="pv-analysis-push"><span>{{ pushLabel }}</span><button class="pv-push-button" sc-camel-on-click="{{ togglePush }}" disabled="{{ pushDisabled }}">{{ pushButton }}</button></div><sc-if value="{{ pushMsg }}"><p class="pv-analysis-push-msg" role="status">{{ pushMsg }}</p></sc-if></sc-if>
+      <sc-if value="{{ pushVisible }}"><div class="pv-analysis-push"><span>{{ pushLabel }}</span><button class="pv-push-button" sc-camel-on-click="{{ togglePush }}" disabled="{{ pushDisabled }}">{{ pushButton }}</button></div></sc-if>
+      <sc-if value="{{ watchVisible }}"><div class="pv-analysis-push"><span>{{ watchLabel }}</span><button class="pv-push-button" sc-camel-on-click="{{ toggleWatch }}" disabled="{{ watchDisabled }}">{{ watchButton }}</button></div></sc-if>
+      <sc-if value="{{ pushMsg }}"><p class="pv-analysis-push-msg" role="status">{{ pushMsg }}</p></sc-if>
       <div role="status" aria-live="polite" class="pv-analysis-state"><strong>{{ analysisTitle }}</strong><span class="terminal-mini">{{ analysisMarketName }} · {{ tf }}</span></div>
       <sc-if value="{{ analysisNewsLine }}"><p class="pv-analysis-news" role="status">{{ analysisNewsLine }}</p></sc-if>
       <sc-if value="{{ analysisScenarioLine }}"><p class="pv-analysis-scenario" style="color:{{ analysisTableColor }}">{{ analysisScenarioLine }}</p></sc-if>

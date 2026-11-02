@@ -341,3 +341,12 @@ test('phone notifications subscribe through the service worker, send a test and 
  denied.session.request=app.session.request;await denied.loadPush();await denied.togglePush();assert.match(denied.renderVals().pushMsg,/Autorisez/);
  const old=terminalApp();old.session.request=app.session.request;await old.loadPush();assert.match(old.renderVals().pushLabel,/non prises en charge/);
 });
+test('the automatic watch follows the selected market and period and can be stopped',async()=>{
+ const app=terminalApp();app.state.symbol='ETH';app.state.tf='15m';const bodies=[];
+ app.push={supported:true,configured:true,subscribed:true,watch:null,msg:''};
+ app.session.request=async(route,o)=>{bodies.push(o.body);return {watch:o.body.enabled===false?null:{symbol:o.body.symbol,interval:o.body.interval,last_run_at:null}};};
+ let v=app.renderVals();assert.equal(v.watchVisible,true);assert.equal(v.watchButton,'Suivre');assert.match(v.watchLabel,/ETH\/USD · 15m/);
+ await v.toggleWatch();v=app.renderVals();assert.equal(JSON.stringify(bodies[0]),'{"symbol":"ETH","interval":"15min"}');assert.equal(v.watchButton,'Arrêter');assert.match(v.watchLabel,/Suivi automatique : ETH\/USD · 15m/);
+ await v.toggleWatch();assert.equal(JSON.stringify(bodies[1]),'{"enabled":false}');assert.equal(app.renderVals().watchButton,'Suivre');
+ app.state.tf='1m';await app.renderVals().toggleWatch();assert.equal(bodies.length,2);assert.match(app.push.msg,/5 min/);
+});

@@ -52,3 +52,14 @@ test('push subscriptions and Vault secrets stay server-only',async()=>{
     await assert.rejects(()=>db.query('select * from public.push_subscriptions'));await assert.rejects(()=>db.query('select public.pipvoria_push_secrets()'));}
  }finally{await db.close();}
 });
+test('automatic watches accept only supported markets and periods and stay server-only',async()=>{
+ const db=new PGlite();try{
+  await db.exec('create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create table auth.users(id uuid primary key);');
+  await db.exec(fs.readFileSync(new URL('../supabase/migrations/20261102010000_pipvoria_ai_auto_watch.sql',import.meta.url),'utf8'));
+  const user='11111111-1111-4111-8111-111111111111';await db.query('insert into auth.users values ($1)',[user]);await db.exec('set role service_role');
+  await db.query("insert into public.ai_auto_watch(user_id,symbol,interval) values ($1,'XAU','15min')",[user]);
+  await assert.rejects(()=>db.query("update public.ai_auto_watch set interval='1min'"));
+  await assert.rejects(()=>db.query("update public.ai_auto_watch set symbol='DOGE'"));
+  for(const role of ['anon','authenticated']){await db.exec('reset role;set role '+role);await assert.rejects(()=>db.query('select * from public.ai_auto_watch'));}
+ }finally{await db.close();}
+});

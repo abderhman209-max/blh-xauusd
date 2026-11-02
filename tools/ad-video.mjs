@@ -82,7 +82,7 @@ canvas{position:absolute;left:0;top:0}
 
 <!-- Scène 1 · graphique or -->
 <div class="layer" id="s1">
-  <div class="kicker" style="top:250px" data-k>XAU/USD · LIVE MARKET</div>
+  <div class="kicker" style="top:250px" data-k>XAU/USD · GOLD</div>
   <div class="headline" style="top:1000px;font-size:124px" data-words>${words(SCENES[0].text, 'gold')}</div>
 </div>
 

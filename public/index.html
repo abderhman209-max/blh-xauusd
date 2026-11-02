@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr"><head>
-<title>Pipvoria · Agent IA et terminal de trading</title><meta name="description" content="Découvrez Pipvoria : structure de marché, plans de trade avec entrée, stop loss et TP1 à TP3, graphiques et journal personnel."><meta name="theme-color" content="#0a0d16"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/pipvoria-icon.svg"><link rel="stylesheet" href="/terminal.css">
+<title>Pipvoria · Agent IA et terminal de trading</title><meta name="description" content="Découvrez Pipvoria : structure de marché, plans de trade avec entrée, stop loss et TP1 à TP3, graphiques et journal personnel."><meta name="theme-color" content="#0a0d16"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/pipvoria-icon.svg"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Pipvoria"><link rel="stylesheet" href="/terminal.css">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
@@ -404,6 +404,7 @@ select option{background:#11151f;color:#e9ebf2}
 
 <!-- APP -->
 <sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{ installHelp }}"><div role="dialog" aria-label="Installer l’application" class="terminal-card pv-install-help"><p>{{ installHelp }}</p><button class="terminal-quiet" sc-camel-on-click="{{ closeInstallHelp }}" aria-label="Fermer">×</button></div></sc-if>
 <sc-if value="{{ notice }}"><div role="status" class="terminal-card" style="margin:12px 24px;padding:14px;flex-direction:row;align-items:center"><p class="terminal-notice" style="flex:1">{{ notice }}</p><button class="terminal-quiet" sc-camel-on-click="{{ clearNotice }}" aria-label="Fermer la notification">×</button></div></sc-if>
 
 <div data-screen-label="Terminal" style="min-height:100vh;display:flex;flex-direction:column;padding-bottom:84px">
@@ -414,6 +415,7 @@ select option{background:#11151f;color:#e9ebf2}
       <div class="terminal-account-badge" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#3fd2a4;border:1px solid #1f4a3f;border-radius:999px;padding:3px 9px;margin-left:6px">{{ accountBadge }}</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;position:relative">
+      <sc-if value="{{ installVisible }}"><button class="pv-install-button" sc-camel-on-click="{{ installApp }}">{{ installLabel }}</button></sc-if>
       <button sc-camel-on-click="{{ toggleNotif }}" style="position:relative;background:#11151f;border:1px solid #1f2536;color:#e9ebf2;border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer">Alertes<sc-if value="{{ hasSignals }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-radius:50%;background:#9d8cff"></span></sc-if></button>
       <button class="terminal-profile-button" aria-label="Profil" data-no-i18n="true" sc-camel-on-click="{{ goProfile }}" style="display:flex;align-items:center;gap:8px;background:#11151f;border:1px solid #1f2536;color:#e9ebf2;border-radius:10px;padding:5px 12px 5px 5px;font-size:13px;cursor:pointer">
         <div style="width:26px;height:26px;border-radius:8px;background:#2a2450;color:#c9bfff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">{{ initials }}</div><span class="terminal-name">{{ firstName }}</span>

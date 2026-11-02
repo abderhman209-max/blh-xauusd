@@ -350,3 +350,10 @@ test('the automatic watch follows the selected market and period and can be stop
  await v.toggleWatch();assert.equal(JSON.stringify(bodies[1]),'{"enabled":false}');assert.equal(app.renderVals().watchButton,'Suivre');
  app.state.tf='1m';await app.renderVals().toggleWatch();assert.equal(bodies.length,2);assert.match(app.push.msg,/5 min/);
 });
+test('the install button uses the browser prompt, explains iPhone installation and hides once installed',async()=>{
+ let prompted=0;const app=terminalApp();app.installPrompt={prompt:()=>prompted++,userChoice:Promise.resolve({outcome:'accepted'})};
+ let v=app.renderVals();assert.equal(v.installVisible,true);await v.installApp();assert.equal(prompted,1);assert.equal(app.renderVals().installVisible,false);
+ const iphone=terminalApp(undefined,{navigator:{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'}});
+ v=iphone.renderVals();assert.equal(v.installVisible,true);await v.installApp();assert.match(iphone.renderVals().installHelp,/Sur l’écran d’accueil/);
+ const installed=terminalApp(undefined,{matchMedia:()=>({matches:true})});installed.installPrompt={};assert.equal(installed.renderVals().installVisible,false);
+});

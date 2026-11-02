@@ -17,6 +17,7 @@ import {captureLanding} from './promo-video.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 export const DURATION = 20;
+const DEFAULT_POSTER = path.join(path.dirname(fileURLToPath(import.meta.url)), 'assets', 'pipvoria-poster.png');
 export const SCENES = [
   {from: 0, to: 4, text: 'THE GOLD MARKET NEVER STOPS.', voice: 'The gold market moves fast. Are you ready?'},
   {from: 4, to: 8, text: 'DISCOVER PIPVORIA.', voice: 'Discover Pipvoria.'},
@@ -42,7 +43,7 @@ export function makeCandles(n = 260, seed = 7) {
   return out;
 }
 
-export function adHtml({desktop = '', mobile = '', url = 'PIPVORIA.COM'} = {}) {
+export function adHtml({desktop = '', mobile = '', url = 'PIPVORIA.COM', poster = ''} = {}) {
   const icon = fs.readFileSync(path.join(ROOT, 'pipvoria-icon.svg'), 'utf8');
   const logo = 'data:image/svg+xml;base64,' + Buffer.from(icon).toString('base64');
   const esc = v => String(v).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -76,6 +77,11 @@ canvas{position:absolute;left:0;top:0}
 .brand{position:absolute;left:0;right:0;text-align:center;font-weight:900;letter-spacing:.32em;z-index:10}
 .cta{position:absolute;left:50%;transform:translateX(-50%);padding:30px 64px;border-radius:999px;background:linear-gradient(100deg,#8c6cff,#b49bff 50%,#e6b94a);color:#0a0812;font:900 50px/1 Inter,sans-serif;letter-spacing:.06em;white-space:nowrap;box-shadow:0 0 90px #9d8cff99,0 0 160px #e6b94a55;z-index:10}
 .tf{position:absolute;font:800 26px/1 'JetBrains Mono',monospace;color:#cbbcff;letter-spacing:.1em}
+/* Affiche de la marque en scène finale : fond flou + affiche nette au format 4:5 */
+.pbg{position:absolute;inset:-80px;background-size:cover;background-position:center;filter:blur(46px) brightness(.4) saturate(1.3)}
+.poster{position:absolute;left:0;top:140px;width:1080px;height:1350px;object-fit:cover;box-shadow:0 0 120px #8c6cff66}
+.sweep{position:absolute;left:0;top:140px;width:1080px;height:1350px;background:linear-gradient(105deg,transparent 35%,#ffffff2e 50%,transparent 65%);background-size:300% 100%;mix-blend-mode:screen}
+#s5.has-poster .logo-big,#s5.has-poster .brand,#s5.has-poster .headline,#s5.has-poster .cta{display:none}
 .progress{position:absolute;left:0;top:0;height:6px;background:linear-gradient(90deg,#9d8cff,#e6b94a);z-index:30}
 </style></head><body>
 <canvas id="cv" width="1080" height="1920"></canvas>
@@ -114,7 +120,8 @@ canvas{position:absolute;left:0;top:0}
 </div>
 
 <!-- Scène 5 · logo + appel à l'action -->
-<div class="layer" id="s5">
+<div class="layer${poster ? ' has-poster' : ''}" id="s5">
+  ${poster ? `<div class="pbg" style="background-image:url(${poster})"></div><img class="poster" id="s5poster" src="${poster}" alt=""><div class="sweep" id="s5sweep"></div>` : ''}
   <img class="logo-big" id="s5logo" src="${logo}" alt="">
   <div class="brand gold" id="s5brand" style="top:990px;font-size:96px">PIPVORIA</div>
   <div class="headline neon" id="s5start" style="top:1140px;left:60px;right:60px;text-align:center;font-size:70px" data-words>${words(SCENES[4].text)}</div>
@@ -276,6 +283,11 @@ window.render=t=>{
   $('s4phone').style.transform='rotateY('+(-20+8*p4)+'deg) translateX('+(300-300*ease((t-14.2)/.6))+'px) translateY('+Math.cos(t*2)*10+'px)';
   $('s4phone').style.opacity=ease((t-14.2)/.4);
   $('s4words').querySelectorAll('.w').forEach((w,i)=>{const p=(t-14.6-i*.55)/.3;w.style.opacity=ease(p);w.style.transform='scale('+(1.6-.6*back(p))+')';w.style.filter='blur('+(1-ease(p))*14+'px)';});
+  // Scène 5 : affiche (si fournie) qui arrive floue et zoomée, puis léger push-in et reflet.
+  const po=$('s5poster');
+  if(po){const pp=(t-17)/.7;po.style.opacity=ease(pp);po.style.filter='blur('+(1-ease(pp))*24+'px)';
+    po.style.transform='scale('+(1.25-.25*ease(pp)+.035*cl((t-17.7)/2.3))+')';
+    $('s5sweep').style.backgroundPosition=(120-140*cl((t-17.6)/1.2))+'% 0';}
   // Scène 5
   const p5=(t-17)/.7;$('s5logo').style.transform='scale('+(.2+.8*back(p5))+') rotate('+(1-ease(p5))*180+'deg)';$('s5logo').style.opacity=ease(p5);
   $('s5brand').style.opacity=ease((t-17.4)/.4);$('s5brand').style.letterSpacing=(.7-.36*ease((t-17.4)/.9))+'em';
@@ -301,11 +313,17 @@ function run(cmd, args) {
 async function main() {
   const {values} = parseArgs({options: {
     out: {type: 'string', default: 'pipvoria-ad.mp4'}, music: {type: 'string'}, voice: {type: 'string'},
-    url: {type: 'string', default: 'PIPVORIA.COM'}, fps: {type: 'string', default: '30'}, html: {type: 'boolean', default: false}
+    url: {type: 'string', default: 'PIPVORIA.COM'}, poster: {type: 'string', default: DEFAULT_POSTER}, fps: {type: 'string', default: '30'}, html: {type: 'boolean', default: false}
   }});
   const desk = await captureLanding('en', {width: 1280, height: 860, scale: 1.5, fullPage: false});
   const mob = await captureLanding('en', {width: 390, height: 800, scale: 2, fullPage: false});
-  const html = adHtml({desktop: desk.shot, mobile: mob.shot, url: values.url});
+  // Affiche de la marque (scène 5) ; --poster none garde l'animation du logo.
+  let poster = '';
+  if (values.poster && values.poster !== 'none') {
+    const file = path.resolve(values.poster), ext = path.extname(file).slice(1).toLowerCase().replace('jpg', 'jpeg');
+    poster = `data:image/${ext};base64,` + fs.readFileSync(file).toString('base64');
+  }
+  const html = adHtml({desktop: desk.shot, mobile: mob.shot, url: values.url, poster});
   if (values.html) return process.stdout.write(html);
   const fps = Math.min(Math.max(Number(values.fps) || 30, 24), 60);
   const out = path.resolve(values.out);

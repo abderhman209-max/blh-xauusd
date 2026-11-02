@@ -64,7 +64,7 @@ La migration Supabase `20260927175500_enhance_personal_trading_workspace.sql` aj
 
 ## Publicité TikTok premium (20 s, anglais)
 
-`tools/ad-video.mjs` crée une publicité 1080×1920 de 20 s en cinq scènes : graphique or cinématique (« THE GOLD MARKET NEVER STOPS. »), marque et vrai site (« DISCOVER PIPVORIA. »), analyse price action / liquidité / structure / multi-unités de temps (« SMARTER MARKET ANALYSIS. »), site sur desktop et mobile (« ANALYZE, PLAN, TRADE. ») puis logo et « VISIT PIPVORIA.COM ». Les bougies sont générées : aucun prix ni résultat n’est affiché. `tools/ad-music.mjs` synthétise la musique électronique originale calée sur ces scènes. Une voix off (fichier audio) peut être ajoutée : la musique est alors baissée sous la voix et le tout normalisé à −14 LUFS.
+`tools/ad-video.mjs` crée une publicité 1080×1920 de 20 s en cinq scènes : graphique or cinématique (« THE GOLD MARKET NEVER STOPS. »), marque et vrai site (« DISCOVER PIPVORIA. »), analyse price action / liquidité / structure / multi-unités de temps (« SMARTER MARKET ANALYSIS. »), site sur desktop et mobile (« ANALYZE, PLAN, TRADE. ») puis logo et « VISIT PIPVORIA.COM ». Les bougies sont générées : aucun prix ni résultat n’est affiché. La scène finale montre l’affiche de la marque `tools/assets/pipvoria-poster.png` (autre image avec `--poster fichier.png`, animation du logo avec `--poster none`). `tools/ad-music.mjs` synthétise la musique électronique originale calée sur ces scènes. Une voix off (fichier audio) peut être ajoutée : la musique est alors baissée sous la voix et le tout normalisé à −14 LUFS.
 
 ```bash
 node tools/ad-music.mjs --out musique.wav

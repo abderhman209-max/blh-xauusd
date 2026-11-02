@@ -133,11 +133,34 @@ window.render(0);
 </script></body></html>`;
 }
 
-async function loadPlaywright() {
+export async function loadPlaywright() {
   try { return await import('playwright'); } catch {
     // Playwright installé globalement : l'import ESM ne consulte pas NODE_PATH, require le fait.
     const {createRequire} = await import('node:module');
     return createRequire(import.meta.url)('playwright');
+  }
+}
+
+// Rend une page qui expose window.render(t) en MP4 vertical 1080×1920 image par image (rendu déterministe).
+export async function renderVideo(html, {fps, frames, out}) {
+  const {chromium} = await loadPlaywright();
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({viewport: {width: 1080, height: 1920}});
+    await page.setContent(html, {waitUntil: 'load'});
+    await page.evaluate(() => document.fonts.ready);
+    const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
+      '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'medium', '-crf', '20', '-movflags', '+faststart', out], {stdio: ['pipe', 'inherit', 'inherit']});
+    const done = new Promise((ok, ko) => ff.on('close', c => c ? ko(Error('ffmpeg a échoué (' + c + ')')) : ok()));
+    for (let i = 0; i < frames; i++) {
+      await page.evaluate(t => window.render(t), i / fps);
+      const jpg = await page.screenshot({type: 'jpeg', quality: 92});
+      if (!ff.stdin.write(jpg)) await new Promise(r => ff.stdin.once('drain', r));
+    }
+    ff.stdin.end();
+    await done;
+  } finally {
+    await browser.close();
   }
 }
 
@@ -155,24 +178,7 @@ async function main() {
   const fps = Math.min(Math.max(Number(values.fps) || 30, 10), 60);
   const frames = Math.round(Math.min(Math.max(Number(values.duration) || 12, 4), 60) * fps);
   const out = path.resolve(values.out);
-  const {chromium} = await loadPlaywright();
-  const browser = await chromium.launch();
-  try {
-    const page = await browser.newPage({viewport: {width: 1080, height: 1920}});
-    await page.setContent(html, {waitUntil: 'load'});
-    const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
-      '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'medium', '-crf', '20', '-movflags', '+faststart', out], {stdio: ['pipe', 'inherit', 'inherit']});
-    const done = new Promise((ok, ko) => ff.on('close', c => c ? ko(Error('ffmpeg a échoué (' + c + ')')) : ok()));
-    for (let i = 0; i < frames; i++) {
-      await page.evaluate(t => window.render(t), i / fps);
-      const jpg = await page.screenshot({type: 'jpeg', quality: 92});
-      if (!ff.stdin.write(jpg)) await new Promise(r => ff.stdin.once('drain', r));
-    }
-    ff.stdin.end();
-    await done;
-  } finally {
-    await browser.close();
-  }
+  await renderVideo(html, {fps, frames, out});
   console.log('Vidéo créée : ' + out);
 }
 

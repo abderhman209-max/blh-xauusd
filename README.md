@@ -62,6 +62,16 @@ Les données de marché sont refusées sans session valide. Les tables applicati
 
 La migration Supabase `20260927175500_enhance_personal_trading_workspace.sql` ajoute la synchronisation du journal et des notifications. Elle est déjà appliquée au projet BLH Markets.
 
+## Vidéo de présentation du site pour TikTok
+
+`tools/promo-video.mjs` crée une vidéo verticale 1080×1920 de 24 s qui présente Pipvoria : accroche, capture réelle de la page d’accueil défilant dans un téléphone, les trois fonctionnalités, le plan de trade (BUY/SELL, entrée, stop loss, TP1–TP3) puis le tarif de 49 USD / 30 jours avec l’adresse du site. Les textes reprennent ceux de la page d’accueil, sans chiffre de performance inventé.
+
+```bash
+node tools/promo-video.mjs --lang fr --handle @pipvoria --out pipvoria-promo.mp4
+```
+
+Options : `--lang fr|en|ar`, `--url pipvoria.com`, `--fps`, `--html`.
+
 ## Vidéo de signal pour TikTok
 
 `tools/signal-video.mjs` crée une vidéo verticale 1080×1920 (12 s, 30 i/s, MP4 H.264) prête à publier sur TikTok, Reels ou Shorts : sens, entrée, Stop Loss, TP1–TP3 avec R:R, échelle de prix animée et mention « Pas un conseil financier ». Les niveaux sont vérifiés (SL du bon côté, TP dans l’ordre). Le contenu reste hors des zones couvertes par l’interface TikTok. Nécessite Playwright (Chromium) et ffmpeg.

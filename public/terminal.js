@@ -35,6 +35,9 @@ class Terminal extends OriginalTerminal {
     this.adminT=setInterval(()=>{if(this.session.user?.isAdmin&&this.state.appTab==='admin'&&!document.hidden&&!this.adminBusy)this.loadAdmin();},15000);
     this.publicRoute();this.restore();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    // Android/desktop Chrome offer installation through this event; iPhone needs the Share menu instead.
+    window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();this.installPrompt=event;this.forceUpdate();});
+    window.addEventListener('appinstalled',()=>{this.installPrompt=null;this.installHelp='';this.forceUpdate();});
   }
   componentWillUnmount(){this.stopLiveMarket();clearInterval(this.automaticT);this.cancelAutomaticAnalysis();window.PipvoriaPayments?.close();for(const t of [this.ageT,this.poll,this.sessionT,this.priceT,this.supportT,this.adminT,this.wlT,this.rpT,this.settingsT])clearInterval(t);
     window.removeEventListener('keydown',this.onKey);window.removeEventListener('hashchange',this.onHash);window.removeEventListener('pointerup',this.onUp);
@@ -320,6 +323,12 @@ class Terminal extends OriginalTerminal {
       p.msg=p.watch?'Suivi automatique activé : analyse toutes les heures quand le marché est ouvert'+(p.subscribed?'.':' · activez aussi les notifications pour recevoir les signaux.'):'Suivi automatique arrêté.';}
     catch{p.msg='Suivi automatique indisponible pour le moment. Réessayez.';}
     finally{p.watchBusy=false;this.forceUpdate();}}
+  installed(){try{return !!window.matchMedia?.('(display-mode: standalone)').matches||window.navigator?.standalone===true;}catch{return false;}}
+  isIos(){const n=window.navigator;return !!n&&(/iPhone|iPad|iPod/.test(n.userAgent||'')||n.platform==='MacIntel'&&n.maxTouchPoints>1);}
+  async installApp(){
+    if(this.installPrompt){const prompt=this.installPrompt;this.installPrompt=null;prompt.prompt();try{await prompt.userChoice;}catch{}this.forceUpdate();return;}
+    this.installHelp=this.isIos()?'Sur iPhone : touchez le bouton Partager de Safari, puis « Sur l’écran d’accueil ». Ouvrez ensuite Pipvoria depuis l’icône pour recevoir les notifications.':'Dans le menu du navigateur, choisissez « Installer l’application » ou « Ajouter à l’écran d’accueil ».';this.forceUpdate();
+  }
   // The performance panel starts closed; each viewer's choice is kept in this browser and stats load only when shown.
   botStatsVisible(){if(this.botStatsOpen===undefined){try{this.botStatsOpen=window.localStorage?.getItem('pipvoria-bot-stats-open')==='1';}catch{this.botStatsOpen=false;}}return this.botStatsOpen;}
   toggleBotStats(){this.botStatsOpen=!this.botStatsVisible();try{window.localStorage?.setItem('pipvoria-bot-stats-open',this.botStatsOpen?'1':'0');}catch{}
@@ -479,6 +488,7 @@ class Terminal extends OriginalTerminal {
       analysisMessage:this.automaticBusy?this.automaticStage:disabledMode?'Quittez la démonstration ou le replay pour analyser les dernières données disponibles.':unsupported?'Cette analyse est disponible pour XAU/USD, EUR/USD, BTC/USD, ETH/USD et SOL/USD.':expired?'Une nouvelle bougie doit être analysée. Relancez le calcul avant d’utiliser un plan.':analysis?.message||'Une IA interprète les bougies et recoupe les périodes. Elle peut conclure qu’aucun trade n’est justifié.',
       analysisPlanHeading:cancelled?'Scénario annulé · stop touché avant le déclencheur':activated?'Scénario activé · clôture au-delà du déclencheur':conditional?'Scénario conditionnel · attendre le déclencheur':ready?'Plan proposé par l’IA':'Aucun scénario chiffré validé',
       analysisPlanNotice:cancelled?'Le prix a touché le stop avant la clôture de déclenchement : n’utilisez pas ce plan. Relancez une analyse.':activated?'La clôture de déclenchement est arrivée le '+this.fmtT(scenario.time)+'. Entrée, stop et TP ci-dessous.':conditional?'Déclencheur : une clôture '+(side?'au-dessus de ':'au-dessous de ')+f(analysis.plan.triggerLevel??analysis.plan.entry)+'. L’entrée reste à confirmer.':ready?'Niveaux calculés sur les bougies clôturées. Vérifiez les conditions d’entrée et de sortie.':'L’IA n’a pas retenu de niveaux cohérents. Une nouvelle analyse est nécessaire avant de définir un plan.',
+      installVisible:!this.installed()&&(!!this.installPrompt||this.isIos()),installLabel:'Installer l’app',installApp:()=>this.installApp(),installHelp:this.installHelp||'',closeInstallHelp:()=>{this.installHelp='';this.forceUpdate();},
       pushVisible:!!this.push&&this.hasPaidAccess(),pushLabel:!this.push?.supported?'Notifications téléphone : non prises en charge par ce navigateur.':!this.push.configured?'Notifications téléphone : bientôt disponibles.':this.push.subscribed?'Notifications téléphone activées : activation, clôture et annulation des plans IA.':'Recevez sur ce téléphone l’activation et la clôture des plans IA, même site fermé.',
       pushButton:this.push?.busy?'…':this.push?.subscribed?'Désactiver':'Activer',watchVisible:!!this.push?.configured&&this.hasPaidAccess()&&this.AI_SYMBOLS.includes(s.symbol),
       watchLabel:this.push?.watch?'Suivi automatique : '+(this.SYM[this.push.watch.symbol]?.label||this.push.watch.symbol)+' · '+({'5min':'5m','15min':'15m','30min':'30m','1h':'1h'}[this.push.watch.interval]||'')+' · analysé toutes les heures, même site fermé'+(this.push.watch.last_run_at?' · dernière analyse '+this.fmtT(Date.parse(this.push.watch.last_run_at)):''):'Suivre '+this.SYM[s.symbol].label+' · '+s.tf+' automatiquement : le serveur analyse toutes les heures et vous notifie chaque nouveau signal.',

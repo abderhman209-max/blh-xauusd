@@ -61,3 +61,13 @@ Les données de marché sont refusées sans session valide. Les tables applicati
 ## Base de données
 
 La migration Supabase `20260927175500_enhance_personal_trading_workspace.sql` ajoute la synchronisation du journal et des notifications. Elle est déjà appliquée au projet BLH Markets.
+
+## Vidéo de signal pour TikTok
+
+`tools/signal-video.mjs` crée une vidéo verticale 1080×1920 (12 s, 30 i/s, MP4 H.264) prête à publier sur TikTok, Reels ou Shorts : sens, entrée, Stop Loss, TP1–TP3 avec R:R, échelle de prix animée et mention « Pas un conseil financier ». Les niveaux sont vérifiés (SL du bon côté, TP dans l’ordre). Le contenu reste hors des zones couvertes par l’interface TikTok. Nécessite Playwright (Chromium) et ffmpeg.
+
+```bash
+node tools/signal-video.mjs --side buy --entry 2650.50 --sl 2644 --tp1 2656 --tp2 2662 --tp3 2670 --timeframe "M5 · BLH" --handle @pipvoria --out signal.mp4
+```
+
+Options : `--lang fr|en|ar`, `--symbol`, `--note "texte"`, `--duration`, `--fps`, `--html` (affiche la page sans rendu vidéo).

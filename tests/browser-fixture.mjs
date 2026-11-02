@@ -28,7 +28,8 @@ if(url.pathname==='/api'){const route=url.searchParams.get('route');let data={};
   const events=[{type:'stage',stage:'market',label:'Récupération des bougies synthétiques'},{type:'stage',stage:'model',label:'Réponse IA simulée pour le test'},aiMode==='error'?{type:'error',error:'analysis_unavailable'}:{type:'result',result}];
   res.writeHead(200,{'content-type':'application/x-ndjson','cache-control':'no-store'});res.end(events.map(e=>JSON.stringify(e)).join('\n')+'\n');return;
  }
- if(route==='push/config')return json({configured:true,publicKey:'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'});
+ if(route==='push/config')return json({configured:true,publicKey:'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U',watch:null});
+ if(route==='push/watch')return json({watch:data.enabled===false?null:{symbol:data.symbol,interval:data.interval,last_run_at:null}});
  if(route==='analysis/stats'){
   // Synthetic track record: fixed plans replayed on synthetic candles, rendering only.
   const ms=300000,asOf=Math.floor(Date.now()/ms)*ms-40*ms,mk=(symbol,interval,direction,path,extra={})=>{const d=direction==='buy'?1:-1,result={symbol,interval,asOf,generatedAt:asOf,plan:{direction,entry:100,stop:100-d*10,targets:[1,2,3].map(r=>100+d*r*10),...extra}};

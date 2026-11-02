@@ -299,7 +299,7 @@ class Terminal extends OriginalTerminal {
   async loadPush(){if(!this.hasPaidAccess())return;const epoch=this.session.epoch;
     if(!this.pushSupported()){this.push={supported:false};this.forceUpdate();return;}
     try{const config=await this.session.request('push/config');const sub=config.configured?await(await this.pushRegistration()).pushManager.getSubscription():null;
-      if(epoch===this.session.epoch)this.push={supported:true,configured:!!config.configured,publicKey:config.publicKey,subscribed:!!sub&&window.Notification.permission==='granted',msg:''};}
+      if(epoch===this.session.epoch)this.push={supported:true,configured:!!config.configured,publicKey:config.publicKey,subscribed:!!sub&&window.Notification.permission==='granted',msg:'',watch:config.watch||null};}
     catch{if(epoch===this.session.epoch)this.push={supported:true,configured:false,msg:''};}
     this.forceUpdate();}
   async togglePush(){const p=this.push;if(!p?.configured||p.busy)return;p.busy=true;p.msg='';this.forceUpdate();
@@ -312,6 +312,14 @@ class Terminal extends OriginalTerminal {
         const test=await this.session.request('push/test',{body:{}});p.msg=test.sent?'Notifications actives : une notification de test vient d’être envoyée.':'Abonnement enregistré, mais le test n’a pas pu être envoyé.';}
     }catch{p.msg='Activation impossible sur ce navigateur. Sur iPhone, ajoutez d’abord le site à l’écran d’accueil.';}
     finally{p.busy=false;this.forceUpdate();}}
+  // Automatic watch: the server analyses one market at most hourly and notifies new plans, site closed or not.
+  async toggleWatch(){const p=this.push,s=this.state;if(!p?.configured||p.watchBusy)return;const interval=this.interval(s.tf);
+    if(!p.watch&&interval==='1min'){p.msg='Le suivi automatique fonctionne en 5 min, 15 min, 30 min ou 1 heure.';this.forceUpdate();return;}
+    p.watchBusy=true;p.msg='';this.forceUpdate();
+    try{const data=await this.session.request('push/watch',{body:p.watch?{enabled:false}:{symbol:s.symbol,interval}});p.watch=data.watch;
+      p.msg=p.watch?'Suivi automatique activé : analyse toutes les heures quand le marché est ouvert'+(p.subscribed?'.':' · activez aussi les notifications pour recevoir les signaux.'):'Suivi automatique arrêté.';}
+    catch{p.msg='Suivi automatique indisponible pour le moment. Réessayez.';}
+    finally{p.watchBusy=false;this.forceUpdate();}}
   // The performance panel starts closed; each viewer's choice is kept in this browser and stats load only when shown.
   botStatsVisible(){if(this.botStatsOpen===undefined){try{this.botStatsOpen=window.localStorage?.getItem('pipvoria-bot-stats-open')==='1';}catch{this.botStatsOpen=false;}}return this.botStatsOpen;}
   toggleBotStats(){this.botStatsOpen=!this.botStatsVisible();try{window.localStorage?.setItem('pipvoria-bot-stats-open',this.botStatsOpen?'1':'0');}catch{}
@@ -472,7 +480,9 @@ class Terminal extends OriginalTerminal {
       analysisPlanHeading:cancelled?'Scénario annulé · stop touché avant le déclencheur':activated?'Scénario activé · clôture au-delà du déclencheur':conditional?'Scénario conditionnel · attendre le déclencheur':ready?'Plan proposé par l’IA':'Aucun scénario chiffré validé',
       analysisPlanNotice:cancelled?'Le prix a touché le stop avant la clôture de déclenchement : n’utilisez pas ce plan. Relancez une analyse.':activated?'La clôture de déclenchement est arrivée le '+this.fmtT(scenario.time)+'. Entrée, stop et TP ci-dessous.':conditional?'Déclencheur : une clôture '+(side?'au-dessus de ':'au-dessous de ')+f(analysis.plan.triggerLevel??analysis.plan.entry)+'. L’entrée reste à confirmer.':ready?'Niveaux calculés sur les bougies clôturées. Vérifiez les conditions d’entrée et de sortie.':'L’IA n’a pas retenu de niveaux cohérents. Une nouvelle analyse est nécessaire avant de définir un plan.',
       pushVisible:!!this.push&&this.hasPaidAccess(),pushLabel:!this.push?.supported?'Notifications téléphone : non prises en charge par ce navigateur.':!this.push.configured?'Notifications téléphone : bientôt disponibles.':this.push.subscribed?'Notifications téléphone activées : activation, clôture et annulation des plans IA.':'Recevez sur ce téléphone l’activation et la clôture des plans IA, même site fermé.',
-      pushButton:this.push?.busy?'…':this.push?.subscribed?'Désactiver':'Activer',pushDisabled:!this.push?.configured||!!this.push?.busy,togglePush:()=>this.togglePush(),pushMsg:this.push?.msg||'',
+      pushButton:this.push?.busy?'…':this.push?.subscribed?'Désactiver':'Activer',watchVisible:!!this.push?.configured&&this.hasPaidAccess()&&this.AI_SYMBOLS.includes(s.symbol),
+      watchLabel:this.push?.watch?'Suivi automatique : '+(this.SYM[this.push.watch.symbol]?.label||this.push.watch.symbol)+' · '+({'5min':'5m','15min':'15m','30min':'30m','1h':'1h'}[this.push.watch.interval]||'')+' · analysé toutes les heures, même site fermé'+(this.push.watch.last_run_at?' · dernière analyse '+this.fmtT(Date.parse(this.push.watch.last_run_at)):''):'Suivre '+this.SYM[s.symbol].label+' · '+s.tf+' automatiquement : le serveur analyse toutes les heures et vous notifie chaque nouveau signal.',
+      watchButton:this.push?.watchBusy?'…':this.push?.watch?'Arrêter':'Suivre',toggleWatch:()=>this.toggleWatch(),watchDisabled:!!this.push?.watchBusy,pushDisabled:!this.push?.configured||!!this.push?.busy,togglePush:()=>this.togglePush(),pushMsg:this.push?.msg||'',
       analysisNewsLine:usable&&analysis.news&&Date.parse(analysis.news.at)>Date.now()-1800000?'⚠ '+analysis.news.name+' à '+this.fmtT(Date.parse(analysis.news.at))+' : forte volatilité attendue, réduisez le risque ou attendez.':'',
       analysisScenarioLine:conditional?(cancelled?'Annulé : le stop a été touché avant la clôture de déclenchement.':activated?'Activé le '+this.fmtT(scenario.time)+' : clôture au-delà de '+f(analysis.plan.triggerLevel)+'.':'Déclencheur : une clôture '+s.tf+' '+(side?'au-dessus de ':'au-dessous de ')+f(analysis.plan.triggerLevel??analysis.plan.entry)+' · alerte à l’activation.'):'',
       analysisEntry:displayPlan?f(analysis.plan.entry):'—',analysisStop:displayPlan?f(analysis.plan.stop):'—',analysisTp1:targets[0]?f(targets[0]):'—',analysisTp2:targets[1]?f(targets[1]):'—',analysisTp3:targets[2]?f(targets[2]):'—',analysisRr:displayPlan?String(analysis.plan.rewardRisk)+' R':'—',

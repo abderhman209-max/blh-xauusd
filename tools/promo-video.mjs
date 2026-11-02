@@ -171,8 +171,8 @@ window.render(0);
 </script></body></html>`;
 }
 
-// Sert public/ localement et capture la page d'accueil en vue mobile.
-export async function captureLanding(lang) {
+// Sert public/ localement et capture la page d'accueil (vue mobile par défaut).
+export async function captureLanding(lang, {width = 430, height: viewHeight = 932, scale = 2, fullPage = true} = {}) {
   const types = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.json': 'application/json', '.webmanifest': 'application/manifest+json'};
   const server = http.createServer((req, res) => {
     const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -185,7 +185,7 @@ export async function captureLanding(lang) {
   const {chromium} = await loadPlaywright();
   const browser = await chromium.launch();
   try {
-    const page = await browser.newPage({viewport: {width: 430, height: 932}, deviceScaleFactor: 2});
+    const page = await browser.newPage({viewport: {width, height: viewHeight}, deviceScaleFactor: scale});
     // Pas d'appel réseau vers l'API pendant la capture : la page d'accueil est statique.
     await page.route(/\/api\//, r => r.fulfill({status: 503, body: '{}', contentType: 'application/json'}));
     await page.goto(`http://127.0.0.1:${server.address().port}/`, {waitUntil: 'networkidle'});
@@ -194,7 +194,7 @@ export async function captureLanding(lang) {
     await page.waitForTimeout(800);
     // Masque le bandeau d'erreur de session : il n'a pas de sens hors ligne.
     await page.addStyleTag({content: '.terminal-notice{display:none!important}'});
-    const buffer = await page.screenshot({type: 'jpeg', quality: 88, fullPage: true});
+    const buffer = await page.screenshot({type: 'jpeg', quality: 88, fullPage});
     const height = await page.evaluate(() => document.documentElement.scrollHeight);
     return {shot: 'data:image/jpeg;base64,' + buffer.toString('base64'), height};
   } finally {

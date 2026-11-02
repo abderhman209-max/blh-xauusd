@@ -62,6 +62,17 @@ Les données de marché sont refusées sans session valide. Les tables applicati
 
 La migration Supabase `20260927175500_enhance_personal_trading_workspace.sql` ajoute la synchronisation du journal et des notifications. Elle est déjà appliquée au projet BLH Markets.
 
+## Publicité TikTok premium (20 s, anglais)
+
+`tools/ad-video.mjs` crée une publicité 1080×1920 de 20 s en cinq scènes : graphique or cinématique (« THE GOLD MARKET NEVER STOPS. »), marque et vrai site (« DISCOVER PIPVORIA. »), analyse price action / liquidité / structure / multi-unités de temps (« SMARTER MARKET ANALYSIS. »), site sur desktop et mobile (« ANALYZE, PLAN, TRADE. ») puis logo et « VISIT PIPVORIA.COM ». Les bougies sont générées : aucun prix ni résultat n’est affiché. `tools/ad-music.mjs` synthétise la musique électronique originale calée sur ces scènes. Une voix off (fichier audio) peut être ajoutée : la musique est alors baissée sous la voix et le tout normalisé à −14 LUFS.
+
+```bash
+node tools/ad-music.mjs --out musique.wav
+node tools/ad-video.mjs --music musique.wav --voice voix.wav --out pipvoria-ad.mp4
+```
+
+Le texte de la voix off pour chaque scène est dans `SCENES` (`tools/ad-video.mjs`).
+
 ## Vidéo de présentation du site pour TikTok
 
 `tools/promo-video.mjs` crée une vidéo verticale 1080×1920 de 24 s qui présente Pipvoria : accroche, capture réelle de la page d’accueil défilant dans un téléphone, les trois fonctionnalités, le plan de trade (BUY/SELL, entrée, stop loss, TP1–TP3) puis le tarif de 49 USD / 30 jours avec l’adresse du site. Les textes reprennent ceux de la page d’accueil, sans chiffre de performance inventé.

@@ -9,6 +9,8 @@ if(url.pathname==='/api/stream'){res.writeHead(200,{'content-type':'text/event-s
 if(url.pathname==='/api'){const route=url.searchParams.get('route');let data={};if(req.method==='POST'){let text='';for await(const chunk of req)text+=chunk;data=JSON.parse(text||'{}')}
  if(route==='auth/sign-in'||route==='auth/sign-up'){signedIn=true;return json({user:{id:'11111111-1111-4111-8111-111111111111',name:'Vérification',email:'fixture@example.invalid',isAdmin}})}
  if(route==='auth/recover')return json({sent:true});
+ if(route==='auth/providers')return json({google:true});
+ if(route==='auth/magic-link')return json({sent:true});
  if(!signedIn&&!route.startsWith('auth/'))return json({error:'authentication_required'},401);
  requests.push(route);
  if(route==='billing/access'&&isAdmin)return json({active:true,exempt:true,paidUntil:null,checkedAt:new Date().toISOString()});

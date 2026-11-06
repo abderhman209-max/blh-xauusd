@@ -384,7 +384,8 @@ select option{background:#11151f;color:#e9ebf2}
       <input type="email" value="{{ email }}" sc-camel-on-change="{{ onEmail }}" placeholder="vous@exemple.com" style="background:#0a0d16;border:1px solid #232a3b;border-radius:10px;padding:13px 14px;color:#e9ebf2;font-size:15px;outline:none">
     </label>
     <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#8d93a8">Mot de passe
-      <input type="password" value="{{ password }}" sc-camel-on-change="{{ onPassword }}" placeholder="12 caractères minimum à l’inscription" style="background:#0a0d16;border:1px solid #232a3b;border-radius:10px;padding:13px 14px;color:#e9ebf2;font-size:15px;outline:none">
+      <span class="pv-password"><input type="{{ passwordType }}" value="{{ password }}" sc-camel-on-change="{{ onPassword }}" sc-camel-on-key-up="{{ onPasswordKey }}" autocomplete="current-password" placeholder="12 caractères minimum à l’inscription" style="background:#0a0d16;border:1px solid #232a3b;border-radius:10px;padding:13px 14px;color:#e9ebf2;font-size:15px;outline:none"><button type="button" class="pv-password-toggle" aria-label="{{ passwordToggleLabel }}" title="{{ passwordToggleLabel }}" sc-camel-on-click="{{ togglePassword }}">{{ passwordToggleIcon }}</button></span>
+      <sc-if value="{{ capsLock }}"><span class="pv-capslock" role="status">⇪ Majuscules activées (Verr. Maj)</span></sc-if>
     </label>
     <sc-if value="{{ need2fa }}" hint-placeholder-val="{{ false }}">
       <label style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#8d93a8">Code de double authentification
@@ -396,6 +397,8 @@ select option{background:#11151f;color:#e9ebf2}
       <div style="font-size:13px;color:#f2707a">{{ authError }}</div>
     </sc-if>
     <button sc-camel-on-click="{{ submitAuth }}" disabled="{{ authBusy }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:12px;padding:14px;font-weight:600;font-size:15px;cursor:pointer">{{ authCta }}</button><button class="terminal-quiet" sc-camel-on-click="{{ forgotPassword }}">Mot de passe oublié ?</button><sc-if value="{{ logoutPending }}"><button class="terminal-button" sc-camel-on-click="{{ retryLogout }}">Réessayer la déconnexion</button></sc-if>
+    <sc-if value="{{ loginMode }}"><button type="button" class="pv-auth-alt" sc-camel-on-click="{{ sendMagicLink }}" disabled="{{ authBusy }}">✉ Recevoir un lien de connexion par e-mail</button></sc-if>
+    <sc-if value="{{ googleEnabled }}"><button type="button" class="pv-auth-alt pv-auth-google" sc-camel-on-click="{{ googleSignIn }}"><span aria-hidden="true">G</span> Continuer avec Google</button></sc-if>
     <div style="font-size:12px;color:#6b7186;line-height:1.5;text-align:center">Un seul appareil connecté à la fois. Session sécurisée.</div>
   </div>
   </sc-if>
@@ -912,11 +915,12 @@ select option{background:#11151f;color:#e9ebf2}
       <div style="font-size:14px;color:#c4c8d6;line-height:1.5">{{ securityInfo }}</div>
       <sc-if value="{{ tfaSetup }}" hint-placeholder-val="{{ false }}">
         <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-          <div role="img" aria-label="QR code 2FA" style="width:120px;height:120px;flex:none;border-radius:10px;border:6px solid #fff;background:#fff url({{ tfaQr }}) center/contain no-repeat"></div>
+          <img src="{{ tfaQr }}" alt="QR code de double authentification" width="132" height="132" style="flex:none;border-radius:10px;border:6px solid #fff;background:#fff">
           <div style="display:flex;flex-direction:column;gap:6px;min-width:0;flex:1"><div style="font-size:12px;color:#8d93a8">Clé secrète</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;overflow-wrap:anywhere">{{ tfaSecret }}</div></div>
         </div>
         <div style="display:flex;gap:8px"><input value="{{ tfaCode }}" sc-camel-on-change="{{ onTfaCode }}" inputmode="numeric" maxlength="6" placeholder="Code à 6 chiffres" style="flex:1;min-width:0;background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-size:13px;outline:none;font-family:'JetBrains Mono',monospace;letter-spacing:0.2em"><button sc-camel-on-click="{{ verifyTfa }}" style="background:#9d8cff;color:#0a0d16;border:0;border-radius:9px;padding:0 16px;font-weight:600;font-size:13px;cursor:pointer">Vérifier</button></div>
       </sc-if>
+      <sc-if value="{{ tfaDisabling }}"><div style="display:flex;gap:8px"><input value="{{ tfaCode }}" sc-camel-on-change="{{ onTfaCode }}" inputmode="numeric" maxlength="6" placeholder="Code actuel à 6 chiffres" style="flex:1;min-width:0;background:#0a0d16;border:1px solid #232a3b;border-radius:9px;padding:10px;color:#e9ebf2;font-size:13px;outline:none;font-family:'JetBrains Mono',monospace;letter-spacing:0.2em"><button sc-camel-on-click="{{ verifyTfa }}" style="background:#f2707a;color:#0a0d16;border:0;border-radius:9px;padding:0 16px;font-weight:600;font-size:13px;cursor:pointer">Désactiver</button></div></sc-if>
       <sc-if value="{{ tfaBackupShow }}" hint-placeholder-val="{{ false }}">
         <div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:12px;color:#8d93a8">Codes de secours — conservez-les en lieu sûr</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;font-family:'JetBrains Mono',monospace;font-size:12px"><sc-for list="{{ tfaBackup }}" as="b" hint-placeholder-count="8"><div style="background:#0a0d16;border:1px solid #232a3b;border-radius:6px;padding:6px;text-align:center">{{ b }}</div></sc-for></div></div>
       </sc-if>

@@ -170,6 +170,21 @@ function validatedSessionId(token, user) {
   throw new Error('session_replaced');
 }
 
+// Claims of a token Supabase already validated; never used to authenticate on its own.
+function tokenClaims(token) {
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(payload), c => c.charCodeAt(0))));
+  } catch { return {}; }
+}
+function verifiedTotp(user) {
+  return (user?.factors || []).find(f => f.factor_type === 'totp' && f.status === 'verified') || null;
+}
+// An account with a verified authenticator only gets a usable session after the code (assurance level aal2).
+function mfaPending(user, token) {
+  return !!verifiedTotp(user) && tokenClaims(token).aal !== 'aal2';
+}
+
 async function sessionControl(action, token, user) {
   const sessionId = validatedSessionId(token, user);
   try {
@@ -190,9 +205,14 @@ async function enforceSession(action, token, user) {
 }
 
 const requestSessions=new WeakMap();
-function currentSession(request) {
+function anySession(request) {
   if(!requestSessions.has(request))requestSessions.set(request,resolveSession(request));
   return requestSessions.get(request);
+}
+// Every protected route sees no session until the second factor is verified.
+async function currentSession(request) {
+  const session = await anySession(request);
+  return session && !session.mfaPending ? session : null;
 }
 async function resolveSession(request) {
   const values = cookies(request);
@@ -201,7 +221,7 @@ async function resolveSession(request) {
   let user = await userForToken(accessToken);
   if (user) {
     await enforceSession('active', accessToken, user);
-    return { user, accessToken, refreshed: null };
+    return { user, accessToken, refreshed: null, mfaPending: mfaPending(user, accessToken) };
   }
   if (!refreshToken) return null;
 
@@ -213,7 +233,7 @@ async function resolveSession(request) {
   const session = await response.json();
   user = session.user || (await userForToken(session.access_token));
   if (user) await enforceSession('active', session.access_token, user);
-  return user ? { user, accessToken: session.access_token, refreshed: session } : null;
+  return user ? { user, accessToken: session.access_token, refreshed: session, mfaPending: mfaPending(user, session.access_token) } : null;
 }
 
 function publicUser(user) {
@@ -222,6 +242,7 @@ function publicUser(user) {
     email: user.email,
     name: user.user_metadata?.full_name || user.email?.split("@")[0] || "BLH",
     isAdmin: user.app_metadata?.role === "super_admin",
+    mfaEnabled: !!verifiedTotp(user),
   };
 }
 
@@ -568,7 +589,97 @@ async function signIn(request) {
   }
   const session = await response.json();
   await enforceSession('claim', session.access_token, session.user);
+  if (mfaPending(session.user, session.access_token)) return new Response(JSON.stringify({ mfaRequired: true }), { status: 200, headers: sessionHeaders(session) });
   return new Response(JSON.stringify({ user: publicUser(session.user) }), { status: 200, headers: sessionHeaders(session) });
+}
+
+// Challenge then verify a TOTP factor with the caller's token; Supabase returns an upgraded (aal2) session.
+async function verifyTotp(accessToken, factorId, code) {
+  if (typeof code !== 'string' || !/^\d{6}$/.test(code)) return { error: 'invalid_code', status: 400 };
+  const auth = { authorization: `Bearer ${accessToken}` };
+  const challenge = await supabase(`/factors/${encodeURIComponent(factorId)}/challenge`, { method: 'POST', headers: auth, body: '{}' });
+  if (!challenge.ok) return { error: challenge.status === 429 ? 'request_rate_limit' : 'mfa_unavailable', status: challenge.status === 429 ? 429 : 503 };
+  const { id } = await challenge.json();
+  const verified = await supabase(`/factors/${encodeURIComponent(factorId)}/verify`, { method: 'POST', headers: auth, body: JSON.stringify({ challenge_id: id, code }) });
+  if (!verified.ok) return { error: verified.status === 429 ? 'request_rate_limit' : 'invalid_code', status: verified.status === 429 ? 429 : 401 };
+  return { session: await verified.json() };
+}
+
+async function mfaVerify(request) {
+  const session = await anySession(request);
+  if (!session) return json({ error: 'authentication_required' }, 401);
+  const factor = verifiedTotp(session.user);
+  if (!factor) return json({ error: 'mfa_not_enabled' }, 400);
+  const data = await body(request);
+  const result = await verifyTotp(session.accessToken, factor.id, data.code);
+  if (result.error) return json({ error: result.error }, result.status);
+  const user = result.session.user || session.user;
+  await enforceSession('claim', result.session.access_token, user);
+  return new Response(JSON.stringify({ user: publicUser(user) }), { status: 200, headers: sessionHeaders(result.session) });
+}
+
+// Start enrolment: unverified factors left by an abandoned attempt are removed first (Supabase caps them).
+async function mfaEnroll(request) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: 'authentication_required' }, 401);
+  if (verifiedTotp(session.user)) return json({ error: 'mfa_already_enabled' }, 409);
+  const auth = { authorization: `Bearer ${session.accessToken}` };
+  for (const factor of session.user.factors || []) if (factor.status !== 'verified') await supabase(`/factors/${encodeURIComponent(factor.id)}`, { method: 'DELETE', headers: auth }).catch(() => {});
+  const response = await supabase('/factors', { method: 'POST', headers: auth, body: JSON.stringify({ factor_type: 'totp', friendly_name: 'Pipvoria ' + Date.now().toString(36), issuer: 'Pipvoria' }) });
+  if (!response.ok) return json({ error: response.status === 422 ? 'mfa_disabled' : 'mfa_unavailable' }, 503);
+  const factor = await response.json();
+  if (typeof factor.totp?.qr_code !== 'string' || !factor.totp.qr_code.startsWith('data:image/svg+xml')) return json({ error: 'mfa_unavailable' }, 503);
+  return sessionJson({ factorId: factor.id, qrCode: factor.totp.qr_code, secret: factor.totp.secret }, 200, session);
+}
+
+async function mfaActivate(request) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: 'authentication_required' }, 401);
+  const data = await body(request);
+  if (typeof data.factorId !== 'string' || !uuid(data.factorId)) return json({ error: 'invalid_code' }, 400);
+  const result = await verifyTotp(session.accessToken, data.factorId, data.code);
+  if (result.error) return json({ error: result.error }, result.status);
+  const user = result.session.user || await userForToken(result.session.access_token) || session.user;
+  await enforceSession('claim', result.session.access_token, user);
+  return new Response(JSON.stringify({ user: publicUser(user) }), { status: 200, headers: sessionHeaders(result.session) });
+}
+
+// Turning the factor off needs a fresh code, so a stolen open session cannot remove it.
+async function mfaDisable(request) {
+  const session = await currentSession(request);
+  if (!session) return json({ error: 'authentication_required' }, 401);
+  const factor = verifiedTotp(session.user);
+  if (!factor) return json({ error: 'mfa_not_enabled' }, 400);
+  const data = await body(request);
+  const result = await verifyTotp(session.accessToken, factor.id, data.code);
+  if (result.error) return json({ error: result.error }, result.status);
+  const removed = await supabase(`/factors/${encodeURIComponent(factor.id)}`, { method: 'DELETE', headers: { authorization: `Bearer ${result.session.access_token}` } });
+  if (!removed.ok) return json({ error: 'mfa_unavailable' }, 503);
+  const refreshed = await supabase('/token?grant_type=refresh_token', { method: 'POST', body: JSON.stringify({ refresh_token: result.session.refresh_token }) });
+  const next = refreshed.ok ? await refreshed.json() : result.session;
+  return new Response(JSON.stringify({ user: { ...publicUser(next.user || session.user), mfaEnabled: false } }), { status: 200, headers: sessionHeaders(next) });
+}
+
+// Passwordless sign-in for existing accounts: Supabase emails a one-time link back to this site.
+async function magicLink(request) {
+  const data = await body(request);
+  if (!validEmail(data.email)) return json({ error: 'invalid_email' }, 400);
+  const redirectTo = `${new URL(request.url).origin}/`;
+  const response = await supabase(`/otp?redirect_to=${encodeURIComponent(redirectTo)}`, {
+    method: 'POST', body: JSON.stringify({ email: data.email.trim().toLowerCase(), create_user: false }),
+  });
+  if (!response.ok && response.status === 429) return json({ error: 'email_rate_limit' }, 429);
+  // Unknown addresses get the same answer, so the form cannot be used to list accounts.
+  return json({ sent: true });
+}
+
+let providerCache = null;
+async function authProviders() {
+  if (providerCache && Date.now() - providerCache.at < 600000) return providerCache.value;
+  const response = await supabase('/settings').catch(() => null);
+  const settings = response?.ok ? await response.json() : {};
+  providerCache = { at: Date.now(), value: { google: settings.external?.google === true } };
+  return providerCache.value;
 }
 
 async function signUp(request) {
@@ -639,6 +750,7 @@ async function importSession(request) {
   const session = await response.json();
   if (!session.user || session.user.id !== user.id) return json({ error: "invalid_session" }, 401);
   await enforceSession('claim', session.access_token, session.user);
+  if (mfaPending(session.user, session.access_token)) return new Response(JSON.stringify({ mfaRequired: true }), { status: 200, headers: sessionHeaders(session) });
   return new Response(JSON.stringify({ user: publicUser(session.user) }), { status: 200, headers: sessionHeaders(session) });
 }
 
@@ -948,7 +1060,16 @@ export default async function handler(request) {
       const action = ticketRoute[2] === 'tickets' ? 'list' : ticketRoute[3];
       if (request.method === (['list','messages'].includes(action) ? 'GET' : 'POST')) return await handleTickets(request,url,!!ticketRoute[1],action);
     }
+    if (route === "auth/providers" && request.method === "GET") return json(await authProviders());
+    if (route === "auth/google" && request.method === "GET") {
+      if (!(await authProviders()).google) return json({ error: "provider_disabled" }, 404);
+      const { url: base } = env();
+      const target = `${base}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(`${url.origin}/`)}`;
+      return new Response(null, { status: 302, headers: { location: target, "cache-control": "no-store" } });
+    }
     if (route === "auth/session" && request.method === "GET") {
+      const pending = await anySession(request);
+      if (pending?.mfaPending) return json({ user: null, mfaRequired: true }, 401);
       const session = await currentSession(request);
       if (!session) return json({ user: null }, 401);
       const headers = session.refreshed ? sessionHeaders(session.refreshed) : JSON_HEADERS;
@@ -958,6 +1079,11 @@ export default async function handler(request) {
     if (route === "auth/sign-in") return await signIn(request);
     if (route === "auth/sign-up") return await signUp(request);
     if (route === "auth/recover") return await recover(request);
+    if (route === "auth/magic-link") return await magicLink(request);
+    if (route === "auth/mfa-verify") return await mfaVerify(request);
+    if (route === "auth/mfa-enroll") return await mfaEnroll(request);
+    if (route === "auth/mfa-activate") return await mfaActivate(request);
+    if (route === "auth/mfa-disable") return await mfaDisable(request);
     if (route === "auth/import-session") return await importSession(request);
     if (route === "auth/update-password") return await updatePassword(request);
     if (route === "auth/sign-out") return await signOut(request);

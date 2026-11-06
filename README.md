@@ -56,6 +56,10 @@ La variable `TWELVEDATA_API_KEY` est facultative. Sans elle, le serveur tente sa
 
 L’accès utilise Supabase Auth avec e-mail et mot de passe. Les sessions sont conservées dans des cookies `HttpOnly`, `Secure` et `SameSite=Lax`. La connexion, l’inscription, la confirmation d’e-mail et la réinitialisation de mot de passe sont séparées. L’interface est disponible en français, anglais, espagnol et arabe (RTL).
 
+Connexion : mot de passe (bouton pour l’afficher, alerte majuscules), lien de connexion par e-mail pour les comptes existants (`auth/magic-link`, jamais de création de compte ni d’indication sur l’existence d’une adresse), et « Continuer avec Google » dès que le fournisseur Google est activé dans Supabase Auth (`auth/providers`, `auth/google`). Ces deux voies passent par `auth/import-session` et gardent la validation du super admin et la session unique.
+
+Double authentification (TOTP, Supabase MFA) : Profil → Sécurité → « Activer la double authentification » affiche un QR code ; le premier code l’active. Ensuite, la connexion par mot de passe, lien ou Google ne donne qu’une session limitée (aal1) : toutes les routes protégées la refusent jusqu’au code (`auth/mfa-verify`, session aal2). La désactiver exige un code valide. En cas de téléphone perdu, le facteur se supprime depuis le tableau de bord Supabase (Authentication → Users).
+
 Les données de marché sont refusées sans session valide. Les tables applicatives utilisent RLS : chaque utilisateur peut uniquement lire et modifier son propre journal, ses notifications et ses préférences.
 
 ## Base de données

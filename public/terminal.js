@@ -14,6 +14,7 @@ class Terminal extends OriginalTerminal {
   marketSerial=0; settingsSerial=0; journalDrafts=new Map(); pendingMessages=new Map();
   liveFeedGeneration=0;liveProduct=null;cryptoPaintT=null;paintLive=null;historyStartedAt=0;marketPending=false;
   quoteCadenceMs=1000;
+  tfa={busy:false,code:'',msg:''};providers=null;
   automatic=null;automaticBusy=false;automaticSerial=0;automaticAbort=null;automaticStage="";automaticNextAt=0;automaticError='';
   access=null;accessGeneration=0;accessSerial=0;paidStarted=null;
   signalTracker=PIPVORIA_CORE.tracker();
@@ -33,7 +34,7 @@ class Terminal extends OriginalTerminal {
     this.priceT=setInterval(()=>this.tickPrice(),this.quoteCadenceMs);
     this.supportT=setInterval(()=>{if(this.session.user&&this.state.appTab==='support'&&!document.hidden)this.loadTickets(true);},15000);
     this.adminT=setInterval(()=>{if(this.session.user?.isAdmin&&this.state.appTab==='admin'&&!document.hidden&&!this.adminBusy)this.loadAdmin();},15000);
-    this.publicRoute();this.restore();
+    this.publicRoute();this.restore();this.loadAuthProviders();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
     // Android/desktop Chrome offer installation through this event; iPhone needs the Share menu instead.
     window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();this.installPrompt=event;this.forceUpdate();});
@@ -56,10 +57,11 @@ class Terminal extends OriginalTerminal {
   async restore(){try{
     const hash=new URLSearchParams(location.hash.slice(1));
     if(hash.has('access_token')){history.replaceState(null,'',location.pathname);const data=await this.session.request('auth/import-session',{publicRequest:true,body:{accessToken:hash.get('access_token'),refreshToken:hash.get('refresh_token')}});
+      if(data.mfaRequired){this.askSecondFactor();return;}
       this.session.accept(data.user);if(hash.get('type')==='recovery'){this.setState({screen:'auth',authMode:'reset',authBusy:false,authError:'',password:''});return;}await this.unlock(data.user);return;}
     if(this.session.pendingLogout){await this.logout();return;}
     const user=await this.session.restore();if(user)await this.unlock(user);else this.setState({authError:'',authBusy:false});
-  }catch(error){if(this.showApprovalError(error))return;this.setState({authBusy:false,authError:error.status===401?'':this.session.pendingLogout?'La déconnexion reste à confirmer. Réessayez.':'Session indisponible. Actualisez pour réessayer.'});}}
+  }catch(error){if(error.result?.mfaRequired){this.askSecondFactor();return;}if(this.showApprovalError(error))return;this.setState({authBusy:false,authError:error.status===401?'':this.session.pendingLogout?'La déconnexion reste à confirmer. Réessayez.':'Session indisponible. Actualisez pour réessayer.'});}}
   showApprovalError(error){if(!['account_pending','account_rejected'].includes(error?.message))return false;this.setState({screen:'auth',authBusy:false,password:'',authError:'',approvalStatus:error.message==='account_pending'?'pending':'rejected',approvalEmailConfirmation:false});return true;}
   async checkSession(){if(!this.session.user||document.hidden||this.checking)return;this.checking=true;try{await this.session.request('auth/session');if(this.session.user)await this.refreshAccess();}catch{}finally{this.checking=false;}}
   hasPaidAccess(){return !!this.session?.user&&this.access?.active===true&&this.access.deadline>Date.now();}
@@ -101,6 +103,7 @@ class Terminal extends OriginalTerminal {
     if(!this.hasPaidAccess()&&!['profile','support','admin'].includes(this.state.appTab))this.navigate('access');
   }
   async submitAuth(){if(this.state.authBusy||this.session.pendingLogout)return;
+    if(this.state.need2fa&&this.state.authMode==='login')return this.submitSecondFactor();
     const s=this.state,reset=s.authMode==='reset',recover=s.authMode==='recover';
     if(!reset&&!/^\S+@\S+\.\S+$/.test(s.email))return this.setState({authError:'Adresse e-mail invalide.'});
     if(!recover&&(s.password.length<(s.authMode==='signup'||reset?12:1)))return this.setState({authError:'Le mot de passe doit contenir au moins 12 caractères.'});
@@ -111,8 +114,37 @@ class Terminal extends OriginalTerminal {
       if(data.approvalRequired){this.setState({screen:'auth',approvalStatus:'pending',approvalEmailConfirmation:data.confirmationRequired===true,authError:'',authBusy:false,password:''});return;}
       if(recover||data.confirmationRequired){this.setState({authError:recover?'Si ce compte existe, un lien de récupération a été envoyé.':'Vérifiez votre e-mail pour confirmer votre compte.',authBusy:false,password:''});return;}
       if(reset){this.setState({authMode:'login',password:'',authBusy:false,authError:'Mot de passe mis à jour. Reconnectez-vous.'});return;}
+      if(data.mfaRequired){this.askSecondFactor();return;}
       if(!this.session.accept(data.user))throw Error('authentication_required');await this.unlock(data.user);
-    }catch(error){if(this.showApprovalError(error))return;const messages={invalid_credentials:'Adresse e-mail ou mot de passe incorrect.',email_not_confirmed:'Confirmez d’abord votre adresse e-mail avec le lien reçu.',account_disabled:'Ce compte est suspendu.',account_exists:'Ce compte existe déjà.',weak_password:'Choisissez un mot de passe plus fort.',rate_limit:'Trop de tentatives. Réessayez plus tard.',session_registry_not_configured:'Connexion temporairement indisponible.'};this.setState({authBusy:false,authError:messages[error.message]||'Impossible de valider la demande. Réessayez.'});}}
+    }catch(error){if(this.showApprovalError(error))return;const messages={invalid_credentials:'Adresse e-mail ou mot de passe incorrect.',email_not_confirmed:'Confirmez d’abord votre adresse e-mail avec le lien reçu.',account_disabled:'Ce compte est suspendu.',account_exists:'Ce compte existe déjà.',weak_password:'Choisissez un mot de passe plus fort.',rate_limit:'Trop de tentatives. Réessayez plus tard.',request_rate_limit:'Trop de tentatives. Réessayez plus tard.',session_registry_not_configured:'Connexion temporairement indisponible.'};this.setState({authBusy:false,authError:messages[error.message]||'Impossible de valider la demande. Réessayez.'});}}
+  // Password accepted, authenticator code still required: the server holds a limited (aal1) session meanwhile.
+  askSecondFactor(){this.setState({screen:'auth',authMode:'login',need2fa:true,tfaLogin:'',password:'',authBusy:false,authError:'Saisissez le code à 6 chiffres de votre application d’authentification.'});}
+  async submitSecondFactor(){const code=String(this.state.tfaLogin||'').replace(/\s/g,'');
+    if(!/^\d{6}$/.test(code))return this.setState({authError:'Le code contient 6 chiffres.'});
+    this.setState({authBusy:true,authError:''});
+    try{const data=await this.session.request('auth/mfa-verify',{publicRequest:true,body:{code}});this.setState({need2fa:false,tfaLogin:''});
+      if(!this.session.accept(data.user))throw Error('authentication_required');await this.unlock(data.user);}
+    catch(error){if(this.showApprovalError(error))return;this.setState({authBusy:false,tfaLogin:'',authError:error.message==='invalid_code'?'Code incorrect ou expiré. Réessayez avec le nouveau code.':error.message==='request_rate_limit'?'Trop de tentatives. Patientez une minute.':error.status===401?'Session expirée. Reconnectez-vous.':'Vérification indisponible. Réessayez.',...(error.status===401&&error.message!=='invalid_code'?{need2fa:false}:{})});}}
+  async sendMagicLink(){const email=this.state.email.trim();if(!/^\S+@\S+\.\S+$/.test(email))return this.setState({authError:'Saisissez d’abord votre adresse e-mail.'});
+    this.setState({authBusy:true,authError:''});
+    try{await this.session.request('auth/magic-link',{publicRequest:true,body:{email}});this.setState({authBusy:false,authError:'Si un compte existe pour cette adresse, un lien de connexion vient d’être envoyé. Ouvrez-le sur cet appareil.'});}
+    catch(error){this.setState({authBusy:false,authError:error.message==='email_rate_limit'?'Trop d’e-mails envoyés. Réessayez dans une minute.':'Envoi impossible pour le moment. Réessayez.'});}}
+  async loadAuthProviders(){try{this.providers=await this.session.request('auth/providers',{publicRequest:true});this.forceUpdate();}catch{this.providers={};}}
+  // Authenticator enrolment from the profile: QR code, then a first code to activate; turning it off needs a code too.
+  async toggleTfa(){const t=this.tfa;if(t.busy)return;
+    if(this.session.user?.mfaEnabled){this.tfa={...t,disabling:!t.disabling,setup:null,code:'',msg:''};this.forceUpdate();return;}
+    if(t.setup){this.tfa={busy:false,code:'',msg:''};this.forceUpdate();return;}
+    this.tfa={...t,busy:true,msg:''};this.forceUpdate();
+    try{const data=await this.session.request('auth/mfa-enroll',{body:{}});this.tfa={setup:data,code:'',msg:'Scannez le QR code avec Google Authenticator, Authy ou 1Password, puis saisissez le code affiché.',ok:true,busy:false};}
+    catch(error){this.tfa={busy:false,code:'',msg:error.message==='mfa_disabled'?'La 2FA n’est pas activée sur le serveur d’authentification.':'Activation indisponible pour le moment. Réessayez.',ok:false};}
+    this.forceUpdate();}
+  async verifyTfa(){const t=this.tfa,code=String(t.code||'').replace(/\s/g,'');if(t.busy)return;
+    if(!/^\d{6}$/.test(code)){this.tfa={...t,msg:'Le code contient 6 chiffres.',ok:false};this.forceUpdate();return;}
+    this.tfa={...t,busy:true};this.forceUpdate();
+    try{if(t.disabling){const data=await this.session.request('auth/mfa-disable',{body:{code}});this.session.user.mfaEnabled=!!data.user?.mfaEnabled;this.tfa={busy:false,code:'',msg:'Double authentification désactivée.',ok:true};}
+      else{const data=await this.session.request('auth/mfa-activate',{body:{factorId:t.setup.factorId,code}});this.session.user.mfaEnabled=data.user?.mfaEnabled!==false;this.tfa={busy:false,code:'',msg:'Double authentification activée : le code sera demandé à chaque connexion.',ok:true};}}
+    catch(error){this.tfa={...t,busy:false,code:'',msg:error.message==='invalid_code'?'Code incorrect ou expiré. Réessayez avec le nouveau code.':'Vérification indisponible. Réessayez.',ok:false};}
+    this.forceUpdate();}
   async logout(){window.BLH_AUTH={authenticated:false,user:null};try{await this.session.signOut();this.go('landing');this.setState({authBusy:false,authError:''});}catch{this.setState({screen:'auth',authBusy:false,authError:'Déconnexion non confirmée. L’accès reste bloqué. Réessayez.'});}}
   route(route){const map={signals:'trader',performance:'journal',weekly:'journal',news:'calendar',calendar:'calendar',history:'history',support:'support',settings:'profile',access:'access',positions:'positions',profile:'profile',journal:'journal',admin:'admin'};
     let tab=map[route]||'trader';if(!['profile','support','admin'].includes(tab)&&!this.hasPaidAccess())tab='access';if(tab==='admin'&&!this.session.user?.isAdmin)tab='profile';if(tab==='access'&&this.hasPaidAccess())tab='trader';this.setState({appTab:tab});if(tab==='admin'&&this.session.user?.isAdmin)this.loadAdmin();}
@@ -435,7 +467,10 @@ class Terminal extends OriginalTerminal {
     const goal=Number(this.ex.set.goalR)||null;
     Object.assign(v,{authFormVisible:!s.approvalStatus,waitingApproval:!!s.approvalStatus,approvalTitle:s.approvalStatus==='rejected'?'Demande refusée':'Compte en attente de validation',approvalMessage:s.approvalStatus==='rejected'?'Votre demande a été refusée par l’administrateur. L’accès au terminal reste bloqué.':'Votre demande apparaît dans le dashboard super admin. Vous pourrez vous connecter après son acceptation.',approvalEmailConfirmation:s.approvalEmailConfirmation,backToLogin:()=>this.openAuth('login'),isLanding:s.screen==='landing',goLanding:()=>this.go('landing'),goLogin:()=>this.openAuth('login'),goSignup:()=>this.openAuth('signup'),landingError:s.authBusy?'':s.authError});
     const chosen=s.resultsOf==='blh'?this.perf:s.resultsOf==='ms'?this.msPerf:s.resultsOf==='planner'?this.plannerPerf:this.paPerf;
-    Object.assign(v,{authBusy:s.authBusy,isAuth:s.screen==='auth',isSignup:s.authMode==='signup',authTitle:s.authMode==='recover'?'Réinitialiser le mot de passe':s.authMode==='reset'?'Nouveau mot de passe':s.authMode==='signup'?'Créer votre compte':'Bon retour',authCta:s.authBusy?'Vérification…':s.authMode==='recover'?'Envoyer le lien':s.authMode==='reset'?'Mettre à jour':s.authMode==='signup'?'Créer le compte':'Se connecter',submitAuth:()=>this.submitAuth(),forgotPassword:()=>this.setState({authMode:'recover',authError:'',password:''}),recoverMode:s.authMode==='recover',logoutPending:this.session?.pendingLogout,retryLogout:()=>this.logout(),financeUnavailable:true,supportUnavailable:this.sup.configured!==true||this.sup.admin===true,supportBusy:this.sup.busy,cannotRegisterPlan:!this.model?.plan||s.demo||!!this.rp,
+    Object.assign(v,{authBusy:s.authBusy,isAuth:s.screen==='auth',isSignup:s.authMode==='signup',authTitle:s.authMode==='recover'?'Réinitialiser le mot de passe':s.authMode==='reset'?'Nouveau mot de passe':s.authMode==='signup'?'Créer votre compte':'Bon retour',authCta:s.authBusy?'Vérification…':s.authMode==='recover'?'Envoyer le lien':s.authMode==='reset'?'Mettre à jour':s.authMode==='signup'?'Créer le compte':'Se connecter',submitAuth:()=>this.submitAuth(),need2fa:!!s.need2fa&&s.authMode==='login',tfaLogin:s.tfaLogin||'',onTfaLogin:e=>this.setState({tfaLogin:e.target.value}),
+      passwordType:s.showPassword?'text':'password',togglePassword:()=>this.setState({showPassword:!s.showPassword}),passwordToggleLabel:s.showPassword?'Masquer le mot de passe':'Afficher le mot de passe',passwordToggleIcon:s.showPassword?'🙈':'👁',
+      capsLock:!!s.capsLock,onPasswordKey:e=>{const on=!!e.getModifierState?.('CapsLock');if(on!==!!s.capsLock)this.setState({capsLock:on});},
+      loginMode:s.authMode==='login'&&!s.need2fa,sendMagicLink:()=>this.sendMagicLink(),googleEnabled:s.authMode!=='recover'&&s.authMode!=='reset'&&!s.need2fa&&this.providers?.google===true,googleSignIn:()=>{location.href='/api?route=auth/google';},forgotPassword:()=>this.setState({authMode:'recover',authError:'',password:''}),recoverMode:s.authMode==='recover',logoutPending:this.session?.pendingLogout,retryLogout:()=>this.logout(),financeUnavailable:true,supportUnavailable:this.sup.configured!==true||this.sup.admin===true,supportBusy:this.sup.busy,cannotRegisterPlan:!this.model?.plan||s.demo||!!this.rp,
       mobileToolHint:this.rp?'Replay : avancez bougie par bougie.':s.tool==='cursor'?'Glissez horizontalement pour parcourir. Boutons + / − pour zoomer.':s.tool==='hline'?'Touchez le graphique pour placer une ligne.':s.tool==='text'?'Touchez le graphique pour ajouter du texte.':'Touchez deux points du graphique pour tracer.',mobileResultsOpen:s.mobileResultsOpen,mobileResultsLabel:s.mobileResultsOpen?'Réduire':'Afficher',toggleMobileResults:()=>this.setState({mobileResultsOpen:!s.mobileResultsOpen}),mobileSecondaryActive:['calendar','history'].includes(s.appTab),goCalendar:()=>this.navigate('calendar'),goHistory:()=>this.navigate('history'),supportDetailVisible:this.sup.composing||this.sup.tickets.some(t=>t.id===this.sup.cur),notice:s.notice,clearNotice:()=>notice(''),retryFeed:()=>this.load(),refreshWorkspace:()=>this.loadWorkspace(),retrySettings:()=>{this.settingsReady?this.queueSettings():this.loadSettings();},
       accountBadge:user?(user.isAdmin?'SUPER ADMIN':this.hasPaidAccess()?'ABONNÉ':this.access?.status==='error'?'ACCÈS À VÉRIFIER':'ABONNEMENT REQUIS'):'CONNEXION',isAdminUser:user?.isAdmin===true,
       goProfile:()=>this.navigate('profile'),goAdmin:()=>this.navigate('admin'),backProfile:()=>this.navigate('profile'),logout:()=>this.logout(),displayEmail:user?.email||s.email,displayName:user?.name||s.name,
@@ -464,7 +499,9 @@ class Terminal extends OriginalTerminal {
       calendarLabel:'Horaires dans '+tz+' · calendrier vérifié le 2 octobre 2026',calendar:(this.capabilities?.calendar||[]).filter(e=>Date.parse(e.at)>=Date.now()-86400000).map(e=>({day:new Date(e.at).toLocaleDateString('fr-FR',{timeZone:tz,dateStyle:'full'}),events:[{time:new Date(e.at).toLocaleTimeString('fr-FR',{timeZone:tz,hour:'2-digit',minute:'2-digit'}),ccy:'USD',name:e.name,fc:'—',prev:'—',impact:'#f0b45b',url:e.url,source:e.source}]})),
       showExpiry:false,showRenewal:user?.isAdmin!==true,renewDate:user?.isAdmin?'Non requise (super admin)':this.billing?.paidUntil?this.fmtT(Date.parse(this.billing.paidUntil)):'Aucun abonnement payé',paidWith:user?.isAdmin?'Accès gratuit':this.billing?.orders?.some(o=>o.status==='paid')?'PayerURL':'Aucun paiement enregistré',goPayment:()=>window.PipvoriaPayments?.open(this),planPrice:'49 USD',promoOn:false,promoMsg:'Codes promotionnels indisponibles.',promo:'',onPromo:()=>{},applyPromo:pending('Codes promotionnels'),startTrial:()=>window.PipvoriaPayments?.open(this),
       refLink:'Parrainage non activé',refCopyLabel:'Indisponible',copyRef:pending('Parrainage'),refWallet:'',onRefWallet:()=>{},withdrawRef:pending('Retraits'),refStats:[{label:'Filleuls',value:'—',color:'#8d93a8'},{label:'Commission',value:'—',color:'#8d93a8'},{label:'Retiré',value:'—',color:'#8d93a8'}],invoices:[],
-      securityInfo:'Session sécurisée sur le serveur. Une seule connexion active par compte. La 2FA nécessite l’activation du service dédié.',tfaBadge:'Session sécurisée',tfaBadgeBg:'#0f2620',tfaBadgeColor:'#3fd2a4',tfaSetup:false,tfaBackupShow:false,tfaMsg:'',tfaBtn:'Demander l’activation de la 2FA',toggleTfa:()=>this.navigate('support'),
+      securityInfo:this.session?.user?.mfaEnabled?'Double authentification active : un code de votre application est demandé à chaque connexion. Une seule connexion active par compte.':'Session sécurisée sur le serveur. Une seule connexion active par compte. Ajoutez la double authentification pour protéger votre compte même si votre mot de passe fuit.',
+      tfaBadge:this.session?.user?.mfaEnabled?'2FA active':'Session sécurisée',tfaBadgeBg:'#0f2620',tfaBadgeColor:'#3fd2a4',tfaSetup:!!this.tfa.setup,tfaQr:this.tfa.setup?.qrCode||'',tfaSecret:this.tfa.setup?.secret||'',tfaCode:this.tfa.code||'',onTfaCode:e=>{this.tfa.code=e.target.value;},verifyTfa:()=>this.verifyTfa(),tfaDisabling:!!this.tfa.disabling,
+      tfaBackupShow:false,tfaMsg:this.tfa.msg||'',tfaMsgColor:this.tfa.ok?'#3fd2a4':'#f2707a',tfaBtn:this.tfa.busy?'…':this.session?.user?.mfaEnabled?(this.tfa.disabling?'Annuler':'Désactiver la 2FA'):this.tfa.setup?'Annuler':'Activer la double authentification',toggleTfa:()=>this.toggleTfa(),
       undoSettings:()=>{const old=this.ex.undo.pop();if(old){this.ex.set=old;this.queueSettings();this.setBars(this.state.bars);}},
       exportSettings:()=>this.download('pipvoria-reglages.json',JSON.stringify(this.captureSettings(),null,2),'application/json'),importSettings:()=>this.importSettings(),
       adminPendingCount:this.ex.users.filter(u=>u.approvalStatus==='pending').length,adminMenuLabel:'Super admin'+(this.ex.users.some(u=>u.approvalStatus==='pending')?' · '+this.ex.users.filter(u=>u.approvalStatus==='pending').length+' en attente':''),adminLoading:this.adminLoading,adminActionsDisabled:!!this.adminBusy||!!this.adminLoading,adminError:this.adminError||'',

@@ -357,3 +357,23 @@ test('the install button uses the browser prompt, explains iPhone installation a
  v=iphone.renderVals();assert.equal(v.installVisible,true);await v.installApp();assert.match(iphone.renderVals().installHelp,/Sur l’écran d’accueil/);
  const installed=terminalApp(undefined,{matchMedia:()=>({matches:true})});installed.installPrompt={};assert.equal(installed.renderVals().installVisible,false);
 });
+test('login asks for the authenticator code, and the profile enrols and removes the second factor',async()=>{
+ const app=terminalApp();const routes=[];let unlocked=null;app.unlock=async u=>{unlocked=u;};
+ app.session={epoch:1,user:{id:'paid-fixture'},accept:u=>{app.session.user=u;return true;},request:async(route,o)=>{routes.push(route);
+  if(route==='auth/sign-in')return {mfaRequired:true};
+  if(route==='auth/mfa-verify'){if(o.body.code!=='123456')throw Object.assign(Error('invalid_code'),{status:401});return {user:{id:'u',mfaEnabled:true}};}
+  if(route==='auth/mfa-enroll')return {factorId:'f',qrCode:'data:image/svg+xml;utf-8,<svg/>',secret:'ABC'};
+  if(route==='auth/mfa-activate')return {user:{mfaEnabled:true}};
+  if(route==='auth/mfa-disable')return {user:{mfaEnabled:false}};
+  if(route==='auth/magic-link')return {sent:true};return {};}};
+ Object.assign(app.state,{screen:'auth',authMode:'login',email:'a@b.co',password:'secret',authBusy:false});
+ await app.submitAuth();let v=app.renderVals();assert.equal(v.need2fa,true);assert.equal(v.loginMode,false);assert.match(v.authError ?? app.state.authError,/6 chiffres/);
+ app.setState({tfaLogin:'000000'});await app.submitAuth();assert.match(app.state.authError,/incorrect/);assert.equal(unlocked,null);
+ app.setState({tfaLogin:'123 456'});await app.submitAuth();assert.equal(unlocked.mfaEnabled,true);assert.equal(app.state.need2fa,false);
+ assert.deepEqual(routes,['auth/sign-in','auth/mfa-verify','auth/mfa-verify']);
+ app.setState({authMode:'login',need2fa:false});v=app.renderVals();assert.equal(v.loginMode,true);await v.sendMagicLink();assert.match(app.state.authError,/lien de connexion/);
+ assert.equal(v.passwordType,'password');v.togglePassword();assert.equal(app.renderVals().passwordType,'text');
+ app.session.user={id:'u',mfaEnabled:false};await app.toggleTfa();v=app.renderVals();assert.equal(v.tfaSetup,true);assert.equal(v.tfaSecret,'ABC');
+ v.onTfaCode({target:{value:'123456'}});await app.verifyTfa();v=app.renderVals();assert.equal(v.tfaBadge,'2FA active');assert.equal(v.tfaSetup,false);
+ await app.toggleTfa();assert.equal(app.renderVals().tfaDisabling,true);app.tfa.code='123456';await app.verifyTfa();assert.equal(app.renderVals().tfaBadge,'Session sécurisée');
+});

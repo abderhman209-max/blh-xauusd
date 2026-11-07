@@ -335,9 +335,9 @@ async function main() {
     if (values.music) inputs.push('-i', path.resolve(values.music));
     if (values.voice) inputs.push('-i', path.resolve(values.voice));
     const m = values.music ? 1 : null, v = values.voice ? (values.music ? 2 : 1) : null;
-    if (m && v) filters.push(`[${v}:a]aformat=channel_layouts=stereo,asplit=2[vo][sc]`, `[${m}:a]aformat=channel_layouts=stereo,volume=0.55[mu]`, `[mu][sc]sidechaincompress=threshold=0.04:ratio=6:attack=20:release=300[duck]`, `[duck][vo]amix=inputs=2:duration=first:normalize=0[mix]`);
+    if (m && v) filters.push(`[${v}:a]aformat=channel_layouts=stereo,asplit=2[vo][sc]`, `[${m}:a]aformat=channel_layouts=stereo,volume=0.42[mu]`, `[mu][sc]sidechaincompress=threshold=0.03:ratio=8:attack=15:release=350[duck]`, `[duck][vo]amix=inputs=2:duration=first:normalize=0[mix]`);
     else filters.push(`[${m || v}:a]aformat=channel_layouts=stereo[mix]`);
-    filters.push(`[mix]apad,atrim=0:${DURATION},afade=t=out:st=${DURATION - 0.8}:d=0.8,loudnorm=I=-14:TP=-1.5:LRA=9[a]`);
+    filters.push(`[mix]apad,atrim=0:${DURATION},afade=t=out:st=${DURATION - 0.3}:d=0.3,loudnorm=I=-14:TP=-1.5:LRA=9[a]`);
     await run('ffmpeg', ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', filters.join(';'), '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-shortest', '-movflags', '+faststart', out]);
   }
   console.log('Vidéo créée : ' + out);

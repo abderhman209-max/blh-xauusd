@@ -246,6 +246,22 @@ function publicUser(user) {
   };
 }
 
+// Bookmap: the CME feed worker is reached only from here, with the shared secret, and only for the super admin
+// (Databento's standard CME licence covers personal use, not display to subscribers).
+async function bookmapProxy(request, url, action) {
+  const auth = await requireSuperAdmin(request);
+  if (auth.error) return auth.error;
+  const base = process.env.BOOKMAP_URL, secret = process.env.BOOKMAP_SECRET;
+  if (!base || !secret || !/^https:\/\//.test(base)) return json({ error: "bookmap_not_configured" }, 503);
+  const target = new URL(action === "stream" ? "/stream" : "/history", base);
+  target.searchParams.set("since", String(Math.max(0, Math.floor(Number(url.searchParams.get("since")) || 0))));
+  try {
+    const upstream = await fetch(target, { redirect: "manual", signal: request.signal, headers: { "x-bookmap-secret": secret, accept: action === "stream" ? "text/event-stream" : "application/json" } });
+    if (!upstream.ok || !upstream.body) return json({ error: "bookmap_unavailable" }, 503);
+    return new Response(upstream.body, { status: 200, headers: { "content-type": action === "stream" ? "text/event-stream; charset=utf-8" : "application/json", "cache-control": "no-store", "x-content-type-options": "nosniff" } });
+  } catch { return json({ error: "bookmap_unavailable" }, 503); }
+}
+
 async function requireSuperAdmin(request) {
   const session = await currentSession(request);
   if (!session) return { error: json({ error: "authentication_required" }, 401) };
@@ -1061,6 +1077,7 @@ export default async function handler(request) {
       if (request.method === (['list','messages'].includes(action) ? 'GET' : 'POST')) return await handleTickets(request,url,!!ticketRoute[1],action);
     }
     if (route === "auth/providers" && request.method === "GET") return json(await authProviders());
+    if ((route === "bookmap/stream" || route === "bookmap/history") && request.method === "GET" && sameOrigin(request)) return await bookmapProxy(request, url, route.slice(8));
     if (route === "auth/google" && request.method === "GET") {
       if (!(await authProviders()).google) return json({ error: "provider_disabled" }, 404);
       const { url: base } = env();

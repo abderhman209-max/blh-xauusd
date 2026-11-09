@@ -30,6 +30,15 @@ if(url.pathname==='/api'){const route=url.searchParams.get('route');let data={};
   const events=[{type:'stage',stage:'market',label:'Récupération des bougies synthétiques'},{type:'stage',stage:'model',label:'Réponse IA simulée pour le test'},aiMode==='error'?{type:'error',error:'analysis_unavailable'}:{type:'result',result}];
   res.writeHead(200,{'content-type':'application/x-ndjson','cache-control':'no-store'});res.end(events.map(e=>JSON.stringify(e)).join('\n')+'\n');return;
  }
+ if(route==='bookmap/stream'){
+  // Synthetic CME-like depth for rendering checks only: a slow drift with heavier liquidity every dollar.
+  res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-store'});res.write('event: status\ndata: {"connected":true,"last_record_age_s":0.2,"contract":"GCZ6 (synthétique)","symbol":"GC.v.0"}\n\n');
+  let i=0,t=Date.now()-120*500;const frame=()=>{const mid=4000+Math.sin(i/40)*1.5,b=Math.round(mid*10)/10;i++;t+=500;
+   const lv=k=>Math.round((5+(Math.abs((b-k/10)%1)<0.05?40:0)+((i+k)%7))*1);
+   return {t,bids:Array.from({length:10},(_,k)=>[+(b-k/10).toFixed(1),lv(k)]),asks:Array.from({length:10},(_,k)=>[+(b+0.1+k/10).toFixed(1),lv(-k-1)]),trades:i%3?[]:[[+(b+(i%2?0.1:0)).toFixed(1),1+i%9,i%2?'buy':'sell']],last:b};};
+  for(let k=0;k<120;k++)res.write('data: '+JSON.stringify(frame())+'\n\n');
+  const timer=setInterval(()=>res.write('data: '+JSON.stringify(frame())+'\n\n'),500);req.on('close',()=>clearInterval(timer));return;
+ }
  if(route==='push/config')return json({configured:true,publicKey:'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U',watch:null});
  if(route==='push/watch')return json({watch:data.enabled===false?null:{symbol:data.symbol,interval:data.interval,last_run_at:null}});
  if(route==='analysis/stats'){

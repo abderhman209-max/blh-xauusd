@@ -777,6 +777,13 @@ select option{background:#11151f;color:#e9ebf2}
       </div></sc-if>
     </section>
     </sc-if>
+    <sc-if value="{{ isAdminUser }}">
+    <section class="pv-bookmap" data-trader-block="bookmap" aria-labelledby="pv-bookmap-title">
+      <div class="pv-ai-results-heading"><h2 id="pv-bookmap-title">Bookmap · Or (CME GC)</h2><span id="pv-bookmap-status" class="pv-bookmap-status" role="status">Connexion au flux CME…</span></div>
+      <canvas id="pv-bookmap-canvas" class="pv-bookmap-canvas" aria-label="Carte de liquidité du carnet d’ordres de l’or : niveaux de prix dans le temps, transactions en bulles"></canvas>
+      <p class="pv-bookmap-note">Carnet CME (10 niveaux de chaque côté) : plus la couleur est claire, plus la liquidité en attente est forte. Bulles vertes = achats agressifs, rouges = ventes agressives. Molette : zoom sur les prix. Réservé au super administrateur (licence Databento personnelle).</p>
+    </section>
+    </sc-if>
   </div>
   </sc-if>
 
@@ -1197,6 +1204,7 @@ select option{background:#11151f;color:#e9ebf2}
 <script src="/blh-clean.js"></script>
 
 <script src="/pa-liquidity.js"></script>
+<script src="/bookmap.js"></script>
 <script src="/heatmap.js"></script>
 <script src="/indicator-performance.js"></script>
 <script src="/terminal-original.js"></script>

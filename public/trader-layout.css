@@ -3,6 +3,7 @@
 .terminal-trader > [data-trader-block="results"]{order:2}
 .terminal-trader > [data-trader-block="bot"]{order:3}
 .terminal-trader > [data-trader-block="performance"]{order:4}
+.terminal-trader > [data-trader-block="bookmap"]{order:5}
 .terminal-trader .terminal-chart-layout{display:flex;flex-direction:column!important;min-width:0}
 .terminal-trader .terminal-chart-card{order:0!important;flex:none!important;width:100%}
 .terminal-trader .terminal-results-card{flex:none!important;width:100%;max-width:none!important}
